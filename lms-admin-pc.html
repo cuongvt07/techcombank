@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMS Admin PC</title>
+  <style>
+    :root {
+      --red: #e60012;
+      --red-dark: #b9000e;
+      --black: #05070a;
+      --ink: #141821;
+      --muted: #6b7280;
+      --line: #e4e7ee;
+      --soft: #f4f6f9;
+      --card: #ffffff;
+      --green: #17a34a;
+      --amber: #d97706;
+      --shadow: 0 18px 38px rgba(10, 12, 18, .09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(135deg, #f8f9fb, #eceff5);
+    }
+
+    .page {
+      width: min(1600px, calc(100% - 32px));
+      margin: 24px auto;
+    }
+
+    .intro {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .desc {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .chip {
+      min-height: 32px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #333946;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(10, 12, 18, .05);
+    }
+
+    .shell {
+      overflow: hidden;
+      border: 1px solid #d7dbe5;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 268px minmax(0, 1fr);
+      min-height: 860px;
+      background: var(--soft);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      padding: 22px 14px;
+      background: linear-gradient(180deg, #030407, #101318);
+      color: #fff;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 8px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, .12);
+      font-size: 19px;
+      font-weight: 950;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: var(--red);
+      color: #fff;
+      font-weight: 950;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      margin: 16px 10px 6px;
+      color: rgba(255, 255, 255, .44);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 42px;
+      padding: 0 12px;
+      border-radius: 4px;
+      color: rgba(255, 255, 255, .78);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .nav-item.active {
+      color: #fff;
+      background: linear-gradient(90deg, var(--red), var(--red-dark));
+      box-shadow: 0 10px 24px rgba(230, 0, 18, .3);
+    }
+
+    .ico {
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .admin-card {
+      margin-top: auto;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .admin-card strong,
+    .admin-card span {
+      display: block;
+    }
+
+    .admin-card span {
+      margin-top: 4px;
+      color: rgba(255, 255, 255, .58);
+      font-size: 12px;
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 520px) 1fr auto;
+      align-items: center;
+      gap: 16px;
+      min-height: 72px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .94);
+    }
+
+    .search {
+      height: 42px;
+      padding: 0 14px;
+      border: 1px solid #d8dde7;
+      border-radius: 4px;
+      color: #8a92a3;
+      background: #fff;
+      font-size: 14px;
+      line-height: 42px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+      color: #222733;
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--red);
+      border-radius: 4px;
+      background: var(--red);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 10px 20px rgba(230, 0, 18, .2);
+    }
+
+    .btn.secondary {
+      background: #fff;
+      color: var(--red);
+      box-shadow: none;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .content-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    .content-head h2 {
+      margin: 0 0 4px;
+      font-size: 24px;
+    }
+
+    .content-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 10px;
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .metric.warn small {
+      color: var(--amber);
+    }
+
+    .metric.danger small {
+      color: var(--red);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(360px, .75fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 58px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-head h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .mini-link {
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      height: 44px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      color: #747b8b;
+      background: #fafbfc;
+      text-align: left;
+      font-size: 11px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    td {
+      height: 58px;
+      padding: 0 14px;
+      border-bottom: 1px solid #eef0f4;
+      color: #242936;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 850;
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #fff1f2;
+      color: var(--red);
+      font-weight: 950;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #f1f3f7;
+      color: #3c4350;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .tag.red {
+      background: #fff1f2;
+      color: var(--red);
+    }
+
+    .tag.green {
+      background: #ecfdf3;
+      color: var(--green);
+    }
+
+    .tag.amber {
+      background: #fff7ed;
+      color: var(--amber);
+    }
+
+    .right-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr repeat(4, 62px);
+      gap: 0;
+      padding: 14px;
+      font-size: 12px;
+    }
+
+    .role-grid div {
+      min-height: 38px;
+      padding: 10px 8px;
+      border-bottom: 1px solid #edf0f4;
+    }
+
+    .role-grid .head {
+      color: #747b8b;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .check {
+      text-align: center;
+      color: var(--red);
+      font-weight: 950;
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 58px;
+      padding: 10px;
+      border: 1px solid #edf0f4;
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .step-no {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 4px;
+      background: #fff1f2;
+      color: var(--red);
+      font-weight: 950;
+    }
+
+    .step strong,
+    .step span {
+      display: block;
+    }
+
+    .step span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .mini-panel {
+      min-height: 220px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 40px;
+      gap: 12px;
+      align-items: center;
+      color: #373d49;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #eef1f5;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--red);
+    }
+
+    .ticket {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .ticket-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      padding: 0 12px;
+      border: 1px solid #edf0f4;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    @media (max-width: 1180px) {
+      .shell {
+        overflow-x: auto;
+      }
+
+      .app {
+        width: 1180px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <div>
+        <p class="eyebrow">Admin PC concept</p>
+        <h1>LMS Admin Dashboard</h1>
+        <p class="desc">Bản phác thảo dành cho Super Admin, Quản lý đào tạo và HR: ưu tiên bảng dữ liệu, phân quyền, cấu hình bài giảng, bài kiểm tra, báo cáo tiến độ và xử lý hỗ trợ.</p>
+      </div>
+      <div class="chips">
+        <span class="chip">Sidebar → bảng → form</span>
+        <span class="chip">Bo góc 2-4px</span>
+        <span class="chip">Đỏ - Đen - Trắng</span>
+      </div>
+    </header>
+
+    <section class="shell">
+      <div class="app">
+        <aside class="sidebar">
+          <div class="brand"><span class="logo">L</span><span>LMS Admin</span></div>
+          <nav class="nav">
+            <div class="nav-title">Tổng quan</div>
+            <div class="nav-item active"><span class="ico">01</span>Dashboard</div>
+            <div class="nav-item"><span class="ico">02</span>Tài khoản</div>
+            <div class="nav-item"><span class="ico">03</span>Nhân sự & hợp đồng</div>
+            <div class="nav-item"><span class="ico">04</span>Phân quyền</div>
+            <div class="nav-title">Đào tạo</div>
+            <div class="nav-item"><span class="ico">05</span>Tài liệu & bài giảng</div>
+            <div class="nav-item"><span class="ico">06</span>Bài kiểm tra</div>
+            <div class="nav-item"><span class="ico">07</span>Lộ trình onboarding</div>
+            <div class="nav-title">Vận hành</div>
+            <div class="nav-item"><span class="ico">08</span>Báo cáo</div>
+            <div class="nav-item"><span class="ico">09</span>Phiếu hỗ trợ</div>
+            <div class="nav-item"><span class="ico">10</span>Cấu hình Chat AI</div>
+          </nav>
+          <div class="admin-card">
+            <strong>Trần Mai Anh</strong>
+            <span>Quản lý đào tạo · Hội sở</span>
+          </div>
+        </aside>
+
+        <section class="main">
+          <header class="topbar">
+            <div class="search">Tìm nhân viên, khóa học, mã hợp đồng, phiếu hỗ trợ...</div>
+            <div></div>
+            <div class="actions">
+              <a class="btn secondary" href="#">Xuất báo cáo</a>
+              <a class="btn" href="#">+ Tạo khóa học</a>
+            </div>
+          </header>
+
+          <div class="content">
+            <div class="content-head">
+              <div>
+                <h2>Tổng quan đào tạo toàn công ty</h2>
+                <p>Theo dõi tiến độ bắt buộc, trạng thái onboarding và mức độ hoàn thành bài kiểm tra.</p>
+              </div>
+              <div class="actions">
+                <span class="tag">Tháng 08/2026</span>
+                <span class="tag red">Có 12 cảnh báo</span>
+              </div>
+            </div>
+
+            <div class="metrics">
+              <div class="metric"><span>Nhân viên hoạt động</span><strong>2,486</strong><small>+8.2% tháng này</small></div>
+              <div class="metric"><span>Khóa học bắt buộc</span><strong>42</strong><small>18 khóa đang chạy</small></div>
+              <div class="metric warn"><span>Chưa hoàn thành</span><strong>318</strong><small>Cần nhắc hạn</small></div>
+              <div class="metric danger"><span>Phiếu quá hạn</span><strong>27</strong><small>Ưu tiên xử lý</small></div>
+            </div>
+
+            <div class="grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>Danh sách nhân viên cần theo dõi</h3>
+                  <span class="mini-link">Xem toàn bộ</span>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nhân viên</th>
+                      <th>Phòng ban</th>
+                      <th>Lộ trình</th>
+                      <th>Tiến độ</th>
+                      <th>Bài test</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><div class="user"><span class="avatar">M</span>Nguyễn Văn Minh</div></td>
+                      <td>KH cá nhân</td>
+                      <td>An toàn thông tin</td>
+                      <td>72%</td>
+                      <td>80%</td>
+                      <td><span class="tag amber">Đang học</span></td>
+                    </tr>
+                    <tr>
+                      <td><div class="user"><span class="avatar">L</span>Lê Thu Hà</div></td>
+                      <td>Vận hành</td>
+                      <td>Onboarding nhân viên mới</td>
+                      <td>94%</td>
+                      <td>92%</td>
+                      <td><span class="tag green">Đạt</span></td>
+                    </tr>
+                    <tr>
+                      <td><div class="user"><span class="avatar">P</span>Phạm Quốc Huy</div></td>
+                      <td>Tín dụng</td>
+                      <td>Phòng chống rửa tiền</td>
+                      <td>48%</td>
+                      <td>Chưa làm</td>
+                      <td><span class="tag red">Sắp quá hạn</span></td>
+                    </tr>
+                    <tr>
+                      <td><div class="user"><span class="avatar">A</span>Đỗ Minh Anh</div></td>
+                      <td>HR</td>
+                      <td>Chính sách nội bộ</td>
+                      <td>100%</td>
+                      <td>88%</td>
+                      <td><span class="tag green">Hoàn thành</span></td>
+                    </tr>
+                    <tr>
+                      <td><div class="user"><span class="avatar">T</span>Trần Gia Bảo</div></td>
+                      <td>IT</td>
+                      <td>Bảo mật dữ liệu</td>
+                      <td>35%</td>
+                      <td>Chưa làm</td>
+                      <td><span class="tag red">Quá hạn</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <aside class="right-stack">
+                <div class="panel">
+                  <div class="panel-head">
+                    <h3>Ma trận phân quyền</h3>
+                    <span class="mini-link">Chỉnh sửa</span>
+                  </div>
+                  <div class="role-grid">
+                    <div></div><div class="head">SA</div><div class="head">QL</div><div class="head">HR</div><div class="head">NV</div>
+                    <div>Quản lý tài khoản</div><div class="check">✓</div><div class="check">✓</div><div class="check">✓</div><div></div>
+                    <div>Thông tin nhân sự</div><div class="check">✓</div><div></div><div class="check">✓</div><div class="check">✓</div>
+                    <div>Cấu hình bài giảng</div><div class="check">✓</div><div class="check">✓</div><div></div><div></div>
+                    <div>Báo cáo toàn công ty</div><div class="check">✓</div><div class="check">✓</div><div></div><div></div>
+                    <div>Học & làm bài test</div><div></div><div></div><div></div><div class="check">✓</div>
+                  </div>
+                </div>
+
+                <div class="panel">
+                  <div class="panel-head">
+                    <h3>Onboarding tự động</h3>
+                    <span class="mini-link">Cấu hình</span>
+                  </div>
+                  <div class="pipeline">
+                    <div class="step"><span class="step-no">1</span><div><strong>Tạo tài khoản</strong><span>Đồng bộ thông tin HR</span></div><span class="tag green">Tự động</span></div>
+                    <div class="step"><span class="step-no">2</span><div><strong>Gán lộ trình</strong><span>Theo phòng ban và chức danh</span></div><span class="tag green">Tự động</span></div>
+                    <div class="step"><span class="step-no">3</span><div><strong>Nhắc hạn học</strong><span>Email, thông báo trong hệ thống</span></div><span class="tag amber">Theo lịch</span></div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div class="bottom-grid">
+              <div class="mini-panel">
+                <div class="panel-head" style="padding:0;border:0;min-height:auto">
+                  <h3>Tỷ lệ hoàn thành theo phòng ban</h3>
+                </div>
+                <div class="bar-list">
+                  <div class="bar-row"><span>KH cá nhân</span><div class="bar"><span style="width:78%"></span></div><strong>78%</strong></div>
+                  <div class="bar-row"><span>Vận hành</span><div class="bar"><span style="width:92%"></span></div><strong>92%</strong></div>
+                  <div class="bar-row"><span>Tín dụng</span><div class="bar"><span style="width:64%"></span></div><strong>64%</strong></div>
+                  <div class="bar-row"><span>IT</span><div class="bar"><span style="width:81%"></span></div><strong>81%</strong></div>
+                </div>
+              </div>
+
+              <div class="mini-panel">
+                <div class="panel-head" style="padding:0;border:0;min-height:auto">
+                  <h3>Cấu hình bài kiểm tra</h3>
+                  <span class="mini-link">+ Thêm câu hỏi</span>
+                </div>
+                <div class="ticket">
+                  <div class="ticket-row"><span>An toàn thông tin</span><span class="tag green">10 câu</span></div>
+                  <div class="ticket-row"><span>Phòng chống rửa tiền</span><span class="tag amber">15 câu</span></div>
+                  <div class="ticket-row"><span>Chính sách nội bộ</span><span class="tag">8 câu</span></div>
+                </div>
+              </div>
+
+              <div class="mini-panel">
+                <div class="panel-head" style="padding:0;border:0;min-height:auto">
+                  <h3>Phiếu hỗ trợ mới</h3>
+                  <span class="mini-link">Xem SLA</span>
+                </div>
+                <div class="ticket">
+                  <div class="ticket-row"><span>#FT-2024-0156</span><span class="tag amber">Đang xử lý</span></div>
+                  <div class="ticket-row"><span>#FT-2024-0157</span><span class="tag red">Quá hạn</span></div>
+                  <div class="ticket-row"><span>#FT-2024-0158</span><span class="tag green">Đã tiếp nhận</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

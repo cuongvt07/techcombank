@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Component dùng chung, khai báo một lần theo token ở tailwind.config.js.
+ * Spec mục 6.4: sự thiếu nhất quán giữa các màn hình là nguyên nhân chính khiến
+ * một admin panel trông như ghép từ nhiều mẫu — nên bo góc, viền, khoảng cách
+ * phải lấy từ đây thay vì chỉnh tay ở từng view.
+ */
+@layer components {
+
+    /* ============ SITE QUẢN TRỊ — sắc cạnh, mật độ cao ============ */
+
+    .admin-panel {
+        @apply rounded-admin border border-brand-line bg-white;
+    }
+
+    .admin-panel-head {
+        @apply flex min-h-[58px] items-center justify-between gap-3 border-b border-brand-line px-4;
+    }
+
+    .admin-panel-head h3 {
+        @apply text-[17px] font-bold;
+    }
+
+    /* Nút hành động chính: khối chữ nhật, bo rất nhẹ, nền đặc.
+       Không dùng pill — dạng đó tạo cảm giác tiêu dùng, sai bối cảnh nghiệp vụ. */
+    .admin-btn {
+        @apply inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 whitespace-nowrap
+               rounded-admin border border-brand-red bg-brand-red px-3.5 text-[13px] font-semibold
+               leading-none text-white transition-colors hover:bg-brand-red-dark focus:outline-none
+               focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-1;
+    }
+
+    .admin-btn-secondary {
+        @apply inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 whitespace-nowrap
+               rounded-admin border border-brand-line bg-white px-3.5 text-[13px] font-semibold
+               leading-none text-brand-ink transition-colors hover:bg-brand-soft focus:outline-none
+               focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-1;
+    }
+
+    .admin-input {
+        @apply h-[42px] w-full rounded-admin border border-brand-line bg-white px-3.5 text-sm
+               text-brand-ink placeholder:text-brand-muted focus:border-brand-red focus:outline-none
+               focus:ring-1 focus:ring-brand-red;
+    }
+
+    .admin-label {
+        @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-muted;
+    }
+
+    /* Bảng dữ liệu — trọng tâm của mọi màn hình vận hành */
+    .admin-table {
+        @apply w-full border-collapse text-[13px];
+    }
+
+    .admin-table th {
+        @apply h-11 border-b border-brand-line bg-[#fafbfc] px-3.5 text-left text-[11px]
+               font-semibold uppercase tracking-wide text-brand-muted;
+    }
+
+    .admin-table td {
+        @apply h-[58px] border-b border-[#eef0f4] px-3.5 text-brand-ink;
+    }
+
+    .admin-table tbody tr:last-child td {
+        @apply border-b-0;
+    }
+
+    .admin-table tbody tr {
+        @apply transition-colors hover:bg-brand-soft;
+    }
+
+    /* Mục điều hướng đang chọn: viền đỏ mỏng bên trái — "chữ ký" tối giản ở spec 6.4 */
+    .admin-nav-item {
+        @apply flex min-h-[42px] items-center gap-3 whitespace-nowrap rounded-admin border-l-2
+               border-transparent px-3 text-sm font-medium text-white/[.78] transition-colors
+               hover:bg-white/5 hover:text-white;
+    }
+
+    .admin-nav-item-active {
+        @apply border-l-brand-red bg-white/[.08] font-semibold text-white;
+    }
+
+    /* ============ SITE NGƯỜI DÙNG — mềm mại, thoáng ============ */
+
+    .user-card {
+        @apply rounded-user-md border border-brand-line bg-white shadow-user-sm;
+    }
+
+    .user-btn {
+        @apply inline-flex min-h-[46px] items-center justify-center gap-2 whitespace-nowrap
+               rounded-user-md bg-brand-red px-5 text-sm font-semibold leading-none text-white
+               transition-colors hover:bg-brand-red-dark focus:outline-none focus-visible:ring-2
+               focus-visible:ring-brand-red focus-visible:ring-offset-2;
+    }
+
+    .user-btn-secondary {
+        @apply inline-flex min-h-[46px] items-center justify-center gap-2 whitespace-nowrap
+               rounded-user-md border border-brand-line bg-white px-5 text-sm font-semibold
+               leading-none text-brand-ink transition-colors hover:bg-brand-soft focus:outline-none
+               focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-2;
+    }
+
+    /* Tag/filter phụ dùng được pill — tạo cảm giác mời gọi (spec 6.5) */
+    .user-pill {
+        @apply inline-flex min-h-[32px] shrink-0 items-center whitespace-nowrap rounded-user-pill
+               bg-brand-soft px-3.5 text-xs font-medium text-brand-ink;
+    }
+
+    /* ============ Dùng chung ============ */
+
+    .tag {
+        @apply inline-flex min-h-[24px] shrink-0 items-center whitespace-nowrap rounded-user-pill
+               bg-[#f1f3f7] px-2 text-xs font-medium text-[#3c4350];
+    }
+
+    .tag-red {
+        @apply bg-brand-red-tint text-brand-red;
+    }
+
+    .tag-green {
+        @apply bg-state-success-tint text-state-success;
+    }
+
+    .tag-amber {
+        @apply bg-state-warning-tint text-state-warning;
+    }
+
+    /* Thanh tiến độ: dùng ở cả hai site, chỉ khác độ bo */
+    .progress-track {
+        @apply h-2 overflow-hidden rounded-user-pill bg-[#eef1f5];
+    }
+
+    .progress-fill {
+        @apply h-full rounded-inherit bg-brand-red transition-[width] duration-500;
+    }
+}
+
+@layer utilities {
+    .rounded-inherit {
+        border-radius: inherit;
+    }
+}
+
+/* Ẩn phần tử Alpine trước khi Alpine khởi tạo, tránh nháy modal khi tải trang */
+[x-cloak] {
+    display: none !important;
+}

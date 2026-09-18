@@ -1,0 +1,9 @@
+{
+  "name": "LMS Techcombank",
+  "short_name": "LMS",
+  "start_url": "/hoc-tap/khoa-hoc",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e60012",
+  "lang": "vi"
+}

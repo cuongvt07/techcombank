@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Biểu tượng Techcombank: hai hình thoi lồng nhau.
+     Trích từ logo đầy đủ, dịch về gốc toạ độ (gốc: x 322.98–406). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 83.02 55.35">
+  <g fill="#ec1c24" transform="translate(-322.98 0)">
+    <polygon points="378.33 0 364.5 13.82 364.5 13.86 378.33 27.68 364.5 41.5 364.5 41.53 378.33 55.35 406 27.68 378.33 0"/>
+    <polygon points="350.66 0 364.47 13.82 364.47 13.86 350.66 27.68 364.47 41.5 364.47 41.53 350.66 55.35 322.98 27.68 350.66 0"/>
+  </g>
+</svg>
