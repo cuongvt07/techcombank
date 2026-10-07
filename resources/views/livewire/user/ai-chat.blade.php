@@ -84,7 +84,7 @@
                 @foreach ($messages as $i => $message)
                     @if ($message['role'] === 'user')
                         <div class="flex justify-end" wire:key="msg-{{ $i }}">
-                            <p class="max-w-[85%] whitespace-pre-line rounded-user-md bg-brand-red px-3 py-2 text-[13px] leading-relaxed text-white">
+                            <p class="data-wrap max-w-[85%] whitespace-pre-line rounded-user-md bg-brand-red px-3 py-2 text-[13px] leading-relaxed text-white">
                                 {{ $message['content'] }}
                             </p>
                         </div>
@@ -96,7 +96,7 @@
                                     Escape trước rồi mới đổi ** thành <strong>, nên nội
                                     dung do model sinh ra không thể chèn HTML vào trang.
                                 --}}
-                                <div class="whitespace-pre-line rounded-user-md bg-brand-soft px-3 py-2 text-[13px] leading-relaxed">
+                                <div class="data-wrap whitespace-pre-line rounded-user-md bg-brand-soft px-3 py-2 text-[13px] leading-relaxed">
                                     {!! preg_replace(
                                         '/\*\*(.+?)\*\*/s',
                                         '<strong>$1</strong>',

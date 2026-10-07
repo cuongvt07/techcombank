@@ -180,7 +180,7 @@
                         @switch($currentLesson->content_type)
                             @case('text')
                                 {{-- Nội dung do quản trị viên soạn, không phải người dùng nhập --}}
-                                <div class="prose-sm max-w-none leading-relaxed [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:font-bold [&_li]:mb-1 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5">
+                                <div class="data-wrap prose-sm max-w-none leading-relaxed [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:font-bold [&_li]:mb-1 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5">
                                     {!! $currentLesson->content_html !!}
                                 </div>
                                 @break

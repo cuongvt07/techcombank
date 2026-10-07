@@ -7,6 +7,7 @@
     <title>@yield('title', 'Quản trị') — {{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('brand/logo-mark.svg') }}" type="image/svg+xml">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="{{ asset('css/layout-overflow-fix.css') }}">
     @livewireStyles
 </head>
 <body class="h-full bg-brand-soft font-sans text-brand-ink antialiased">

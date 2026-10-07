@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    /*
+     * Dữ liệu nghiệp vụ có thể chứa mã, email, URL hoặc chuỗi không có dấu
+     * cách. Cho phép phần tử flex/grid co lại và buộc các chuỗi này xuống dòng
+     * thay vì đẩy rộng layout ra ngoài khung chứa.
+     */
+    *,
+    *::before,
+    *::after {
+        min-width: 0;
+    }
+
+    body {
+        overflow-x: hidden;
+        overflow-wrap: anywhere;
+    }
+
+    img,
+    svg,
+    video,
+    canvas,
+    iframe {
+        max-width: 100%;
+    }
+
+    input,
+    textarea,
+    select {
+        max-width: 100%;
+    }
+
+    pre,
+    code {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+}
+
 /*
  * Component dùng chung, khai báo một lần theo token ở tailwind.config.js.
  * Spec mục 6.4: sự thiếu nhất quán giữa các màn hình là nguyên nhân chính khiến
@@ -52,16 +90,62 @@
 
     /* Bảng dữ liệu — trọng tâm của mọi màn hình vận hành */
     .admin-table {
-        @apply w-full border-collapse text-[13px];
+        @apply w-full table-fixed border-collapse text-[13px];
     }
 
     .admin-table th {
         @apply h-11 border-b border-brand-line bg-[#fafbfc] px-3.5 text-left text-[11px]
                font-semibold uppercase tracking-wide text-brand-muted;
+        overflow-wrap: anywhere;
     }
 
     .admin-table td {
         @apply h-[58px] border-b border-[#eef0f4] px-3.5 text-brand-ink;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        vertical-align: top;
+    }
+
+    /* Dùng cho nội dung lấy trực tiếp từ database/API trong card, modal và bài học. */
+    .data-wrap {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .data-wrap img,
+    .data-wrap video,
+    .data-wrap iframe {
+        max-width: 100%;
+    }
+
+    .data-wrap pre,
+    .data-wrap table {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .data-wrap table {
+        display: block;
+    }
+
+    /* Chỉ dùng cho dữ liệu có cấu trúc rộng như bảng hoặc JSON. */
+    .data-scroll {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .admin-table .tag,
+    .admin-table .user-pill,
+    .tag,
+    .user-pill {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        text-align: center;
     }
 
     .admin-table tbody tr:last-child td {
