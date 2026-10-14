@@ -190,6 +190,12 @@ class DocumentAccessService
             }
         }
 
+        $gradeIds = $employee->jobGrades()->pluck('job_grades.id')->all();
+        if ($employee->job_grade_id) {
+            $gradeIds[] = $employee->job_grade_id;
+        }
+        $gradeIds = array_values(array_unique(array_map('intval', $gradeIds)));
+
         return $query->where('is_active', true)
             ->where(function (Builder $q) use ($employee, $departmentIds) {
                 $q->whereNull('department_id')->orWhereIn('department_id', array_filter($departmentIds));
@@ -197,8 +203,8 @@ class DocumentAccessService
             ->where(function (Builder $q) use ($employee) {
                 $q->whereNull('job_title_id')->orWhere('job_title_id', $employee->job_title_id);
             })
-            ->where(function (Builder $q) use ($employee) {
-                $q->whereNull('job_grade_id')->orWhere('job_grade_id', $employee->job_grade_id);
+            ->where(function (Builder $q) use ($gradeIds) {
+                $q->whereNull('job_grade_id')->orWhereIn('job_grade_id', $gradeIds);
             })
             ->where(function (Builder $q) use ($employee) {
                 $q->whereNull('min_grade_level')

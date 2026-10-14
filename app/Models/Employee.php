@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -75,6 +76,26 @@ class Employee extends Model
     public function jobGrade(): BelongsTo
     {
         return $this->belongsTo(JobGrade::class);
+    }
+
+    public function jobGrades(): BelongsToMany
+    {
+        return $this->belongsToMany(JobGrade::class, 'employee_job_grade')->orderBy('level');
+    }
+
+    public function hasJobGrade(?int $jobGradeId): bool
+    {
+        if (! $jobGradeId) {
+            return false;
+        }
+
+        if ($this->relationLoaded('jobGrades')) {
+            return $this->jobGrades->contains(fn (JobGrade $grade) => (int) $grade->id === $jobGradeId)
+                || (int) $this->job_grade_id === $jobGradeId;
+        }
+
+        return $this->jobGrades()->whereKey($jobGradeId)->exists()
+            || (int) $this->job_grade_id === $jobGradeId;
     }
 
     public function manager(): BelongsTo

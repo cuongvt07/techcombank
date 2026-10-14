@@ -15,6 +15,14 @@ use Livewire\Component;
  */
 class LearningProgress extends Component
 {
+    public $statusFilter = '';
+
+    public function setStatusFilter(string $status): void
+    {
+        $allowed = ['', Enrollment::STATUS_COMPLETED, Enrollment::STATUS_IN_PROGRESS, Enrollment::STATUS_OVERDUE];
+        $this->statusFilter = in_array($status, $allowed, true) ? $status : '';
+    }
+
     public function render(): View
     {
         $employee = auth()->user()?->employee;
@@ -74,6 +82,9 @@ class LearningProgress extends Component
         return Enrollment::with('course')
             ->where('employee_id', $employee->id)
             ->whereNot('status', Enrollment::STATUS_CANCELLED)
+            ->when($this->statusFilter !== '', function ($query) {
+                return $query->where('status', $this->statusFilter);
+            })
             ->orderByRaw("FIELD(status, 'overdue', 'in_progress', 'not_started', 'completed')")
             ->orderByDesc('last_accessed_at')
             ->get();

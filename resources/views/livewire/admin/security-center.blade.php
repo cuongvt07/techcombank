@@ -2,9 +2,14 @@
     <x-admin.page-header title="Trung tâm bảo mật"
                          subtitle="Cảnh báo bất thường, nhật ký truy cập tài liệu, lịch sử đăng nhập và phiên thiết bị.">
         <x-slot:actions>
-            <button type="button" wire:click="runScan" class="admin-btn-secondary">
-                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                Quét ngay
+            <button type="button" wire:click="runScan" wire:loading.attr="disabled" wire:target="runScan"
+                    title="Quét các sự kiện bảo mật và cập nhật cảnh báo" class="admin-btn-secondary">
+                <span wire:loading.remove wire:target="runScan" class="inline-flex items-center gap-2">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4') Quét ngay
+                </span>
+                <span wire:loading wire:target="runScan" class="inline-flex items-center gap-2">
+                    @svg('heroicon-o-arrow-path', 'h-4 w-4 animate-spin') Đang quét...
+                </span>
             </button>
         </x-slot:actions>
     </x-admin.page-header>

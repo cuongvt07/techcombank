@@ -43,7 +43,7 @@
                         <th>Vai trò</th>
                         <th>Đăng nhập gần nhất</th>
                         <th>Trạng thái</th>
-                        <th class="w-24 text-right">Thao tác</th>
+                        <th class="w-32 text-right">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -90,13 +90,14 @@
                                         @if ($user->status === 'active')
                                             <x-admin.icon-button icon="heroicon-o-lock-closed" label="Khóa tài khoản"
                                                                  variant="danger"
-                                                                 wire:click="toggleStatus({{ $user->id }})"
-                                                                 wire:confirm="Khóa tài khoản này?" />
+                                                                 wire:click="prepareStatusChange({{ $user->id }})" />
                                         @else
                                             <x-admin.icon-button icon="heroicon-o-lock-open" label="Mở khóa tài khoản"
-                                                                 wire:click="toggleStatus({{ $user->id }})"
-                                                                 wire:confirm="Mở khóa tài khoản này?" />
+                                                                 wire:click="prepareStatusChange({{ $user->id }})" />
                                         @endif
+                                        <x-admin.icon-button icon="heroicon-o-trash" label="Xóa tài khoản"
+                                                             variant="danger"
+                                                             wire:click="prepareDelete({{ $user->id }})" />
                                     @endif
                                 </div>
                             </td>
@@ -118,7 +119,7 @@
     {{-- Form tạo/sửa: nghiệp vụ đơn giản nên dùng modal, không biến thành wizard (spec 6.4) --}}
     @if ($showModal)
         <x-admin.modal :title="$editingId ? 'Sửa tài khoản' : 'Tạo tài khoản mới'">
-            <form wire:submit="save" id="account-form" class="grid gap-4 sm:grid-cols-2">
+            <form wire:submit="requestSave" id="account-form" class="grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label for="full_name" class="admin-label">Họ và tên</label>
                     <input id="full_name" type="text" wire:model="full_name" class="admin-input">
@@ -145,26 +146,33 @@
                     @error('password') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
-                    <label for="role" class="admin-label">Vai trò</label>
-                    <select id="role" wire:model="role" class="admin-input">
-                        @foreach ($roles as $r)
-                            <option value="{{ $r->name }}">
-                                {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('role') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                @if ($editingId === auth()->id())
+                    <div class="rounded-admin border border-brand-line bg-brand-soft p-3 text-sm sm:col-span-2">
+                        <strong>Tài khoản của bạn</strong>
+                        <p class="mt-1 text-xs text-brand-muted">Bạn có thể sửa tên, email và mật khẩu. Vai trò và trạng thái được giữ nguyên để tránh tự khóa quyền quản trị.</p>
+                    </div>
+                @else
+                    <div>
+                        <label for="role" class="admin-label">Vai trò</label>
+                        <select id="role" wire:model="role" class="admin-input">
+                            @foreach ($roles as $r)
+                                <option value="{{ $r->name }}">
+                                    {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('role') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                    </div>
 
-                <div>
-                    <label for="status" class="admin-label">Trạng thái</label>
-                    <select id="status" wire:model="status" class="admin-input">
-                        <option value="active">Đang hoạt động</option>
-                        <option value="locked">Đã khóa</option>
-                        <option value="disabled">Vô hiệu hóa</option>
-                    </select>
-                </div>
+                    <div>
+                        <label for="status" class="admin-label">Trạng thái</label>
+                        <select id="status" wire:model="status" class="admin-input">
+                            <option value="active">Đang hoạt động</option>
+                            <option value="locked">Đã khóa</option>
+                            <option value="disabled">Vô hiệu hóa</option>
+                        </select>
+                    </div>
+                @endif
 
                 <label class="flex cursor-pointer items-center gap-2 text-sm font-medium sm:col-span-2">
                     <input type="checkbox" wire:model="must_change_password"
@@ -176,8 +184,30 @@
             <x-slot:footer>
                 <button type="button" wire:click="$set('showModal', false)" class="admin-btn-secondary">Hủy</button>
                 <button type="submit" form="account-form" class="admin-btn" wire:loading.attr="disabled">
-                    {{ $editingId ? 'Lưu thay đổi' : 'Tạo tài khoản' }}
+                    {{ $editingId ? 'Xem xác nhận lưu' : 'Xem xác nhận tạo' }}
                 </button>
+            </x-slot:footer>
+        </x-admin.modal>
+    @endif
+
+    @if ($showSaveConfirm)
+        <x-admin.modal title="Xác nhận lưu tài khoản" maxWidth="max-w-md">
+            <p class="text-sm text-brand-muted">
+                {{ $editingId ? 'Bạn có chắc muốn lưu các thay đổi cho tài khoản này?' : 'Bạn có chắc muốn tạo tài khoản mới với thông tin vừa nhập?' }}
+            </p>
+            <x-slot:footer>
+                <button type="button" wire:click="$set('showSaveConfirm', false)" class="admin-btn-secondary">Quay lại</button>
+                <button type="button" wire:click="save" class="admin-btn" wire:loading.attr="disabled">Xác nhận</button>
+            </x-slot:footer>
+        </x-admin.modal>
+    @endif
+
+    @if ($showActionConfirm)
+        <x-admin.modal :title="$pendingActionTitle" maxWidth="max-w-md">
+            <p class="text-sm text-brand-muted">{{ $pendingActionMessage }}</p>
+            <x-slot:footer>
+                <button type="button" wire:click="$set('showActionConfirm', false)" class="admin-btn-secondary">Hủy</button>
+                <button type="button" wire:click="confirmPendingAction" class="admin-btn" wire:loading.attr="disabled">Xác nhận</button>
             </x-slot:footer>
         </x-admin.modal>
     @endif

@@ -6,6 +6,8 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentCategory;
 use App\Models\DocumentVersion;
+use App\Models\DocumentAccessRule;
+use App\Models\JobGrade;
 use App\Services\FileStorageService;
 use App\Services\VideoEmbedService;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +44,7 @@ class DocumentLibrary extends Component
 
     public bool $showModal = false;
     public bool $showVersions = false;
+    public int $createStep = 1;
     public ?int $editingId = null;
     public ?int $versionDocumentId = null;
 
@@ -58,6 +61,10 @@ class DocumentLibrary extends Component
     public string $video_url = '';
     public string $change_note = '';
     public $upload = null;
+    public ?int $accessDepartmentId = null;
+    public ?int $accessJobGradeId = null;
+    public bool $accessCanDownload = false;
+    public bool $accessCanPrint = false;
 
     public function render(): View
     {
@@ -65,6 +72,7 @@ class DocumentLibrary extends Component
             'documents' => $this->documents(),
             'categories' => DocumentCategory::active()->orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
+            'jobGrades' => JobGrade::active()->orderBy('level')->get(),
             'versions' => $this->versions(),
         ])->layout('layouts.admin', ['title' => 'Thư viện tài liệu']);
     }
@@ -105,9 +113,21 @@ class DocumentLibrary extends Component
 
     public function save(): void
     {
-        $data = $this->validate($this->rules());
+        if (! $this->editingId && $this->createStep === 1) {
+            $this->continueToPermissions();
 
-        DB::transaction(function () use ($data) {
+            return;
+        }
+
+        $data = $this->validate($this->rules());
+        $accessData = $this->validate([
+            'accessDepartmentId' => ['nullable', Rule::exists('departments', 'id')],
+            'accessJobGradeId' => ['nullable', Rule::exists('job_grades', 'id')],
+            'accessCanDownload' => ['boolean'],
+            'accessCanPrint' => ['boolean'],
+        ]);
+
+        DB::transaction(function () use ($data, $accessData) {
             $payload = [
                 'title' => $data['title'],
                 'description' => $data['description'] ?: null,
@@ -115,7 +135,9 @@ class DocumentLibrary extends Component
                 'document_category_id' => $data['document_category_id'],
                 'owner_department_id' => $data['owner_department_id'],
                 'confidentiality' => $data['confidentiality'],
-                'allow_download' => $this->allow_download,
+                'allow_download' => $this->editingId
+                    ? $this->allow_download
+                    : ($this->allow_download || $accessData['accessCanDownload']),
                 'enable_watermark' => $this->enable_watermark,
                 'duration_seconds' => $data['kind'] === Document::KIND_VIDEO ? $data['duration_seconds'] : null,
             ];
@@ -141,6 +163,19 @@ class DocumentLibrary extends Component
                 $payload['created_by'] = auth()->id();
                 $payload['status'] = Document::STATUS_DRAFT;
                 $document = Document::create($payload);
+
+                DocumentAccessRule::create([
+                    'document_id' => $document->id,
+                    'department_id' => $accessData['accessDepartmentId'],
+                    'job_grade_id' => $accessData['accessJobGradeId'],
+                    'include_sub_departments' => true,
+                    'can_view' => true,
+                    'can_download' => $accessData['accessCanDownload'],
+                    'can_print' => $accessData['accessCanPrint'],
+                    'effect' => DocumentAccessRule::EFFECT_ALLOW,
+                    'priority' => 0,
+                    'is_active' => true,
+                ]);
             }
 
             // File mới luôn sinh một phiên bản mới, giữ nguyên lịch sử cũ (spec 3.2.1).
@@ -150,10 +185,25 @@ class DocumentLibrary extends Component
             }
         });
 
-        session()->flash('status', $this->editingId ? 'Đã cập nhật tài liệu.' : 'Đã tạo tài liệu.');
+        session()->flash('status', $this->editingId ? 'Đã cập nhật tài liệu.' : 'Đã tạo tài liệu và phân quyền.');
 
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    public function continueToPermissions(): void
+    {
+        if ($this->editingId) {
+            return;
+        }
+
+        $this->validate($this->rules());
+        $this->createStep = 2;
+    }
+
+    public function backToContent(): void
+    {
+        $this->createStep = 1;
     }
 
     /**
@@ -322,11 +372,15 @@ class DocumentLibrary extends Component
         $this->reset([
             'editingId', 'title', 'description', 'document_category_id',
             'owner_department_id', 'duration_seconds', 'video_url', 'change_note', 'upload',
+            'accessDepartmentId', 'accessJobGradeId',
         ]);
+        $this->createStep = 1;
         $this->kind = Document::KIND_FILE;
         $this->confidentiality = Document::CONF_INTERNAL;
         $this->allow_download = false;
         $this->enable_watermark = true;
+        $this->accessCanDownload = false;
+        $this->accessCanPrint = false;
         $this->resetValidation();
     }
 }

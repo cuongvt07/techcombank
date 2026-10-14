@@ -18,6 +18,7 @@ use App\Livewire\Admin\PermissionMatrix;
 use App\Livewire\Admin\QuizBuilder;
 use App\Livewire\Admin\SecurityCenter;
 use App\Livewire\Admin\SettingsManager;
+use App\Livewire\Admin\SupportManager;
 use App\Livewire\Auth\Login;
 use App\Livewire\User\CoursePlayer;
 use App\Livewire\User\DocumentBrowser;
@@ -82,6 +83,10 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
         Route::get('/cau-hinh', SettingsManager::class)
             ->middleware('can:settings.manage')->name('settings');
         Route::get('/huong-dan/{audience?}', UserGuideController::class)->name('guide');
+
+        // 4.5 Phiếu hỗ trợ nhân viên gửi lên
+        Route::get('/phieu-ho-tro', SupportManager::class)
+            ->middleware('can:support.manage')->name('support');
 
         // 3.1.5 Sự kiện & thông báo
         Route::get('/su-kien', AnnouncementManager::class)

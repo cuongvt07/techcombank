@@ -1,4 +1,11 @@
 <div>
+    @php
+        $departmentOptions = $departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all();
+        $titleOptions = $jobTitles->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all();
+        $managerOptions = $managers->reject(fn ($item) => $item->id === $editingId)
+            ->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_name . ' · ' . $item->employee_code])->all();
+    @endphp
+
     <x-admin.page-header title="Hồ sơ nhân sự"
                          subtitle="Thông tin cá nhân, vị trí trong tổ chức và lịch sử điều chuyển.">
         <x-slot:actions>
@@ -99,7 +106,11 @@
                             <td class="text-brand-muted">{{ $employee->department?->name ?? '—' }}</td>
                             <td class="text-brand-muted">{{ $employee->jobTitle?->name ?? '—' }}</td>
                             <td>
-                                @if ($employee->jobGrade)
+                                @if ($employee->jobGrades->isNotEmpty())
+                                    @foreach ($employee->jobGrades as $grade)
+                                        <span class="tag">{{ $grade->name }}</span>
+                                    @endforeach
+                                @elseif ($employee->jobGrade)
                                     <span class="tag">{{ $employee->jobGrade->name }}</span>
                                 @else
                                     <span class="text-brand-muted">—</span>
@@ -227,45 +238,39 @@
                 </div>
 
                 <div>
-                    <label for="e_dept" class="admin-label">Phòng ban</label>
-                    <select id="e_dept" wire:model="department_id" class="admin-input">
-                        <option value="">— Chọn —</option>
-                        @foreach ($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->full_path }}</option>
-                        @endforeach
-                    </select>
+                    <x-admin.searchable-select id="e_dept" label="Phòng ban" model="department_id"
+                                                :options="$departmentOptions" :selected="$department_id"
+                                                emptyLabel="— Chọn —" />
                     @error('department_id') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label for="e_title" class="admin-label">Chức danh</label>
-                    <select id="e_title" wire:model="job_title_id" class="admin-input">
-                        <option value="">— Chọn —</option>
-                        @foreach ($jobTitles as $title)
-                            <option value="{{ $title->id }}">{{ $title->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-admin.searchable-select id="e_title" label="Chức danh" model="job_title_id"
+                                                :options="$titleOptions" :selected="$job_title_id"
+                                                emptyLabel="— Chọn —" />
                 </div>
 
-                <div>
-                    <label for="e_grade" class="admin-label">Cấp bậc</label>
-                    <select id="e_grade" wire:model="job_grade_id" class="admin-input">
-                        <option value="">— Chọn —</option>
+                <fieldset class="sm:col-span-2">
+                    <legend class="admin-label">Cấp bậc nhân viên</legend>
+                    <p class="mb-2 text-xs text-brand-muted">Có thể chọn nhiều cấp cùng lúc.</p>
+                    <div class="grid gap-2 sm:grid-cols-2">
                         @foreach ($jobGrades as $grade)
-                            <option value="{{ $grade->id }}">{{ $grade->name }} (cấp {{ $grade->level }})</option>
+                            <label wire:key="employee-grade-{{ $grade->id }}"
+                                   class="flex cursor-pointer items-center gap-2 rounded-admin border border-brand-line p-3 text-sm">
+                                <input type="checkbox" wire:model="job_grade_ids" value="{{ $grade->id }}"
+                                       class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
+                                <span>{{ $grade->name }}</span>
+                            </label>
                         @endforeach
-                    </select>
-                </div>
+                    </div>
+                    @error('job_grade_ids') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                    @error('job_grade_ids.*') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                </fieldset>
 
                 <div>
-                    <label for="e_manager" class="admin-label">Quản lý trực tiếp</label>
-                    <select id="e_manager" wire:model="manager_id" class="admin-input">
-                        <option value="">— Không có —</option>
-                        @foreach ($managers as $manager)
-                            @continue($manager->id === $editingId)
-                            <option value="{{ $manager->id }}">{{ $manager->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <x-admin.searchable-select id="e_manager" label="Quản lý trực tiếp" model="manager_id"
+                                                :options="$managerOptions" :selected="$manager_id"
+                                                emptyLabel="— Không có —" />
                     @error('manager_id') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
@@ -312,13 +317,9 @@
                 </p>
 
                 <div>
-                    <label for="bulk_course" class="admin-label">Khóa học</label>
-                    <select id="bulk_course" wire:model="bulkCourseId" class="admin-input">
-                        <option value="">— Chọn khóa học —</option>
-                        @foreach ($publishedCourses as $course)
-                            <option value="{{ $course->id }}">{{ $course->title }}</option>
-                        @endforeach
-                    </select>
+                    <x-admin.searchable-select id="bulk_course" label="Khóa học" model="bulkCourseId"
+                        :options="$publishedCourses->map(fn ($item) => ['value' => $item->id, 'label' => $item->title])->all()"
+                        :selected="$bulkCourseId" emptyLabel="— Chọn khóa học —" />
                     @error('bulkCourseId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 

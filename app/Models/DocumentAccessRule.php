@@ -90,7 +90,7 @@ class DocumentAccessRule extends Model
             return false;
         }
 
-        if ($this->job_grade_id && $employee->job_grade_id !== $this->job_grade_id) {
+        if ($this->job_grade_id && ! $employee->hasJobGrade((int) $this->job_grade_id)) {
             return false;
         }
 

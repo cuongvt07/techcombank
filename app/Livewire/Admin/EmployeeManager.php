@@ -54,7 +54,8 @@ class EmployeeManager extends Component
     public string $gender = '';
     public ?int $department_id = null;
     public ?int $job_title_id = null;
-    public ?int $job_grade_id = null;
+    /** @var array<int, int|string> */
+    public array $job_grade_ids = [];
     public ?int $manager_id = null;
     public string $employment_status = Employee::STATUS_PROBATION;
     public ?string $joined_at = null;
@@ -103,7 +104,10 @@ class EmployeeManager extends Component
         $this->gender = (string) $employee->gender;
         $this->department_id = $employee->department_id;
         $this->job_title_id = $employee->job_title_id;
-        $this->job_grade_id = $employee->job_grade_id;
+        $this->job_grade_ids = $employee->jobGrades()->pluck('job_grades.id')->map(fn ($id) => (int) $id)->all();
+        if ($this->job_grade_ids === [] && $employee->job_grade_id) {
+            $this->job_grade_ids = [$employee->job_grade_id];
+        }
         $this->manager_id = $employee->manager_id;
         $this->employment_status = $employee->employment_status;
         $this->joined_at = $employee->joined_at?->toDateString();
@@ -115,6 +119,9 @@ class EmployeeManager extends Component
     public function save(EmployeeService $service): void
     {
         $data = $this->validate($this->rules());
+        $primaryGradeId = JobGrade::whereIn('id', $data['job_grade_ids'] ?? [])
+            ->orderByDesc('level')
+            ->value('id');
 
         if ($this->editingId) {
             $employee = Employee::findOrFail($this->editingId);
@@ -137,12 +144,13 @@ class EmployeeManager extends Component
                 [
                     'department_id' => $data['department_id'],
                     'job_title_id' => $data['job_title_id'],
-                    'job_grade_id' => $data['job_grade_id'],
+                    'job_grade_id' => $primaryGradeId,
                     'employment_status' => $data['employment_status'],
                 ],
                 $this->change_reason ?: null,
                 auth()->id(),
             );
+            $employee->jobGrades()->sync($data['job_grade_ids'] ?? []);
 
             session()->flash('status', $assigned > 0
                 ? "Đã cập nhật hồ sơ và gán thêm {$assigned} khóa học theo vị trí mới."
@@ -157,12 +165,14 @@ class EmployeeManager extends Component
                 'gender' => $data['gender'] ?: null,
                 'department_id' => $data['department_id'],
                 'job_title_id' => $data['job_title_id'],
-                'job_grade_id' => $data['job_grade_id'],
+                'job_grade_id' => $primaryGradeId,
                 'manager_id' => $data['manager_id'],
                 'employment_status' => $data['employment_status'],
                 'joined_at' => $data['joined_at'] ?: null,
                 'is_new_hire' => $data['employment_status'] === Employee::STATUS_PROBATION,
             ]);
+
+            $employee->jobGrades()->sync($data['job_grade_ids'] ?? []);
 
             $service->recordInitialAssignment($employee, auth()->id());
 
@@ -257,7 +267,7 @@ class EmployeeManager extends Component
     private function employees()
     {
         return Employee::query()
-            ->with(['department', 'jobTitle', 'jobGrade', 'manager', 'user'])
+            ->with(['department', 'jobTitle', 'jobGrade', 'jobGrades', 'manager', 'user'])
             // Tổng hợp sẵn số liệu học tập để mỗi dòng bảng nói được nhiều hơn.
             // Dùng withCount/withAvg thay vì gọi quan hệ trong view: tránh N+1
             // khi bảng có 15 dòng × 3 truy vấn mỗi dòng.
@@ -310,7 +320,8 @@ class EmployeeManager extends Component
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'department_id' => ['nullable', Rule::exists('departments', 'id')],
             'job_title_id' => ['nullable', Rule::exists('job_titles', 'id')],
-            'job_grade_id' => ['nullable', Rule::exists('job_grades', 'id')],
+            'job_grade_ids' => ['array'],
+            'job_grade_ids.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
             // Không cho chọn chính mình làm quản lý trực tiếp
             'manager_id' => ['nullable', Rule::exists('employees', 'id'), Rule::notIn([$this->editingId])],
             'employment_status' => ['required', Rule::in([
@@ -328,7 +339,7 @@ class EmployeeManager extends Component
         $this->reset([
             'editingId', 'full_name', 'employee_code', 'email', 'phone',
             'date_of_birth', 'gender', 'department_id', 'job_title_id',
-            'job_grade_id', 'manager_id', 'joined_at', 'change_reason',
+            'job_grade_ids', 'manager_id', 'joined_at', 'change_reason',
         ]);
         $this->employment_status = Employee::STATUS_PROBATION;
         $this->resetValidation();

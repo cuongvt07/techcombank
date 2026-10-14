@@ -182,12 +182,11 @@ class DemoDataSeeder extends Seeder
 
     private function createAdminUsers(array $departments, array $titles, array $grades): void
     {
-        // Hai tài khoản quản trị: một ở phòng Đào tạo, một ở phòng Nhân sự.
-        // Cùng vai trò ADMIN nên quyền hạn như nhau — khác nhau ở phòng ban
-        // để dữ liệu demo phản ánh đúng sơ đồ tổ chức.
+        // Tài khoản Đào tạo có toàn quyền; tài khoản Nhân sự chỉ quản lý hồ sơ
+        // nhân viên theo tập quyền riêng của vai trò HR.
         $accounts = [
             ['admin@techcombank.local', 'Nguyễn Quản Trị', RoleName::ADMIN, 'training', 'trainer', 'director'],
-            ['hr@techcombank.local', 'Lê Thu Hà', RoleName::ADMIN, 'hr', 'hr_specialist', 'manager'],
+            ['hr@techcombank.local', 'Lê Thu Hà', RoleName::HR, 'hr', 'hr_specialist', 'manager'],
         ];
 
         foreach ($accounts as [$email, $name, $role, $dept, $title, $grade]) {

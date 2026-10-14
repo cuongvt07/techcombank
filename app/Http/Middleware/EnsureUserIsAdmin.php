@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Chặn nhân viên thường vào site quản trị (spec mục 1: hai site tách biệt).
+ * Chỉ cho ADMIN và HR vào site quản trị; nhân viên thường về site học tập.
  * Chuyển hướng về site học tập thay vì trả 403 để tránh ngõ cụt cho người dùng.
  */
 class EnsureUserIsAdmin

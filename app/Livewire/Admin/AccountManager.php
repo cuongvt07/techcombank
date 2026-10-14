@@ -35,7 +35,13 @@ class AccountManager extends Component
     public string $roleFilter = '';
 
     public bool $showModal = false;
+    public bool $showSaveConfirm = false;
+    public bool $showActionConfirm = false;
     public ?int $editingId = null;
+    public ?int $pendingUserId = null;
+    public string $pendingAction = '';
+    public string $pendingActionTitle = '';
+    public string $pendingActionMessage = '';
 
     // Trường form
     public string $full_name = '';
@@ -85,19 +91,35 @@ class AccountManager extends Component
         $this->showModal = true;
     }
 
+    public function requestSave(): void
+    {
+        $this->validate($this->rules());
+        $this->showSaveConfirm = true;
+    }
+
     public function save(): void
     {
-        $data = $this->validate($this->rules());
+        if (! $this->showSaveConfirm) {
+            return;
+        }
 
-        DB::transaction(function () use ($data) {
+        $data = $this->validate($this->rules());
+        $editingSelf = $this->editingId === auth()->id();
+
+        DB::transaction(function () use ($data, $editingSelf) {
             if ($this->editingId) {
                 $user = User::findOrFail($this->editingId);
-                $user->fill([
+                $changes = [
                     'name' => $data['full_name'],
                     'email' => $data['email'],
-                    'status' => $data['status'],
                     'must_change_password' => $this->must_change_password,
-                ]);
+                ];
+
+                if (! $editingSelf) {
+                    $changes['status'] = $data['status'];
+                }
+
+                $user->fill($changes);
 
                 // Chỉ đổi mật khẩu khi admin thực sự nhập giá trị mới
                 if (filled($this->password)) {
@@ -105,7 +127,9 @@ class AccountManager extends Component
                 }
 
                 $user->save();
-                $user->syncRoles([$data['role']]);
+                if (! $editingSelf) {
+                    $user->syncRoles([$data['role']]);
+                }
 
                 $user->employee?->update([
                     'full_name' => $data['full_name'],
@@ -145,28 +169,78 @@ class AccountManager extends Component
             session()->flash('status', 'Đã tạo tài khoản và gán lộ trình onboarding.');
         });
 
+        $this->showSaveConfirm = false;
         $this->showModal = false;
         $this->resetForm();
     }
 
-    /** Khoá/mở khoá nhanh từ bảng, không cần mở form (spec 3.1.1). */
-    public function toggleStatus(int $id): void
+    public function prepareStatusChange(int $id): void
     {
         $user = User::findOrFail($id);
 
         if ($user->id === auth()->id()) {
-            session()->flash('error', 'Không thể tự khóa tài khoản của chính mình.');
+            session()->flash('error', 'Không thể tự thay đổi trạng thái tài khoản của chính mình.');
 
             return;
         }
 
-        $user->update([
-            'status' => $user->status === User::STATUS_ACTIVE
-                ? User::STATUS_LOCKED
-                : User::STATUS_ACTIVE,
-        ]);
+        $locking = $user->status === User::STATUS_ACTIVE;
+        $this->pendingUserId = $user->id;
+        $this->pendingAction = 'status';
+        $this->pendingActionTitle = $locking ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?';
+        $this->pendingActionMessage = $locking
+            ? 'Tài khoản sẽ không thể đăng nhập cho đến khi được mở khóa.'
+            : 'Tài khoản sẽ được phép đăng nhập lại.';
+        $this->showActionConfirm = true;
+    }
 
-        session()->flash('status', 'Đã đổi trạng thái tài khoản.');
+    public function prepareDelete(int $id): void
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            session()->flash('error', 'Không thể xóa tài khoản đang đăng nhập.');
+
+            return;
+        }
+
+        $this->pendingUserId = $user->id;
+        $this->pendingAction = 'delete';
+        $this->pendingActionTitle = 'Xóa tài khoản?';
+        $this->pendingActionMessage = 'Tài khoản sẽ bị ẩn khỏi danh sách và không thể đăng nhập.';
+        $this->showActionConfirm = true;
+    }
+
+    public function confirmPendingAction(): void
+    {
+        if (! $this->pendingUserId || ! in_array($this->pendingAction, ['status', 'delete'], true)) {
+            return;
+        }
+
+        $user = User::findOrFail($this->pendingUserId);
+
+        if ($user->id === auth()->id()) {
+            $this->showActionConfirm = false;
+            session()->flash('error', 'Không thể khóa hoặc xóa tài khoản đang đăng nhập.');
+
+            return;
+        }
+
+        if ($this->pendingAction === 'status') {
+            $user->update([
+                'status' => $user->status === User::STATUS_ACTIVE
+                    ? User::STATUS_LOCKED
+                    : User::STATUS_ACTIVE,
+            ]);
+
+            session()->flash('status', 'Đã cập nhật trạng thái tài khoản.');
+        } else {
+            $user->delete();
+            session()->flash('status', 'Đã xóa tài khoản.');
+        }
+
+        $this->showActionConfirm = false;
+        $this->reset(['pendingUserId', 'pendingAction', 'pendingActionTitle', 'pendingActionMessage']);
     }
 
     private function users()

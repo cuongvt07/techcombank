@@ -1,17 +1,6 @@
-{{--
-    Top bar chỉ chứa tìm kiếm — thông báo — tài khoản (spec 6.4).
-    Không đặt điều hướng ở đây để tránh trùng vai trò với sidebar.
---}}
-<header class="flex min-h-[72px] items-center gap-4 border-b border-brand-line bg-white/[.94] px-6">
-    <div class="min-w-0 flex-1 md:max-w-[520px]">
-        <label for="global-search" class="sr-only">Tìm kiếm</label>
-        <input id="global-search"
-               type="search"
-               class="admin-input"
-               placeholder="Tìm nhân viên, khóa học, mã hợp đồng, phiếu hỗ trợ...">
-    </div>
-
-    <div class="ml-auto flex items-center gap-3">
+{{-- Thanh trên hiển thị thông báo và tài khoản quản trị. --}}
+<header class="flex min-h-[72px] items-center justify-end gap-3 border-b border-brand-line bg-white/[.94] px-6">
+    <div class="flex items-center gap-3">
         @php
             $openAlerts = \App\Models\SecurityAlert::open()->count();
         @endphp

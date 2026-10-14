@@ -42,22 +42,34 @@
         </section>
     @endif
 
-    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div class="user-card p-4">
+    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <button type="button" wire:click="setStatusFilter('')"
+                aria-pressed="{{ $statusFilter === '' ? 'true' : 'false' }}"
+                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === '' ? 'ring-2 ring-brand-red' : '' }}">
             <span class="text-[11px] font-semibold uppercase text-brand-muted">Tổng khóa học</span>
             <strong class="mt-1 block text-2xl font-bold leading-none">{{ $summary['total'] }}</strong>
-        </div>
-        <div class="user-card p-4">
+        </button>
+        <button type="button" wire:click="setStatusFilter('completed')"
+                aria-pressed="{{ $statusFilter === 'completed' ? 'true' : 'false' }}"
+                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'completed' ? 'ring-2 ring-brand-red' : '' }}">
             <span class="text-[11px] font-semibold uppercase text-brand-muted">Đã hoàn thành</span>
             <strong class="mt-1 block text-2xl font-bold leading-none text-state-success">{{ $summary['completed'] }}</strong>
-        </div>
-        <div class="user-card p-4">
+        </button>
+        <button type="button" wire:click="setStatusFilter('in_progress')"
+                aria-pressed="{{ $statusFilter === 'in_progress' ? 'true' : 'false' }}"
+                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'in_progress' ? 'ring-2 ring-brand-red' : '' }}">
             <span class="text-[11px] font-semibold uppercase text-brand-muted">Đang học</span>
             {{-- Khóa còn dở tô vàng: nhắc người học còn việc chưa xong --}}
             <strong class="mt-1 block text-2xl font-bold leading-none {{ $summary['in_progress'] > 0 ? 'text-state-warning' : '' }}">
                 {{ $summary['in_progress'] }}
             </strong>
-        </div>
+        </button>
+        <button type="button" wire:click="setStatusFilter('overdue')"
+                aria-pressed="{{ $statusFilter === 'overdue' ? 'true' : 'false' }}"
+                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'overdue' ? 'ring-2 ring-brand-red' : '' }}">
+            <span class="text-[11px] font-semibold uppercase text-brand-muted">Quá hạn</span>
+            <strong class="mt-1 block text-2xl font-bold leading-none text-brand-red">{{ $summary['overdue'] }}</strong>
+        </button>
         <div class="user-card p-4">
             <span class="text-[11px] font-semibold uppercase text-brand-muted">Tiến độ trung bình</span>
             <strong class="mt-1 block text-2xl font-bold leading-none text-brand-red">{{ (int) $summary['avg'] }}%</strong>
@@ -65,7 +77,15 @@
     </section>
 
     <section class="mb-5">
-        <h2 class="mb-2.5 text-sm font-bold">Tất cả khóa học</h2>
+        <h2 class="mb-2.5 text-sm font-bold">
+            {{ $statusFilter === '' ? 'Tất cả khóa học' : match ($statusFilter) {
+                'completed' => 'Khóa học đã hoàn thành',
+                'in_progress' => 'Khóa học đang học',
+                'overdue' => 'Khóa học quá hạn',
+                default => 'Tất cả khóa học',
+            } }}
+            <span class="font-normal text-brand-muted">({{ $enrollments->count() }})</span>
+        </h2>
 
         <div class="user-card overflow-hidden">
             @forelse ($enrollments as $item)

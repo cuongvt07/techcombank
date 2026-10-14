@@ -1,4 +1,13 @@
 <div>
+    @php
+        $documentOptions = $documents->map(fn ($item) => ['value' => $item->id, 'label' => $item->title])->all();
+        $categoryOptions = $categories->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all();
+        $departmentOptions = $departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all();
+        $titleOptions = $jobTitles->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all();
+        $gradeOptions = $jobGrades->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all();
+        $employeeOptions = $employees->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_name . ' · ' . $item->employee_code])->all();
+    @endphp
+
     <x-admin.page-header title="Phân quyền tài liệu"
                          subtitle="Quyền truy cập tính động theo phòng ban, chức danh, cấp bậc — tự cập nhật khi nhân sự thay đổi.">
         <x-slot:actions>
@@ -149,24 +158,16 @@
 
                 @if ($scope === 'document')
                     <div>
-                        <label for="a_doc" class="admin-label">Tài liệu</label>
-                        <select id="a_doc" wire:model="documentId" class="admin-input">
-                            <option value="">— Chọn —</option>
-                            @foreach ($documents as $doc)
-                                <option value="{{ $doc->id }}">{{ $doc->title }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin.searchable-select id="a_doc" label="Tài liệu" model="documentId"
+                                                    :options="$documentOptions" :selected="$documentId"
+                                                    emptyLabel="— Chọn —" />
                         @error('documentId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                     </div>
                 @else
                     <div>
-                        <label for="a_cat" class="admin-label">Danh mục</label>
-                        <select id="a_cat" wire:model="categoryId" class="admin-input">
-                            <option value="">— Chọn —</option>
-                            @foreach ($categories as $cat)
-                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin.searchable-select id="a_cat" label="Danh mục" model="categoryId"
+                                                    :options="$categoryOptions" :selected="$categoryId"
+                                                    emptyLabel="— Chọn —" />
                         @error('categoryId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                         <p class="mt-1 text-xs text-brand-muted">
                             Áp cho mọi tài liệu trong danh mục này và các danh mục con.
@@ -183,13 +184,8 @@
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div class="sm:col-span-2">
-                            <label for="a_dept" class="admin-label">Phòng ban</label>
-                            <select id="a_dept" wire:model="departmentId" class="admin-input">
-                                <option value="">— Không ràng buộc —</option>
-                                @foreach ($departments as $dept)
-                                    <option value="{{ $dept->id }}">{{ $dept->full_path }}</option>
-                                @endforeach
-                            </select>
+                            <x-admin.searchable-select id="a_dept" label="Phòng ban" model="departmentId"
+                                                        :options="$departmentOptions" :selected="$departmentId" />
                         </div>
 
                         <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium sm:col-span-2">
@@ -199,23 +195,13 @@
                         </label>
 
                         <div>
-                            <label for="a_title" class="admin-label">Chức danh</label>
-                            <select id="a_title" wire:model="jobTitleId" class="admin-input">
-                                <option value="">— Không ràng buộc —</option>
-                                @foreach ($jobTitles as $jt)
-                                    <option value="{{ $jt->id }}">{{ $jt->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-admin.searchable-select id="a_title" label="Chức danh" model="jobTitleId"
+                                                        :options="$titleOptions" :selected="$jobTitleId" />
                         </div>
 
                         <div>
-                            <label for="a_grade" class="admin-label">Cấp bậc cụ thể</label>
-                            <select id="a_grade" wire:model="jobGradeId" class="admin-input">
-                                <option value="">— Không ràng buộc —</option>
-                                @foreach ($jobGrades as $jg)
-                                    <option value="{{ $jg->id }}">{{ $jg->name }} (cấp {{ $jg->level }})</option>
-                                @endforeach
-                            </select>
+                            <x-admin.searchable-select id="a_grade" label="Cấp bậc cụ thể" model="jobGradeId"
+                                                        :options="$gradeOptions" :selected="$jobGradeId" />
                         </div>
 
                         <div>
@@ -309,24 +295,16 @@
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="t_emp" class="admin-label">Nhân viên</label>
-                        <select id="t_emp" wire:model="testEmployeeId" class="admin-input">
-                            <option value="">— Chọn —</option>
-                            @foreach ($employees as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->full_name }} ({{ $emp->employee_code }})</option>
-                            @endforeach
-                        </select>
+                        <x-admin.searchable-select id="t_emp" label="Nhân viên" model="testEmployeeId"
+                                                    :options="$employeeOptions" :selected="$testEmployeeId"
+                                                    emptyLabel="— Chọn —" />
                         @error('testEmployeeId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label for="t_doc" class="admin-label">Tài liệu</label>
-                        <select id="t_doc" wire:model="testDocumentId" class="admin-input">
-                            <option value="">— Chọn —</option>
-                            @foreach ($documents as $doc)
-                                <option value="{{ $doc->id }}">{{ $doc->title }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin.searchable-select id="t_doc" label="Tài liệu" model="testDocumentId"
+                                                    :options="$documentOptions" :selected="$testDocumentId"
+                                                    emptyLabel="— Chọn —" />
                         @error('testDocumentId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                     </div>
                 </div>

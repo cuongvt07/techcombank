@@ -11,12 +11,10 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Vai trò và quyền hệ thống.
  *
- * Hai vai trò: ADMIN (toàn quyền) và EMPLOYEE (chỉ học tập).
+ * ADMIN (toàn quyền), HR (quản lý hồ sơ nhân sự) và EMPLOYEE (chỉ học tập).
  *
- * Tầng permission vẫn giữ chi tiết từng hành động chứ không gộp thành cờ
- * "là admin". Nhờ vậy khi cần tách vai trò hẹp hơn (ví dụ người dựng khóa học
- * không được xem lương), chỉ việc thêm vai trò mới vào ROLE_PERMISSIONS —
- * không phải sửa lại các màn hình đang kiểm tra quyền.
+ * Tầng permission giữ quyền chi tiết theo từng hành động. Mỗi vai trò khai
+ * báo tập quyền riêng ở ROLE_PERMISSIONS.
  */
 class RolePermissionSeeder extends Seeder
 {
@@ -51,6 +49,10 @@ class RolePermissionSeeder extends Seeder
     ];
 
     private const ROLE_PERMISSIONS = [
+        RoleName::HR->value => [
+            'employees.view',
+            'employees.manage',
+        ],
         RoleName::EMPLOYEE->value => [
             'learning.access',
         ],

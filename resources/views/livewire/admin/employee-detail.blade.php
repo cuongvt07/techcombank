@@ -38,7 +38,11 @@
                         @endphp
                         <span class="tag {{ $cls }}">{{ $label }}</span>
 
-                        @if ($employee->jobGrade)
+                        @if ($employee->jobGrades->isNotEmpty())
+                            @foreach ($employee->jobGrades as $grade)
+                                <span class="tag">{{ $grade->name }}</span>
+                            @endforeach
+                        @elseif ($employee->jobGrade)
                             <span class="tag">{{ $employee->jobGrade->name }}</span>
                         @endif
 
@@ -159,7 +163,11 @@
                             </div>
                             <div class="flex gap-3">
                                 <dt class="w-32 shrink-0 text-brand-muted">Cấp bậc</dt>
-                                <dd>{{ $employee->jobGrade?->name ?? '—' }}</dd>
+                                <dd>
+                                    {{ $employee->jobGrades->isNotEmpty()
+                                        ? $employee->jobGrades->pluck('name')->join(', ')
+                                        : ($employee->jobGrade?->name ?? '—') }}
+                                </dd>
                             </div>
                             <div class="flex gap-3">
                                 <dt class="w-32 shrink-0 text-brand-muted">Quản lý</dt>
