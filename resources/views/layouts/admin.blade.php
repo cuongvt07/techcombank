@@ -38,6 +38,8 @@
         </div>
     </div>
 
+    <x-confirm-dialog scope="admin" />
+
     @livewireScripts
 </body>
 </html>

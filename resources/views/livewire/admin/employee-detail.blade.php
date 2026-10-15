@@ -258,7 +258,7 @@
                                                 <x-admin.icon-button icon="heroicon-o-x-mark" label="Gỡ khóa học"
                                                                      variant="danger"
                                                                      wire:click="unassign({{ $enrollment->id }})"
-                                                                     wire:confirm="Gỡ khóa học này? Lịch sử học tập vẫn được giữ." />
+                                                                     data-confirm="Gỡ khóa học này? Lịch sử học tập vẫn được giữ." />
                                             @endif
                                         </div>
                                     </td>

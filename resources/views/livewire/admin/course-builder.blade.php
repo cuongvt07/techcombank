@@ -106,11 +106,11 @@
                                             <x-admin.icon-button icon="heroicon-o-archive-box" label="Gỡ xuất bản"
                                                                  variant="danger"
                                                                  wire:click="unpublishCourse({{ $course->id }})"
-                                                                 wire:confirm="Gỡ xuất bản khóa học này?" />
+                                                                 data-confirm="Gỡ xuất bản khóa học này?" />
                                         @else
                                             <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản khóa học"
                                                                  variant="primary"
-                                                                 wire:click="publishCourse({{ $course->id }})" />
+                                                                 wire:click="publishCourse({{ $course->id }})" data-confirm="Xuất bản khóa học này? Nhân viên được gán khóa sẽ thấy và bắt đầu học được." data-confirm-title="Xuất bản khóa học" data-confirm-ok="Xuất bản" />
                                         @endif
                                     </div>
                                 </td>
@@ -253,13 +253,13 @@
                                 <x-admin.icon-button
                                     :icon="$lesson->is_required ? 'heroicon-s-star' : 'heroicon-o-star'"
                                     :label="$lesson->is_required ? 'Bỏ đánh dấu bắt buộc' : 'Đánh dấu bắt buộc'"
-                                    wire:click="toggleLessonRequired({{ $lesson->id }})" />
+                                    wire:click="toggleLessonRequired({{ $lesson->id }})" data-confirm="Đổi bài học này giữa bắt buộc và tùy chọn?" data-confirm-title="Đổi trạng thái bài học" data-confirm-ok="Đồng ý" />
                                 <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa bài học"
                                                      wire:click="editLesson({{ $lesson->id }})" />
                                 <x-admin.icon-button icon="heroicon-o-trash" label="Xóa bài học"
                                                      variant="danger"
                                                      wire:click="deleteLesson({{ $lesson->id }})"
-                                                     wire:confirm="Xóa bài học này? Tiến độ của người đang học sẽ được tính lại." />
+                                                     data-confirm="Xóa bài học này? Tiến độ của người đang học sẽ được tính lại." data-confirm-danger />
                             </div>
                         </div>
                     </div>
@@ -293,7 +293,7 @@
                                             class="whitespace-nowrap text-[11px] font-semibold text-brand-red hover:underline">Áp dụng</button>
                                     <span class="text-brand-line">|</span>
                                     <button type="button" wire:click="deleteRule({{ $rule->id }})"
-                                            wire:confirm="Xóa điều kiện này?"
+                                            data-confirm="Xóa điều kiện này?" data-confirm-danger
                                             class="whitespace-nowrap text-[11px] font-semibold text-brand-muted hover:text-brand-red">Xóa</button>
                                 </div>
                             </div>

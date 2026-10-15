@@ -120,11 +120,11 @@
                                     <x-admin.icon-button
                                         :icon="$rule->is_active ? 'heroicon-o-pause-circle' : 'heroicon-o-play-circle'"
                                         :label="$rule->is_active ? 'Tạm tắt quy tắc' : 'Bật lại quy tắc'"
-                                        wire:click="toggleActive({{ $rule->id }})" />
+                                        wire:click="toggleActive({{ $rule->id }})" data-confirm="Đổi trạng thái bật/tắt của mục này?" data-confirm-title="Ẩn / hiện" data-confirm-ok="Đồng ý" />
                                     <x-admin.icon-button icon="heroicon-o-trash" label="Xóa quy tắc"
                                                          variant="danger"
                                                          wire:click="delete({{ $rule->id }})"
-                                                         wire:confirm="Xóa quy tắc này?" />
+                                                         data-confirm="Xóa quy tắc này?" data-confirm-danger />
                                 </div>
                             </td>
                         </tr>

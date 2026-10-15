@@ -26,7 +26,7 @@
                     Giao khóa học
                 </button>
                 <button type="button" wire:click="bulkMakeOfficial"
-                        wire:confirm="Chuyển các nhân viên thử việc đang chọn sang chính thức?"
+                        data-confirm="Chuyển các nhân viên thử việc đang chọn sang chính thức?"
                         class="admin-btn-secondary">
                     Chuyển chính thức
                 </button>
@@ -167,7 +167,7 @@
                                         <x-admin.icon-button icon="heroicon-o-user-minus" label="Ghi nhận nghỉ việc"
                                                              variant="danger"
                                                              wire:click="resign({{ $employee->id }})"
-                                                             wire:confirm="Ghi nhận nghỉ việc và khóa tài khoản của {{ $employee->full_name }}?" />
+                                                             data-confirm="Ghi nhận nghỉ việc và khóa tài khoản của {{ $employee->full_name }}?" />
                                     @endif
                                 </div>
                             </td>

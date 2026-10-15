@@ -66,7 +66,7 @@
                                         @if ($quiz->status !== 'published')
                                             <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản bài kiểm tra"
                                                                  variant="primary"
-                                                                 wire:click="publishQuiz({{ $quiz->id }})" />
+                                                                 wire:click="publishQuiz({{ $quiz->id }})" data-confirm="Xuất bản bài kiểm tra này? Nhân viên sẽ làm được bài ngay." data-confirm-title="Xuất bản bài kiểm tra" data-confirm-ok="Xuất bản" />
                                         @endif
                                     </div>
                                 </td>
@@ -168,11 +168,11 @@
                             <x-admin.icon-button
                                 :icon="$question->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye'"
                                 :label="$question->is_active ? 'Tắt câu hỏi' : 'Bật câu hỏi'"
-                                wire:click="toggleQuestionActive({{ $question->id }})" />
+                                wire:click="toggleQuestionActive({{ $question->id }})" data-confirm="Ẩn hoặc hiện câu hỏi này trong bài kiểm tra?" data-confirm-title="Ẩn / hiện câu hỏi" data-confirm-ok="Đồng ý" />
                             <x-admin.icon-button icon="heroicon-o-trash" label="Xóa câu hỏi"
                                                  variant="danger"
                                                  wire:click="deleteQuestion({{ $question->id }})"
-                                                 wire:confirm="Xóa câu hỏi này?" />
+                                                 data-confirm="Xóa câu hỏi này?" data-confirm-danger />
                         </div>
                     </div>
 

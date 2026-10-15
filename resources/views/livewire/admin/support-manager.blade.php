@@ -177,7 +177,7 @@
         <x-slot:footer>
             <button type="button" wire:click="$set('showModal', false)" class="admin-btn-secondary">Đóng</button>
             @if ($viewing && $viewing->status !== 'closed')
-                <button type="button" wire:click="close({{ $viewing->id }})" class="admin-btn-secondary">Đóng phiếu</button>
+                <button type="button" wire:click="close({{ $viewing->id }})" data-confirm="Đóng phiếu này? Nhân viên sẽ không phản hồi thêm được." data-confirm-title="Đóng phiếu" data-confirm-ok="Đóng phiếu" class="admin-btn-secondary">Đóng phiếu</button>
             @endif
             <button type="button" wire:click="resolve" class="admin-btn">Giải quyết &amp; gửi phản hồi</button>
         </x-slot:footer>

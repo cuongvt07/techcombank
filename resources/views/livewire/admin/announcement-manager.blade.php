@@ -118,12 +118,12 @@
                                     @if ($item->published_at)
                                         <x-admin.icon-button icon="heroicon-o-eye-slash"
                                                              label="Gỡ khỏi site người dùng"
-                                                             wire:click="unpublish({{ $item->id }})" />
+                                                             wire:click="unpublish({{ $item->id }})" data-confirm="Gỡ khỏi site người dùng? Nhân viên sẽ không còn thấy mục này, nội dung vẫn được giữ lại." data-confirm-title="Gỡ xuất bản" data-confirm-ok="Gỡ xuống" />
                                     @else
                                         <x-admin.icon-button icon="heroicon-o-paper-airplane"
                                                              label="Phát hành ngay"
                                                              variant="primary"
-                                                             wire:click="publish({{ $item->id }})" />
+                                                             wire:click="publish({{ $item->id }})" data-confirm="Hiển thị mục này cho nhân viên?" data-confirm-title="Xuất bản" data-confirm-ok="Xuất bản" />
                                     @endif
 
                                     <x-admin.icon-button icon="heroicon-o-pencil-square"
@@ -134,7 +134,7 @@
                                                          label="Xóa"
                                                          variant="danger"
                                                          wire:click="delete({{ $item->id }})"
-                                                         wire:confirm="Xóa sự kiện này?" />
+                                                         data-confirm="Xóa sự kiện này?" data-confirm-danger />
                                 </div>
                             </td>
                         </tr>

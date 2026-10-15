@@ -42,6 +42,8 @@
     {{-- Trợ lý AI: có mặt ở mọi trang site người dùng (spec 4.3) --}}
     @livewire('user.ai-chat')
 
+    <x-confirm-dialog scope="user" />
+
     @livewireScripts
 </body>
 </html>

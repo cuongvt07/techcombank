@@ -317,12 +317,12 @@
                                         @if ($session->is_active)
                                             <x-admin.icon-button icon="heroicon-o-arrow-right-on-rectangle" label="Thu hồi phiên này"
                                                                  wire:click="revokeSession({{ $session->id }})"
-                                                                 wire:confirm="Thu hồi phiên này? Người dùng sẽ phải đăng nhập lại." />
+                                                                 data-confirm="Thu hồi phiên này? Người dùng sẽ phải đăng nhập lại." data-confirm-danger />
                                             @if ($session->user_id)
                                                 <x-admin.icon-button icon="heroicon-o-shield-exclamation" label="Thu hồi tất cả phiên của tài khoản"
                                                                      variant="danger"
                                                                      wire:click="revokeAllForUser({{ $session->user_id }})"
-                                                                     wire:confirm="Thu hồi TẤT CẢ phiên của tài khoản này?" />
+                                                                     data-confirm="Thu hồi TẤT CẢ phiên của tài khoản này?" data-confirm-danger />
                                             @endif
                                         @endif
                                     </div>

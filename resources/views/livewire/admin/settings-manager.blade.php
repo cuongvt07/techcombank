@@ -81,7 +81,7 @@
                                         <x-admin.icon-button
                                             :icon="$item->is_active ? 'heroicon-o-pause-circle' : 'heroicon-o-play-circle'"
                                             :label="$item->is_active ? 'Ngưng sử dụng' : 'Bật lại'"
-                                            wire:click="toggleActive({{ $item->id }})" />
+                                            wire:click="toggleActive({{ $item->id }})" data-confirm="Đổi trạng thái bật/tắt của mục này?" data-confirm-title="Ẩn / hiện" data-confirm-ok="Đồng ý" />
                                     </div>
                                 </td>
                             </tr>

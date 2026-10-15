@@ -114,11 +114,11 @@
                                         <x-admin.icon-button icon="heroicon-o-archive-box" label="Gỡ xuất bản"
                                                              variant="danger"
                                                              wire:click="unpublish({{ $doc->id }})"
-                                                             wire:confirm="Gỡ xuất bản tài liệu này?" />
+                                                             data-confirm="Gỡ xuất bản tài liệu này?" />
                                     @else
                                         <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản tài liệu"
                                                              variant="primary"
-                                                             wire:click="publish({{ $doc->id }})" />
+                                                             wire:click="publish({{ $doc->id }})" data-confirm="Hiển thị mục này cho nhân viên?" data-confirm-title="Xuất bản" data-confirm-ok="Xuất bản" />
                                     @endif
                                 </div>
                             </td>
@@ -360,7 +360,7 @@
                                                 <x-admin.icon-button icon="heroicon-o-arrow-uturn-left"
                                                                      label="Khôi phục phiên bản {{ $version->version_no }}"
                                                                      wire:click="rollback({{ $version->id }})"
-                                                                     wire:confirm="Khôi phục về phiên bản {{ $version->version_no }}?" />
+                                                                     data-confirm="Khôi phục về phiên bản {{ $version->version_no }}?" />
                                             @endif
                                         </div>
                                     </td>

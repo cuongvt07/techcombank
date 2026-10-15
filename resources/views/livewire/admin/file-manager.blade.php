@@ -189,7 +189,7 @@
                                                                          wire:click="moveFolderTo({{ $sub->id }})" />
                                                     <x-admin.icon-button icon="heroicon-o-trash" label="Xóa thư mục"
                                                                          variant="danger"
-                                                                         wire:click="deleteFolder({{ $sub->id }})" />
+                                                                         wire:click="deleteFolder({{ $sub->id }})" data-confirm="Xóa thư mục này?" data-confirm-title="Xác nhận xóa" data-confirm-ok="Xóa" data-confirm-danger />
                                                 @endunless
                                             </div>
                                         </td>
@@ -239,7 +239,7 @@
                                                 <x-admin.icon-button icon="heroicon-o-trash" label="Xóa file"
                                                                      variant="danger"
                                                                      wire:click="deleteFile({{ $file->id }})"
-                                                                     wire:confirm="Xóa file này?" />
+                                                                     data-confirm="Xóa file này?" data-confirm-danger />
                                             </div>
                                         </td>
                                     </tr>

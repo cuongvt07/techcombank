@@ -138,7 +138,7 @@
                         <span class="tag tag-green shrink-0">Thiết bị này</span>
                     @else
                         <button type="button" wire:click="revokeSession({{ $session->id }})"
-                                wire:confirm="Thu hồi phiên đăng nhập trên thiết bị này?"
+                                data-confirm="Thu hồi phiên đăng nhập trên thiết bị này?" data-confirm-danger
                                 class="user-pill shrink-0 transition-colors hover:bg-brand-red-tint hover:text-brand-red">
                             Thu hồi
                         </button>
