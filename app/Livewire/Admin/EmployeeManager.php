@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\Employee;
@@ -21,6 +22,8 @@ use Livewire\WithPagination;
  */
 class EmployeeManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -31,6 +34,15 @@ class EmployeeManager extends Component
 
     #[Url]
     public string $statusFilter = '';
+
+    #[Url]
+    public string $jobTitleFilter = '';
+
+    #[Url]
+    public string $jobGradeFilter = '';
+
+    #[Url]
+    public string $joinedYearFilter = '';
 
     /** @var array<int, string> Id nhan vien dang duoc chon de thao tac hang loat */
     public array $selected = [];
@@ -55,7 +67,8 @@ class EmployeeManager extends Component
     public ?int $department_id = null;
     public ?int $job_title_id = null;
     /** @var array<int, int|string> */
-    public array $job_grade_ids = [];
+    /** Hồ sơ nhân sự chỉ một cấp bậc; chọn nhiều cấp bậc chỉ có ở phân quyền tài liệu. */
+    public ?int $job_grade_id = null;
     public ?int $manager_id = null;
     public string $employment_status = Employee::STATUS_PROBATION;
     public ?string $joined_at = null;
@@ -68,6 +81,7 @@ class EmployeeManager extends Component
             'departments' => Department::active()->orderBy('name')->get(),
             'jobTitles' => JobTitle::active()->orderBy('name')->get(),
             'jobGrades' => JobGrade::active()->orderBy('level')->get(),
+            'joinedYears' => $this->joinedYears(),
             'managers' => Employee::active()->orderBy('full_name')->limit(200)->get(),
             'histories' => $this->histories(),
             // Nạp ở đây thay vì query trong view: view không nên chạm CSDL
@@ -79,13 +93,17 @@ class EmployeeManager extends Component
 
     public function updated($property): void
     {
-        if (in_array($property, ['search', 'departmentFilter', 'statusFilter'], true)) {
+        $filters = ['search', 'departmentFilter', 'statusFilter', 'jobTitleFilter', 'jobGradeFilter', 'joinedYearFilter'];
+
+        if (in_array($property, $filters, true)) {
             $this->resetPage();
         }
     }
 
     public function create(): void
     {
+        $this->requirePermission('employees.create');
+
         $this->resetForm();
         $this->joined_at = now()->toDateString();
         $this->showModal = true;
@@ -93,6 +111,8 @@ class EmployeeManager extends Component
 
     public function edit(int $id): void
     {
+        $this->requirePermission('employees.update');
+
         $employee = Employee::findOrFail($id);
 
         $this->editingId = $employee->id;
@@ -104,10 +124,9 @@ class EmployeeManager extends Component
         $this->gender = (string) $employee->gender;
         $this->department_id = $employee->department_id;
         $this->job_title_id = $employee->job_title_id;
-        $this->job_grade_ids = $employee->jobGrades()->pluck('job_grades.id')->map(fn ($id) => (int) $id)->all();
-        if ($this->job_grade_ids === [] && $employee->job_grade_id) {
-            $this->job_grade_ids = [$employee->job_grade_id];
-        }
+        // Hồ sơ cũ có thể còn nhiều cấp bậc trong bảng nối: lấy cấp cao nhất
+        $this->job_grade_id = $employee->job_grade_id
+            ?? $employee->jobGrades()->reorder()->orderByDesc('level')->value('job_grades.id');
         $this->manager_id = $employee->manager_id;
         $this->employment_status = $employee->employment_status;
         $this->joined_at = $employee->joined_at?->toDateString();
@@ -118,10 +137,12 @@ class EmployeeManager extends Component
 
     public function save(EmployeeService $service): void
     {
+        $this->requirePermission($this->editingId ? 'employees.update' : 'employees.create');
+
         $data = $this->validate($this->rules());
-        $primaryGradeId = JobGrade::whereIn('id', $data['job_grade_ids'] ?? [])
-            ->orderByDesc('level')
-            ->value('id');
+        $primaryGradeId = $data['job_grade_id'] ?: null;
+        // Bảng nối vẫn được đối chiếu ở phân quyền tài liệu, giữ nó khớp đúng một cấp bậc
+        $gradeIds = $primaryGradeId ? [$primaryGradeId] : [];
 
         if ($this->editingId) {
             $employee = Employee::findOrFail($this->editingId);
@@ -130,7 +151,6 @@ class EmployeeManager extends Component
             // đi qua service để ghi audit trail và gán lại khoá học (spec 3.1.2 + 3.3.1).
             $employee->update([
                 'full_name' => $data['full_name'],
-                'employee_code' => $data['employee_code'],
                 'email' => $data['email'] ?: null,
                 'phone' => $data['phone'] ?: null,
                 'date_of_birth' => $data['date_of_birth'] ?: null,
@@ -150,14 +170,13 @@ class EmployeeManager extends Component
                 $this->change_reason ?: null,
                 auth()->id(),
             );
-            $employee->jobGrades()->sync($data['job_grade_ids'] ?? []);
+            $employee->jobGrades()->sync($gradeIds);
 
             session()->flash('status', $assigned > 0
                 ? "Đã cập nhật hồ sơ và gán thêm {$assigned} khóa học theo vị trí mới."
                 : 'Đã cập nhật hồ sơ nhân sự.');
         } else {
             $employee = Employee::create([
-                'employee_code' => $data['employee_code'],
                 'full_name' => $data['full_name'],
                 'email' => $data['email'] ?: null,
                 'phone' => $data['phone'] ?: null,
@@ -172,7 +191,7 @@ class EmployeeManager extends Component
                 'is_new_hire' => $data['employment_status'] === Employee::STATUS_PROBATION,
             ]);
 
-            $employee->jobGrades()->sync($data['job_grade_ids'] ?? []);
+            $employee->jobGrades()->sync($gradeIds);
 
             $service->recordInitialAssignment($employee, auth()->id());
 
@@ -185,6 +204,8 @@ class EmployeeManager extends Component
 
     public function resign(int $id, EmployeeService $service): void
     {
+        $this->requirePermission('employees.update');
+
         $employee = Employee::findOrFail($id);
         $service->resign($employee, 'Nghỉ việc', auth()->id());
 
@@ -215,6 +236,8 @@ class EmployeeManager extends Component
 
     public function openBulkAssign(): void
     {
+        $this->requirePermission('employees.update');
+
         $this->reset(['bulkCourseId', 'bulkDueDays']);
         $this->showBulkAssign = true;
     }
@@ -222,6 +245,8 @@ class EmployeeManager extends Component
     /** Giao một khoá học cho toàn bộ nhân viên đang chọn. */
     public function bulkAssignCourse(CourseAssignmentService $service): void
     {
+        $this->requirePermission('employees.update');
+
         $this->validate([
             'bulkCourseId' => ['required', 'exists:courses,id'],
             'bulkDueDays' => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -251,6 +276,8 @@ class EmployeeManager extends Component
     /** Chuyển hàng loạt nhân viên thử việc sang chính thức. */
     public function bulkMakeOfficial(EmployeeService $service): void
     {
+        $this->requirePermission('employees.update');
+
         $count = 0;
 
         foreach (Employee::whereIn('id', $this->selected)->get() as $employee) {
@@ -268,18 +295,6 @@ class EmployeeManager extends Component
     {
         return Employee::query()
             ->with(['department', 'jobTitle', 'jobGrade', 'jobGrades', 'manager', 'user'])
-            // Tổng hợp sẵn số liệu học tập để mỗi dòng bảng nói được nhiều hơn.
-            // Dùng withCount/withAvg thay vì gọi quan hệ trong view: tránh N+1
-            // khi bảng có 15 dòng × 3 truy vấn mỗi dòng.
-            ->withCount([
-                'enrollments as assigned_count' => fn ($q) => $q->whereNot('status', 'cancelled'),
-                'enrollments as completed_count' => fn ($q) => $q->where('status', 'completed'),
-                'enrollments as overdue_count' => fn ($q) => $q->where('status', 'overdue'),
-            ])
-            ->withAvg(
-                ['enrollments as avg_progress' => fn ($q) => $q->whereNot('status', 'cancelled')],
-                'progress_percent'
-            )
             ->when($this->search, function ($query) {
                 $term = '%' . $this->search . '%';
 
@@ -290,8 +305,26 @@ class EmployeeManager extends Component
             })
             ->when($this->departmentFilter, fn ($q) => $q->inDepartment((int) $this->departmentFilter))
             ->when($this->statusFilter, fn ($q) => $q->where('employment_status', $this->statusFilter))
+            ->when($this->jobTitleFilter, fn ($q) => $q->where('job_title_id', (int) $this->jobTitleFilter))
+            // Cấp bậc lưu ở cột job_grade_id và bảng nối — khớp một trong hai
+            ->when($this->jobGradeFilter, fn ($q) => $q->where(fn ($g) => $g
+                ->where('job_grade_id', (int) $this->jobGradeFilter)
+                ->orWhereHas('jobGrades', fn ($j) => $j->whereKey((int) $this->jobGradeFilter))))
+            ->when($this->joinedYearFilter, fn ($q) => $q->whereYear('joined_at', (int) $this->joinedYearFilter))
             ->orderBy('full_name')
             ->paginate(15);
+    }
+
+    /** Các năm có nhân viên vào làm, mới nhất trước — để lọc theo năm vào làm. */
+    private function joinedYears()
+    {
+        return Employee::query()
+            ->whereNotNull('joined_at')
+            ->pluck('joined_at')
+            ->map(fn ($date) => $date->year)
+            ->unique()
+            ->sortDesc()
+            ->values();
     }
 
     private function histories()
@@ -310,18 +343,13 @@ class EmployeeManager extends Component
     {
         return [
             'full_name' => ['required', 'string', 'max:255'],
-            'employee_code' => [
-                'required', 'string', 'max:50',
-                Rule::unique('employees', 'employee_code')->ignore($this->editingId)->whereNull('deleted_at'),
-            ],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'department_id' => ['nullable', Rule::exists('departments', 'id')],
             'job_title_id' => ['nullable', Rule::exists('job_titles', 'id')],
-            'job_grade_ids' => ['array'],
-            'job_grade_ids.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
+            'job_grade_id' => ['nullable', 'integer', Rule::exists('job_grades', 'id')],
             // Không cho chọn chính mình làm quản lý trực tiếp
             'manager_id' => ['nullable', Rule::exists('employees', 'id'), Rule::notIn([$this->editingId])],
             'employment_status' => ['required', Rule::in([
@@ -339,7 +367,7 @@ class EmployeeManager extends Component
         $this->reset([
             'editingId', 'full_name', 'employee_code', 'email', 'phone',
             'date_of_birth', 'gender', 'department_id', 'job_title_id',
-            'job_grade_ids', 'manager_id', 'joined_at', 'change_reason',
+            'job_grade_id', 'manager_id', 'joined_at', 'change_reason',
         ]);
         $this->employment_status = Employee::STATUS_PROBATION;
         $this->resetValidation();

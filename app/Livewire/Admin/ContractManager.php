@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Contract;
 use App\Models\ContractType;
 use App\Models\Employee;
@@ -19,6 +20,8 @@ use Livewire\WithPagination;
  */
 class ContractManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination, WithFileUploads;
 
     #[Url(as: 'q', keep: false)]
@@ -26,6 +29,9 @@ class ContractManager extends Component
 
     #[Url]
     public string $statusFilter = '';
+
+    #[Url]
+    public string $typeFilter = '';
 
     /** Lọc nhanh nhóm hợp đồng cần xử lý gấp. */
     #[Url]
@@ -45,6 +51,12 @@ class ContractManager extends Component
     public string $note = '';
     public $file = null;
 
+    public function mount(): void
+    {
+        // Trạng thái luôn khớp ngày hiện tại khi mở màn hình, không cần bấm tay
+        Contract::syncStatuses();
+    }
+
     public function render(): View
     {
         return view('livewire.admin.contract-manager', [
@@ -57,13 +69,15 @@ class ContractManager extends Component
 
     public function updated($property): void
     {
-        if (in_array($property, ['search', 'statusFilter', 'onlyExpiring'], true)) {
+        if (in_array($property, ['search', 'statusFilter', 'typeFilter', 'onlyExpiring'], true)) {
             $this->resetPage();
         }
     }
 
     public function create(): void
     {
+        $this->requirePermission('contracts.create');
+
         $this->resetForm();
         $this->effective_from = now()->toDateString();
         $this->showModal = true;
@@ -71,6 +85,8 @@ class ContractManager extends Component
 
     public function edit(int $id): void
     {
+        $this->requirePermission('contracts.update');
+
         $contract = Contract::findOrFail($id);
 
         $this->editingId = $contract->id;
@@ -90,12 +106,13 @@ class ContractManager extends Component
 
     public function save(): void
     {
+        $this->requirePermission($this->editingId ? 'contracts.update' : 'contracts.create');
+
         $data = $this->validate($this->rules());
 
         $payload = [
             'employee_id' => $data['employee_id'],
             'contract_type_id' => $data['contract_type_id'],
-            'contract_no' => $data['contract_no'],
             'signed_at' => $data['signed_at'] ?: null,
             'effective_from' => $data['effective_from'],
             'effective_to' => $data['effective_to'] ?: null,
@@ -130,25 +147,6 @@ class ContractManager extends Component
         $this->resetForm();
     }
 
-    /**
-     * Đồng bộ trạng thái theo ngày hết hạn.
-     * Thao tác thủ công ở đây phục vụ lúc chưa bật scheduler (spec 3.1.3).
-     */
-    public function refreshStatuses(): void
-    {
-        $expired = Contract::expired()->update(['status' => Contract::STATUS_EXPIRED]);
-
-        $expiring = 0;
-        Contract::needsExpiryAlert()
-            ->where('status', Contract::STATUS_ACTIVE)
-            ->each(function (Contract $contract) use (&$expiring) {
-                $contract->update(['status' => Contract::STATUS_EXPIRING]);
-                $expiring++;
-            });
-
-        session()->flash('status', "Đã cập nhật: {$expired} hợp đồng hết hạn, {$expiring} hợp đồng sắp hết hạn.");
-    }
-
     private function contracts()
     {
         return Contract::query()
@@ -163,6 +161,7 @@ class ContractManager extends Component
                         ->orWhere('employee_code', 'like', $term)));
             })
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($this->typeFilter, fn ($q) => $q->where('contract_type_id', (int) $this->typeFilter))
             ->when($this->onlyExpiring, fn ($q) => $q->needsExpiryAlert())
             ->orderByRaw('effective_to IS NULL, effective_to')
             ->paginate(15);
@@ -173,10 +172,6 @@ class ContractManager extends Component
         return [
             'employee_id' => ['required', Rule::exists('employees', 'id')],
             'contract_type_id' => ['required', Rule::exists('contract_types', 'id')],
-            'contract_no' => [
-                'required', 'string', 'max:100',
-                Rule::unique('contracts', 'contract_no')->ignore($this->editingId)->whereNull('deleted_at'),
-            ],
             'signed_at' => ['nullable', 'date'],
             'effective_from' => ['required', 'date'],
             // Ngày hết hạn phải sau ngày hiệu lực, tránh hợp đồng âm thời hạn

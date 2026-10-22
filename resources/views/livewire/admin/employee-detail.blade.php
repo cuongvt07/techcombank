@@ -58,10 +58,12 @@
             </div>
 
             <div class="flex shrink-0 flex-wrap items-center gap-2">
+                @can('employees.update')
                 <button type="button" wire:click="openAssign" class="admin-btn">
                     @svg('heroicon-o-plus', 'h-4 w-4')
                     Giao khóa học
                 </button>
+                @endcan
             </div>
         </div>
     </div>
@@ -255,10 +257,12 @@
                                     <td>
                                         <div class="flex justify-end">
                                             @if ($enrollment->status !== 'cancelled')
+                                                @can('employees.update')
                                                 <x-admin.icon-button icon="heroicon-o-x-mark" label="Gỡ khóa học"
                                                                      variant="danger"
                                                                      wire:click="unassign({{ $enrollment->id }})"
                                                                      data-confirm="Gỡ khóa học này? Lịch sử học tập vẫn được giữ." />
+                                                @endcan
                                             @endif
                                         </div>
                                     </td>

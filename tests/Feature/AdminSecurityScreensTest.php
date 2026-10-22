@@ -274,6 +274,35 @@ class AdminSecurityScreensTest extends TestCase
         $this->assertSame($this->admin->id, $alert->handled_by);
     }
 
+    public function test_ghi_nhan_va_dong_thi_canh_bao_chuyen_tab(): void
+    {
+        $alert = SecurityAlert::create([
+            'user_id' => $this->admin->id,
+            'type' => SecurityAlert::TYPE_UNUSUAL_IP,
+            'severity' => 'medium',
+            'title' => 'Cảnh Báo Chuyển Tab',
+            'status' => SecurityAlert::STATUS_OPEN,
+        ]);
+
+        $ids = fn ($component) => collect($component->viewData('rows')->items())->pluck('id')->all();
+
+        $component = Livewire::test(SecurityCenter::class)
+            ->assertSet('alertTab', 'open')
+            ->assertViewHas('alertTabCounts', ['open' => 1, 'acknowledged' => 0, 'closed' => 0]);
+        $this->assertSame([$alert->id], $ids($component));
+
+        // Ghi nhận: rời tab Chưa xử lý, sang tab Đã ghi nhận
+        $component->call('acknowledge', $alert->id)
+            ->assertViewHas('alertTabCounts', ['open' => 0, 'acknowledged' => 1, 'closed' => 0]);
+        $this->assertSame([], $ids($component));
+        $this->assertSame([$alert->id], $ids($component->call('setAlertTab', 'acknowledged')));
+
+        // Đóng: sang tab Đã xử lý
+        $component->call('resolve', $alert->id)
+            ->assertViewHas('alertTabCounts', ['open' => 0, 'acknowledged' => 0, 'closed' => 1]);
+        $this->assertSame([$alert->id], $ids($component->call('setAlertTab', 'closed')));
+    }
+
     public function test_dong_canh_bao_ghi_nguoi_xu_ly(): void
     {
         $alert = SecurityAlert::create([
@@ -403,25 +432,42 @@ class AdminSecurityScreensTest extends TestCase
         $this->assertSame(0, DeviceSession::where('user_id', $target->id)->where('is_active', true)->count());
     }
 
-    public function test_quet_thu_cong_sinh_canh_bao(): void
+    public function test_xem_tai_lieu_hang_loat_tu_sinh_canh_bao(): void
     {
+        // Không còn nút "Quét ngay": mỗi lượt xem/tải được quét ngay lúc ghi nhật ký
         \App\Models\Setting::set('security.mass_download_threshold', '3', 'integer');
         $user = User::factory()->create();
+        $employee = Employee::factory()->create(['user_id' => $user->id]);
+        $access = app(\App\Services\DocumentAccessService::class);
 
         foreach (range(1, 5) as $i) {
-            DocumentAccessLog::create([
-                'document_id' => Document::factory()->create()->id,
-                'user_id' => $user->id,
-                'action' => DocumentAccessLog::ACTION_VIEW,
-                'accessed_at' => now(),
-            ]);
+            $access->logAccess($employee, Document::factory()->create(), DocumentAccessLog::ACTION_VIEW);
         }
-
-        Livewire::test(SecurityCenter::class)->call('runScan');
 
         $this->assertDatabaseHas('security_alerts', [
             'user_id' => $user->id,
             'type' => SecurityAlert::TYPE_MASS_DOWNLOAD,
+        ]);
+        // Chống trùng: 5 lượt vượt ngưỡng vẫn chỉ một cảnh báo
+        $this->assertSame(1, SecurityAlert::where('user_id', $user->id)
+            ->where('type', SecurityAlert::TYPE_MASS_DOWNLOAD)->count());
+    }
+
+    public function test_dang_nhap_sai_nhieu_lan_tu_sinh_canh_bao(): void
+    {
+        $user = User::factory()->create(['status' => User::STATUS_ACTIVE]);
+        auth()->logout();
+
+        foreach (range(1, 5) as $i) {
+            Livewire::test(\App\Livewire\Auth\Login::class)
+                ->set('email', $user->email)
+                ->set('password', 'sai-mat-khau-' . $i)
+                ->call('login');
+        }
+
+        $this->assertDatabaseHas('security_alerts', [
+            'user_id' => $user->id,
+            'type' => SecurityAlert::TYPE_BRUTE_FORCE,
         ]);
     }
 

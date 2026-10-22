@@ -2,12 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DocumentCategory extends Model
 {
+    use HasAutoCode;
+
+    /** Mã tự sinh khi tạo mới: DM-001, DM-002... */
+    protected const CODE_COLUMN = 'code';
+    protected const CODE_PREFIX = 'DM-';
+    protected const CODE_PAD = 3;
+
     protected $fillable = ['code', 'name', 'parent_id', 'is_active', 'sort_order'];
 
     protected function casts(): array

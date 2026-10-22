@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\RoleName;
 use App\Livewire\Admin\QuizBuilder;
+use App\Models\Course;
 use App\Models\Employee;
 use App\Models\Question;
 use App\Models\QuestionOption;
@@ -28,6 +29,31 @@ class QuizBuilderTest extends TestCase
         $admin->assignRole(RoleName::ADMIN->value);
         Employee::factory()->create(['user_id' => $admin->id]);
         $this->actingAs($admin->refresh());
+    }
+
+    public function test_loc_bai_kiem_tra_theo_khoa_hoc_va_trang_thai(): void
+    {
+        $course = Course::factory()->create();
+
+        Quiz::factory()->create(['title' => 'KT Thuộc Khóa', 'course_id' => $course->id]);
+        Quiz::factory()->create(['title' => 'KT Độc Lập', 'course_id' => null]);
+        Quiz::factory()->create(['title' => 'KT Nháp', 'course_id' => $course->id, 'status' => Quiz::STATUS_DRAFT]);
+
+        Livewire::test(QuizBuilder::class)
+            ->set('courseFilter', (string) $course->id)
+            ->assertSee('KT Thuộc Khóa')
+            ->assertSee('KT Nháp')
+            ->assertDontSee('KT Độc Lập')
+            ->set('statusFilter', Quiz::STATUS_DRAFT)
+            ->assertSee('KT Nháp')
+            ->assertDontSee('KT Thuộc Khóa')
+            // Ô chọn có tìm kiếm gửi null khi bỏ chọn — không được lỗi
+            ->set('courseFilter', null)
+            ->set('statusFilter', '')
+            ->assertSee('KT Độc Lập')
+            ->set('courseFilter', 'none')
+            ->assertSee('KT Độc Lập')
+            ->assertDontSee('KT Thuộc Khóa');
     }
 
     public function test_tao_bai_kiem_tra_moi(): void

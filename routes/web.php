@@ -19,6 +19,11 @@ use App\Livewire\Admin\QuizBuilder;
 use App\Livewire\Admin\SecurityCenter;
 use App\Livewire\Admin\SettingsManager;
 use App\Livewire\Admin\SupportManager;
+use App\Livewire\Admin\Reports\DocumentAccessReport;
+use App\Livewire\Admin\Reports\LearningProgressReport;
+use App\Livewire\Admin\Reports\QuizResultReport;
+use App\Livewire\Admin\Reports\SecurityReport;
+use App\Livewire\Admin\Reports\SupportReport;
 use App\Livewire\Auth\Login;
 use App\Livewire\User\CoursePlayer;
 use App\Livewire\User\DocumentBrowser;
@@ -79,14 +84,28 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
         Route::get('/hop-dong', ContractManager::class)
             ->middleware('can:contracts.view')->name('contracts');
         Route::get('/phan-quyen', PermissionMatrix::class)
-            ->middleware('can:roles.manage')->name('roles');
+            ->middleware('can:roles.view')->name('roles');
         Route::get('/cau-hinh', SettingsManager::class)
-            ->middleware('can:settings.manage')->name('settings');
+            ->middleware('can:settings.view')->name('settings');
         Route::get('/huong-dan/{audience?}', UserGuideController::class)->name('guide');
 
         // 4.5 Phiếu hỗ trợ nhân viên gửi lên
         Route::get('/phieu-ho-tro', SupportManager::class)
-            ->middleware('can:support.manage')->name('support');
+            ->middleware('can:support.view')->name('support');
+
+        // Báo cáo (SCR_002, 003, 007, 008, 009)
+        Route::prefix('bao-cao')->name('reports.')->group(function () {
+            Route::get('/tien-do-hoc-tap', LearningProgressReport::class)
+                ->middleware('can:report_learning.view')->name('learning');
+            Route::get('/ket-qua-kiem-tra', QuizResultReport::class)
+                ->middleware('can:report_quiz.view')->name('quiz');
+            Route::get('/truy-cap-tai-lieu', DocumentAccessReport::class)
+                ->middleware('can:report_documents.view')->name('documents');
+            Route::get('/bao-mat-dang-nhap', SecurityReport::class)
+                ->middleware('can:report_security.view')->name('security');
+            Route::get('/yeu-cau-ho-tro', SupportReport::class)
+                ->middleware('can:report_support.view')->name('support');
+        });
 
         // 3.1.5 Sự kiện & thông báo
         Route::get('/su-kien', AnnouncementManager::class)
@@ -100,11 +119,11 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
         Route::get('/khoa-hoc', CourseBuilder::class)
             ->middleware('can:courses.view')->name('courses');
         Route::get('/kho-tai-nguyen', FileManager::class)
-            ->middleware('can:documents.view')->name('files');
+            ->middleware('can:files.view')->name('files');
 
         // 3.3 Bảo mật
         Route::get('/phan-quyen-tai-lieu', DocumentAccessManager::class)
-            ->middleware('can:documents.manage-access')->name('access-rules');
+            ->middleware('can:document_access.view')->name('access-rules');
         Route::get('/bao-mat', SecurityCenter::class)
             ->middleware('can:security.view')->name('security');
     });

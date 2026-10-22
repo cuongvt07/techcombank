@@ -9,7 +9,9 @@
     <x-admin.page-header title="Hồ sơ nhân sự"
                          subtitle="Thông tin cá nhân, vị trí trong tổ chức và lịch sử điều chuyển.">
         <x-slot:actions>
+            @can('employees.create')
             <button type="button" wire:click="create" class="admin-btn">+ Thêm nhân sự</button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -21,15 +23,19 @@
             </p>
 
             <div class="flex flex-wrap items-center gap-2">
+                @can('employees.update')
                 <button type="button" wire:click="openBulkAssign" class="admin-btn">
                     @svg('heroicon-o-academic-cap', 'h-4 w-4')
                     Giao khóa học
                 </button>
+                @endcan
+                @can('employees.update')
                 <button type="button" wire:click="bulkMakeOfficial"
                         data-confirm="Chuyển các nhân viên thử việc đang chọn sang chính thức?"
                         class="admin-btn-secondary">
                     Chuyển chính thức
                 </button>
+                @endcan
                 <button type="button" wire:click="clearSelection" class="admin-btn-secondary">
                     Bỏ chọn
                 </button>
@@ -38,26 +44,63 @@
     @endif
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-employee-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-employee-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo tên, mã nhân viên hoặc email...">
             </div>
 
-            <select wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
-                <option value="">Mọi phòng ban</option>
-                @foreach ($departments as $dept)
-                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                @endforeach
-            </select>
+            <div>
+                <label for="f-employee-manager-departmentFilter-1" class="admin-label">Phòng ban</label>
+                <select id="f-employee-manager-departmentFilter-1" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
+                    <option value="">Mọi phòng ban</option>
+                    @foreach ($departments as $dept)
+                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-            <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                <option value="">Mọi trạng thái</option>
-                <option value="probation">Thử việc</option>
-                <option value="official">Chính thức</option>
-                <option value="suspended">Tạm ngưng</option>
-                <option value="resigned">Đã nghỉ việc</option>
-            </select>
+            <div>
+                <label for="f-employee-manager-statusFilter-2" class="admin-label">Trạng thái</label>
+                <select id="f-employee-manager-statusFilter-2" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
+                    <option value="">Mọi trạng thái</option>
+                    <option value="probation">Thử việc</option>
+                    <option value="official">Chính thức</option>
+                    <option value="suspended">Tạm ngưng</option>
+                    <option value="resigned">Đã nghỉ việc</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="f-employee-manager-jobTitleFilter" class="admin-label">Chức danh</label>
+                <select id="f-employee-manager-jobTitleFilter" wire:model.live="jobTitleFilter" class="admin-input w-auto min-w-[180px]">
+                    <option value="">Mọi chức danh</option>
+                    @foreach ($jobTitles as $title)
+                        <option value="{{ $title->id }}">{{ $title->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="f-employee-manager-jobGradeFilter" class="admin-label">Cấp bậc</label>
+                <select id="f-employee-manager-jobGradeFilter" wire:model.live="jobGradeFilter" class="admin-input w-auto min-w-[150px]">
+                    <option value="">Mọi cấp bậc</option>
+                    @foreach ($jobGrades as $grade)
+                        <option value="{{ $grade->id }}">{{ $grade->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="f-employee-manager-joinedYearFilter" class="admin-label">Năm vào làm</label>
+                <select id="f-employee-manager-joinedYearFilter" wire:model.live="joinedYearFilter" class="admin-input w-auto min-w-[130px]">
+                    <option value="">Mọi năm</option>
+                    @foreach ($joinedYears as $year)
+                        <option value="{{ $year }}">{{ $year }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -70,10 +113,10 @@
                                    aria-label="Chọn tất cả dòng trên trang">
                         </th>
                         <th>Nhân viên</th>
+                        <th class="w-28">Mã NV</th>
                         <th>Phòng ban</th>
                         <th>Chức danh</th>
                         <th class="w-28">Cấp bậc</th>
-                        <th class="w-48">Tiến độ học tập</th>
                         <th class="w-28">Trạng thái</th>
                         <th class="w-32 text-right">Thao tác</th>
                     </tr>
@@ -93,16 +136,10 @@
                                     <div class="min-w-0">
                                         <a href="{{ route('admin.employees.show', $employee) }}"
                                            class="block truncate font-bold hover:text-brand-red">{{ $employee->full_name }}</a>
-                                        <div class="flex items-center gap-1.5 text-xs text-brand-muted">
-                                            <span class="font-mono">{{ $employee->employee_code }}</span>
-                                            @if ($employee->email)
-                                                <span>·</span>
-                                                <span class="truncate">{{ $employee->email }}</span>
-                                            @endif
-                                        </div>
                                     </div>
                                 </div>
                             </td>
+                            <td class="font-mono text-xs">{{ $employee->employee_code }}</td>
                             <td class="text-brand-muted">{{ $employee->department?->name ?? '—' }}</td>
                             <td class="text-brand-muted">{{ $employee->jobTitle?->name ?? '—' }}</td>
                             <td>
@@ -114,35 +151,6 @@
                                     <span class="tag">{{ $employee->jobGrade->name }}</span>
                                 @else
                                     <span class="text-brand-muted">—</span>
-                                @endif
-                            </td>
-                            {{-- Tiến độ học tập ngay trong dòng: nhìn một dòng biết được nhiều thứ --}}
-                            <td>
-                                @if ($employee->assigned_count > 0)
-                                    @php $avg = (int) round($employee->avg_progress ?? 0); @endphp
-
-                                    <div class="flex items-center gap-2">
-                                        <div class="progress-track w-20">
-                                            <div class="progress-fill {{ $avg >= 100 ? '!bg-state-success' : '' }}"
-                                                 style="width: {{ $avg }}%"></div>
-                                        </div>
-                                        <span class="text-xs font-semibold">{{ $avg }}%</span>
-                                    </div>
-
-                                    <div class="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-brand-muted">
-                                        <span>{{ $employee->completed_count }}/{{ $employee->assigned_count }} khóa</span>
-                                        @php $remaining = $employee->assigned_count - $employee->completed_count; @endphp
-                                        @if ($remaining > 0)
-                                            <span class="font-semibold text-state-warning">còn {{ $remaining }}</span>
-                                        @endif
-                                        @if ($employee->overdue_count > 0)
-                                            <span class="font-semibold text-brand-red">
-                                                {{ $employee->overdue_count }} quá hạn
-                                            </span>
-                                        @endif
-                                    </div>
-                                @else
-                                    <span class="text-xs text-brand-muted">Chưa được giao khóa</span>
                                 @endif
                             </td>
                             <td>
@@ -161,13 +169,17 @@
                                 <div class="flex items-center justify-end gap-1.5">
                                     <x-admin.icon-button icon="heroicon-o-clock" label="Lịch sử điều chuyển"
                                                          wire:click="viewHistory({{ $employee->id }})" />
+                                    @can('employees.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa hồ sơ"
                                                          wire:click="edit({{ $employee->id }})" />
+                                    @endcan
                                     @if ($employee->isActive())
+                                        @can('employees.update')
                                         <x-admin.icon-button icon="heroicon-o-user-minus" label="Ghi nhận nghỉ việc"
                                                              variant="danger"
                                                              wire:click="resign({{ $employee->id }})"
                                                              data-confirm="Ghi nhận nghỉ việc và khóa tài khoản của {{ $employee->full_name }}?" />
+                                        @endcan
                                     @endif
                                 </div>
                             </td>
@@ -193,11 +205,7 @@
                     @error('full_name') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
-                    <label for="e_code" class="admin-label">Mã nhân viên</label>
-                    <input id="e_code" type="text" wire:model="employee_code" class="admin-input">
-                    @error('employee_code') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.auto-code id="e_code" label="Mã nhân viên" :value="$employee_code" />
 
                 <div>
                     <label for="e_email" class="admin-label">Email</label>
@@ -250,22 +258,13 @@
                                                 emptyLabel="— Chọn —" />
                 </div>
 
-                <fieldset class="sm:col-span-2">
-                    <legend class="admin-label">Cấp bậc nhân viên</legend>
-                    <p class="mb-2 text-xs text-brand-muted">Có thể chọn nhiều cấp cùng lúc.</p>
-                    <div class="grid gap-2 sm:grid-cols-2">
-                        @foreach ($jobGrades as $grade)
-                            <label wire:key="employee-grade-{{ $grade->id }}"
-                                   class="flex cursor-pointer items-center gap-2 rounded-admin border border-brand-line p-3 text-sm">
-                                <input type="checkbox" wire:model="job_grade_ids" value="{{ $grade->id }}"
-                                       class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                                <span>{{ $grade->name }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                    @error('job_grade_ids') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                    @error('job_grade_ids.*') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </fieldset>
+                <div>
+                    {{-- Hồ sơ nhân sự chỉ một cấp bậc; chọn nhiều chỉ có ở phân quyền tài liệu --}}
+                    <x-admin.searchable-select id="e_grade" label="Cấp bậc" model="job_grade_id"
+                                                :options="$jobGrades->map(fn ($g) => ['value' => $g->id, 'label' => $g->name])->all()"
+                                                :selected="$job_grade_id" emptyLabel="— Chọn —" />
+                    @error('job_grade_id') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                </div>
 
                 <div>
                     <x-admin.searchable-select id="e_manager" label="Quản lý trực tiếp" model="manager_id"
@@ -370,7 +369,7 @@
                                     </td>
                                     <td class="text-brand-muted">{{ $history->department?->name ?? '—' }}</td>
                                     <td class="text-brand-muted">{{ $history->jobTitle?->name ?? '—' }}</td>
-                                    <td class="text-brand-muted">{{ $history->employment_status }}</td>
+                                    <td class="text-brand-muted">{{ \App\Models\Employee::statusLabel($history->employment_status) }}</td>
                                     <td class="text-brand-muted">{{ $history->change_reason ?? '—' }}</td>
                                     <td class="text-brand-muted">{{ $history->changedBy?->name ?? 'Hệ thống' }}</td>
                                 </tr>

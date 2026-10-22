@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionOption;
@@ -24,10 +25,19 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class QuizBuilder extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination, WithFileUploads;
 
     #[Url(as: 'q', keep: false)]
     public string $search = '';
+
+    /** Ô chọn có tìm kiếm gửi null khi bỏ chọn, nên cho phép null. 'none' = không thuộc khóa nào. */
+    #[Url]
+    public ?string $courseFilter = '';
+
+    #[Url]
+    public string $statusFilter = '';
 
     #[Url]
     public ?int $editingQuizId = null;
@@ -80,7 +90,7 @@ class QuizBuilder extends Component
 
     public function updated($property): void
     {
-        if ($property === 'search') {
+        if (in_array($property, ['search', 'courseFilter', 'statusFilter'], true)) {
             $this->resetPage();
         }
     }
@@ -89,12 +99,16 @@ class QuizBuilder extends Component
 
     public function createQuiz(): void
     {
+        $this->requirePermission('quizzes.create');
+
         $this->resetQuizForm();
         $this->showQuizModal = true;
     }
 
     public function editQuiz(int $id): void
     {
+        $this->requirePermission('quizzes.update');
+
         $quiz = Quiz::findOrFail($id);
 
         $this->quizFormId = $quiz->id;
@@ -115,6 +129,8 @@ class QuizBuilder extends Component
 
     public function saveQuiz(): void
     {
+        $this->requirePermission($this->quizFormId ? 'quizzes.update' : 'quizzes.create');
+
         $data = $this->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -150,6 +166,8 @@ class QuizBuilder extends Component
     /** Xuất bản: chặn khi chưa đủ câu hỏi cho một lượt thi. */
     public function publishQuiz(int $id): void
     {
+        $this->requirePermission('quizzes.update');
+
         $quiz = Quiz::withCount('activeQuestions')->findOrFail($id);
 
         if ($quiz->active_questions_count === 0) {
@@ -186,12 +204,16 @@ class QuizBuilder extends Component
 
     public function createQuestion(): void
     {
+        $this->requirePermission('quizzes.update');
+
         $this->resetQuestionForm();
         $this->showQuestionModal = true;
     }
 
     public function editQuestion(int $id): void
     {
+        $this->requirePermission('quizzes.update');
+
         $question = Question::with('options')->findOrFail($id);
 
         $this->questionId = $question->id;
@@ -258,6 +280,8 @@ class QuizBuilder extends Component
 
     public function saveQuestion(): void
     {
+        $this->requirePermission('quizzes.update');
+
         $this->validate([
             'questionContent' => ['required', 'string', 'max:2000'],
             'questionType' => ['required', Rule::in([
@@ -322,12 +346,16 @@ class QuizBuilder extends Component
 
     public function deleteQuestion(int $id): void
     {
+        $this->requirePermission('quizzes.delete');
+
         Question::findOrFail($id)->delete();
         session()->flash('status', 'Đã xóa câu hỏi.');
     }
 
     public function toggleQuestionActive(int $id): void
     {
+        $this->requirePermission('quizzes.update');
+
         $question = Question::findOrFail($id);
         $question->update(['is_active' => ! $question->is_active]);
     }
@@ -336,6 +364,8 @@ class QuizBuilder extends Component
 
     public function openImport(): void
     {
+        $this->requirePermission('quizzes.update');
+
         $this->reset(['importFile', 'importErrors', 'importRows']);
         $this->showImportModal = true;
     }
@@ -343,6 +373,8 @@ class QuizBuilder extends Component
     /** Đọc và kiểm tra file, hiển thị kết quả trước khi ghi (spec 3.2.3). */
     public function previewImport(QuizImportService $service): void
     {
+        $this->requirePermission('quizzes.update');
+
         $this->validate([
             'importFile' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:' . FileStorageService::MAX_FILE_KB],
         ]);
@@ -355,6 +387,8 @@ class QuizBuilder extends Component
 
     public function confirmImport(QuizImportService $service): void
     {
+        $this->requirePermission('quizzes.update');
+
         if ($this->importErrors !== [] || $this->importRows === []) {
             return;
         }
@@ -392,6 +426,10 @@ class QuizBuilder extends Component
             ->with('course')
             ->withCount('activeQuestions')
             ->when($this->search, fn ($q) => $q->where('title', 'like', '%' . $this->search . '%'))
+            ->when($this->courseFilter === 'none', fn ($q) => $q->whereNull('course_id'))
+            ->when(filled($this->courseFilter) && $this->courseFilter !== 'none',
+                fn ($q) => $q->where('course_id', (int) $this->courseFilter))
+            ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->orderByDesc('id')
             ->paginate(12);
     }

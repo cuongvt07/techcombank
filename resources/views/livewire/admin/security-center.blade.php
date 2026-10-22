@@ -1,18 +1,6 @@
 <div>
     <x-admin.page-header title="Trung tâm bảo mật"
-                         subtitle="Cảnh báo bất thường, nhật ký truy cập tài liệu, lịch sử đăng nhập và phiên thiết bị.">
-        <x-slot:actions>
-            <button type="button" wire:click="runScan" wire:loading.attr="disabled" wire:target="runScan"
-                    title="Quét các sự kiện bảo mật và cập nhật cảnh báo" class="admin-btn-secondary">
-                <span wire:loading.remove wire:target="runScan" class="inline-flex items-center gap-2">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4') Quét ngay
-                </span>
-                <span wire:loading wire:target="runScan" class="inline-flex items-center gap-2">
-                    @svg('heroicon-o-arrow-path', 'h-4 w-4 animate-spin') Đang quét...
-                </span>
-            </button>
-        </x-slot:actions>
-    </x-admin.page-header>
+                         subtitle="Cảnh báo bất thường, nhật ký truy cập tài liệu, lịch sử đăng nhập và phiên thiết bị. Cảnh báo được phát hiện tự động ngay khi sự việc xảy ra." />
 
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div class="admin-panel p-3.5">
@@ -57,51 +45,79 @@
             @endforeach
         </div>
 
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        {{-- Tab con theo bước xử lý: ghi nhận / đóng là cảnh báo tự chuyển tab --}}
+        @if ($tab === 'alerts')
+            <div class="flex flex-wrap gap-6 border-b border-brand-line px-4" role="tablist" aria-label="Trạng thái cảnh báo">
+                @foreach (\App\Livewire\Admin\SecurityCenter::ALERT_TABS as $key => [$label])
+                    @php $activeSub = $alertTab === $key; @endphp
+                    <button type="button" role="tab" aria-selected="{{ $activeSub ? 'true' : 'false' }}"
+                            wire:click="setAlertTab('{{ $key }}')"
+                            @class([
+                                '-mb-px inline-flex items-center gap-2 border-b-2 py-3 text-[13px] font-bold transition-colors',
+                                'border-brand-red text-brand-red' => $activeSub,
+                                'border-transparent text-brand-muted hover:text-brand-ink' => ! $activeSub,
+                            ])>
+                        {{ $label }}
+                        <span @class([
+                            'rounded-full px-1.5 py-px text-[11px] font-bold leading-4',
+                            'bg-brand-red text-white' => $activeSub || ($key === 'open' && $alertTabCounts[$key] > 0),
+                            'bg-brand-soft text-brand-muted' => ! ($activeSub || ($key === 'open' && $alertTabCounts[$key] > 0)),
+                        ])>{{ $alertTabCounts[$key] }}</span>
+                    </button>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[220px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-security-center-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-security-center-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo tên nhân viên, tài liệu hoặc IP...">
             </div>
 
-            @if ($tab === 'alerts')
-                <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[180px]">
-                    <option value="">Mọi trạng thái</option>
-                    <option value="open">Chưa xử lý</option>
-                    <option value="acknowledged">Đã ghi nhận</option>
-                    <option value="resolved">Đã đóng</option>
-                    <option value="false_positive">Cảnh báo nhầm</option>
-                </select>
-            @elseif ($tab === 'document-logs')
-                <select wire:model.live="actionFilter" class="admin-input w-auto min-w-[170px]">
-                    <option value="">Mọi hành động</option>
-                    <option value="view">Xem</option>
-                    <option value="download">Tải xuống</option>
-                    <option value="print">In</option>
-                    <option value="stream">Xem video</option>
-                    <option value="denied">Bị từ chối</option>
-                </select>
+            @if ($tab === 'document-logs')
+                <div>
+                    <label for="f-security-center-actionFilter-2" class="admin-label">Hành động</label>
+                    <select id="f-security-center-actionFilter-2" wire:model.live="actionFilter" class="admin-input w-auto min-w-[170px]">
+                        <option value="">Mọi hành động</option>
+                        <option value="view">Xem</option>
+                        <option value="download">Tải xuống</option>
+                        <option value="print">In</option>
+                        <option value="stream">Xem video</option>
+                        <option value="denied">Bị từ chối</option>
+                    </select>
+                </div>
             @elseif ($tab === 'logins')
-                <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                    <option value="">Mọi kết quả</option>
-                    <option value="success">Thành công</option>
-                    <option value="failed">Thất bại</option>
-                    <option value="blocked">Bị chặn</option>
-                </select>
-            @else
-                <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                    <option value="">Mọi phiên</option>
-                    <option value="active">Đang hoạt động</option>
-                    <option value="revoked">Đã thu hồi</option>
-                </select>
+                <div>
+                    <label for="f-security-center-statusFilter-3" class="admin-label">Kết quả đăng nhập</label>
+                    <select id="f-security-center-statusFilter-3" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
+                        <option value="">Mọi kết quả</option>
+                        <option value="success">Thành công</option>
+                        <option value="failed">Thất bại</option>
+                        <option value="blocked">Bị chặn</option>
+                    </select>
+                </div>
+            @elseif ($tab === 'devices')
+                <div>
+                    <label for="f-security-center-statusFilter-4" class="admin-label">Trạng thái phiên</label>
+                    <select id="f-security-center-statusFilter-4" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
+                        <option value="">Mọi phiên</option>
+                        <option value="active">Đang hoạt động</option>
+                        <option value="revoked">Đã thu hồi</option>
+                    </select>
+                </div>
             @endif
 
             @if (in_array($tab, ['document-logs', 'logins'], true))
-                <select wire:model.live="days" class="admin-input w-auto min-w-[150px]">
-                    <option value="1">24 giờ qua</option>
-                    <option value="7">7 ngày qua</option>
-                    <option value="30">30 ngày qua</option>
-                    <option value="90">90 ngày qua</option>
-                </select>
+                <div>
+                    <label for="f-security-center-days-5" class="admin-label">Khoảng thời gian</label>
+                    <select id="f-security-center-days-5" wire:model.live="days" class="admin-input w-auto min-w-[150px]">
+                        <option value="1">24 giờ qua</option>
+                        <option value="7">7 ngày qua</option>
+                        <option value="30">30 ngày qua</option>
+                        <option value="90">90 ngày qua</option>
+                    </select>
+                </div>
             @endif
         </div>
 
@@ -147,7 +163,6 @@
                                         <div class="truncate font-bold">
                                             {{ $alert->user?->employee?->full_name ?? $alert->user?->name ?? '—' }}
                                         </div>
-                                        <div class="truncate text-xs text-brand-muted">{{ $alert->user?->email }}</div>
                                     </div>
                                 </td>
                                 <td class="text-xs text-brand-muted">{{ $alert->created_at->format('d/m/Y H:i') }}</td>
@@ -168,19 +183,25 @@
                                         <x-admin.icon-button icon="heroicon-o-eye" label="Xem chi tiết"
                                                              wire:click="viewAlert({{ $alert->id }})" />
                                         @if ($alert->status === 'open')
+                                            @can('security.update')
                                             <x-admin.icon-button icon="heroicon-o-hand-raised" label="Ghi nhận cảnh báo"
                                                                  wire:click="acknowledge({{ $alert->id }})" />
+                                            @endcan
                                         @endif
                                         @if (in_array($alert->status, ['open', 'acknowledged'], true))
+                                            @can('security.update')
                                             <x-admin.icon-button icon="heroicon-o-check-circle" label="Đóng cảnh báo"
                                                                  variant="primary"
                                                                  wire:click="resolve({{ $alert->id }})" />
+                                            @endcan
                                         @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-brand-muted">Không có cảnh báo nào.</td></tr>
+                            <tr><td colspan="6" class="text-center text-brand-muted">
+                                {{ $alertTab === 'open' ? 'Không còn cảnh báo nào cần xử lý.' : 'Không có cảnh báo nào.' }}
+                            </td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -204,9 +225,6 @@
                                 <td>
                                     <div class="min-w-0">
                                         <div class="truncate font-bold">{{ $log->employee?->full_name ?? '—' }}</div>
-                                        <div class="truncate text-xs text-brand-muted">
-                                            {{ $log->employee?->department?->name }}
-                                        </div>
                                     </div>
                                 </td>
                                 <td class="max-w-xs truncate">{{ $log->document?->title ?? '—' }}</td>
@@ -255,7 +273,6 @@
                                         <div class="truncate font-bold">
                                             {{ $login->user?->employee?->full_name ?? $login->user?->name ?? '—' }}
                                         </div>
-                                        <div class="truncate text-xs text-brand-muted">{{ $login->user?->email }}</div>
                                     </div>
                                 </td>
                                 <td class="font-mono text-xs text-brand-muted">{{ $login->ip_address ?? '—' }}</td>
@@ -299,7 +316,6 @@
                                         <div class="truncate font-bold">
                                             {{ $session->user?->employee?->full_name ?? $session->user?->name ?? '—' }}
                                         </div>
-                                        <div class="truncate text-xs text-brand-muted">{{ $session->user?->email }}</div>
                                     </div>
                                 </td>
                                 <td class="text-brand-muted">{{ $session->device_label ?? '—' }}</td>
@@ -315,14 +331,18 @@
                                 <td>
                                     <div class="flex items-center justify-end gap-1.5">
                                         @if ($session->is_active)
+                                            @can('security.update')
                                             <x-admin.icon-button icon="heroicon-o-arrow-right-on-rectangle" label="Thu hồi phiên này"
                                                                  wire:click="revokeSession({{ $session->id }})"
                                                                  data-confirm="Thu hồi phiên này? Người dùng sẽ phải đăng nhập lại." data-confirm-danger />
+                                            @endcan
                                             @if ($session->user_id)
+                                                @can('security.update')
                                                 <x-admin.icon-button icon="heroicon-o-shield-exclamation" label="Thu hồi tất cả phiên của tài khoản"
                                                                      variant="danger"
                                                                      wire:click="revokeAllForUser({{ $session->user_id }})"
                                                                      data-confirm="Thu hồi TẤT CẢ phiên của tài khoản này?" data-confirm-danger />
+                                                @endcan
                                             @endif
                                         @endif
                                     </div>
@@ -345,17 +365,20 @@
     @if ($showDetail && $detailAlert)
         <x-admin.modal wireModel="showDetail" title="Chi tiết cảnh báo">
             <div class="grid gap-4">
-                <div>
-                    <h4 class="text-lg font-bold">{{ $detailAlert->title }}</h4>
-                    @if ($detailAlert->detail)
-                        <p class="mt-1 text-sm text-brand-muted">{{ $detailAlert->detail }}</p>
-                    @endif
-                </div>
+                <x-admin.detail-field label="Cảnh báo">
+                    <span class="text-base font-bold">{{ $detailAlert->title }}</span>
+                </x-admin.detail-field>
+
+                @if ($detailAlert->detail)
+                    <x-admin.detail-field label="Mô tả">
+                        <span class="text-brand-muted">{{ $detailAlert->detail }}</span>
+                    </x-admin.detail-field>
+                @endif
 
                 <dl class="grid gap-2 rounded-admin border border-brand-line bg-brand-soft p-3.5 text-sm">
                     <div class="flex gap-2">
                         <dt class="w-32 shrink-0 font-bold">Loại:</dt>
-                        <dd class="font-mono text-xs">{{ $detailAlert->type }}</dd>
+                        <dd>{{ $detailAlert->typeLabel() }}</dd>
                     </div>
                     <div class="flex gap-2">
                         <dt class="w-32 shrink-0 font-bold">Tài khoản:</dt>
@@ -383,10 +406,14 @@
 
             <x-slot:footer>
                 @if (in_array($detailAlert->status, ['open', 'acknowledged'], true))
+                    @can('security.update')
                     <button type="button" wire:click="markFalsePositive({{ $detailAlert->id }})"
                             class="admin-btn-secondary">Cảnh báo nhầm</button>
+                    @endcan
+                    @can('security.update')
                     <button type="button" wire:click="resolve({{ $detailAlert->id }})"
                             class="admin-btn">Đóng cảnh báo</button>
+                    @endcan
                 @else
                     <button type="button" wire:click="$set('showDetail', false)" class="admin-btn-secondary">Đóng</button>
                 @endif

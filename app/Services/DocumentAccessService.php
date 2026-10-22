@@ -65,12 +65,7 @@ class DocumentAccessService
             return array_merge($denied, ['reason' => 'Không có quyền được cấu hình cho nhân viên này']);
         }
 
-        // Rule gắn trực tiếp tài liệu là mức cụ thể hơn, xét trước rule của danh mục.
-        // Trong cùng mức: priority giảm dần, deny trước allow.
-        $winner = $rules->sort(function (DocumentAccessRule $a, DocumentAccessRule $b) {
-            return [$b->document_id ? 1 : 0, $b->priority, $b->isDeny() ? 1 : 0]
-                <=> [$a->document_id ? 1 : 0, $a->priority, $a->isDeny() ? 1 : 0];
-        })->first();
+        $winner = $this->winningRule($rules);
 
         if ($winner->isDeny()) {
             return array_merge($denied, ['reason' => 'Bị chặn bởi quy tắc phân quyền']);
@@ -112,7 +107,7 @@ class DocumentAccessService
         string $action = DocumentAccessLog::ACTION_VIEW,
         ?string $denyReason = null,
     ): DocumentAccessLog {
-        return DocumentAccessLog::create([
+        $log = DocumentAccessLog::create([
             'document_id' => $document->id,
             'user_id' => $employee->user_id,
             'employee_id' => $employee->id,
@@ -123,6 +118,14 @@ class DocumentAccessService
             'deny_reason' => $denyReason,
             'accessed_at' => now(),
         ]);
+
+        // Phát hiện truy cập hàng loạt ngay khi xảy ra, không chờ ai bấm quét.
+        // Hàm quét đã chống tạo cảnh báo trùng nên gọi mỗi lượt là an toàn.
+        if ($employee->user_id && in_array($action, [DocumentAccessLog::ACTION_VIEW, DocumentAccessLog::ACTION_DOWNLOAD], true)) {
+            app(SecurityMonitorService::class)->detectMassDownload(userId: $employee->user_id);
+        }
+
+        return $log;
     }
 
     /**
@@ -147,6 +150,103 @@ class DocumentAccessService
             $employee->email ?: $employee->employee_code,
             now()->format('d/m/Y H:i'),
         ]));
+    }
+
+    /**
+     * Rule quyết định khi nhiều rule cùng khớp: rule gắn trực tiếp tài liệu cụ thể hơn
+     * nên xét trước rule của danh mục; trong cùng mức priority giảm dần, deny trước allow.
+     */
+    private function winningRule($rules): DocumentAccessRule
+    {
+        return $rules->sort(function (DocumentAccessRule $a, DocumentAccessRule $b) {
+            return [$b->document_id ? 1 : 0, $b->priority, $b->isDeny() ? 1 : 0]
+                <=> [$a->document_id ? 1 : 0, $a->priority, $a->isDeny() ? 1 : 0];
+        })->first();
+    }
+
+    /**
+     * Đếm số nhân viên xem được từng tài liệu — cho báo cáo (cột "Được cấp quyền").
+     *
+     * Cùng kết quả với gọi canView() cho từng cặp, nhưng nạp rule, cây phòng ban,
+     * cây danh mục một lần thay vì vài truy vấn mỗi cặp (25 tài liệu × 115 người
+     * trước đây mất ~5 giây). $employees nên nạp sẵn jobGrade + jobGrades.
+     *
+     * @param  iterable<Document>  $documents
+     * @param  iterable<Employee>  $employees
+     * @return array<int, int> [document_id => số người xem được]
+     */
+    public function countViewers(iterable $documents, iterable $employees): array
+    {
+        $documents = collect($documents);
+        $employees = (new \Illuminate\Database\Eloquent\Collection(collect($employees)->all()))
+            ->filter(fn (Employee $e) => $e->isActive())->values();
+        $employees->loadMissing(['jobGrade', 'jobGrades']);
+
+        // Cây danh mục: tài liệu chịu cả rule của danh mục cha
+        $categoryParent = \App\Models\DocumentCategory::query()->pluck('parent_id', 'id');
+        $categoryChain = function (?int $id) use ($categoryParent): array {
+            $chain = [];
+            while ($id && ! in_array($id, $chain, true)) {
+                $chain[] = $id;
+                $id = $categoryParent[$id] ?? null;
+            }
+
+            return $chain;
+        };
+
+        $chains = $documents->mapWithKeys(fn (Document $d) => [$d->id => $categoryChain($d->document_category_id)]);
+
+        $rules = DocumentAccessRule::query()
+            ->active()
+            ->with('jobGrades')
+            ->where(fn (Builder $q) => $q->whereIn('document_id', $documents->pluck('id'))
+                ->orWhereIn('document_category_id', $chains->flatten()->unique()->values()))
+            ->get();
+
+        // Phòng ban hợp lệ của từng rule, tính từ cây phòng ban nạp một lần
+        $children = \App\Models\Department::query()->get(['id', 'parent_id'])->groupBy('parent_id');
+        $descendants = function (int $id) use ($children, &$descendants): array {
+            $ids = [$id];
+            foreach ($children->get($id, collect()) as $child) {
+                $ids = array_merge($ids, $descendants($child->id));
+            }
+
+            return $ids;
+        };
+        $allowedDepartments = $rules->mapWithKeys(fn (DocumentAccessRule $r) => [
+            $r->id => $r->department_id
+                ? ($r->include_sub_departments ? $descendants($r->department_id) : [$r->department_id])
+                : null,
+        ]);
+
+        $counts = [];
+
+        foreach ($documents as $document) {
+            $counts[$document->id] = 0;
+
+            if ($document->status !== Document::STATUS_PUBLISHED) {
+                continue;
+            }
+
+            $chain = $chains[$document->id];
+            $docRules = $rules->filter(fn (DocumentAccessRule $r) => $r->document_id === $document->id
+                || ($r->document_category_id && in_array($r->document_category_id, $chain, true)));
+
+            if ($docRules->isEmpty()) {
+                continue;
+            }
+
+            foreach ($employees as $employee) {
+                $matched = $docRules->filter(fn (DocumentAccessRule $r) => $r->matches($employee, $allowedDepartments[$r->id]));
+
+                if ($matched->isNotEmpty()) {
+                    $winner = $this->winningRule($matched);
+                    $counts[$document->id] += (! $winner->isDeny() && $winner->can_view) ? 1 : 0;
+                }
+            }
+        }
+
+        return $counts;
     }
 
     /** Các rule áp dụng cho tài liệu: rule riêng + rule của danh mục và danh mục cha. */
@@ -203,8 +303,11 @@ class DocumentAccessService
             ->where(function (Builder $q) use ($employee) {
                 $q->whereNull('job_title_id')->orWhere('job_title_id', $employee->job_title_id);
             })
+            // Quy tắc không ràng buộc cấp bậc, hoặc có ít nhất một cấp bậc của nhân viên
             ->where(function (Builder $q) use ($gradeIds) {
-                $q->whereNull('job_grade_id')->orWhereIn('job_grade_id', $gradeIds);
+                $q->where(fn (Builder $none) => $none->whereNull('job_grade_id')->whereDoesntHave('jobGrades'))
+                    ->orWhereIn('job_grade_id', $gradeIds)
+                    ->orWhereHas('jobGrades', fn (Builder $g) => $g->whereIn('job_grades.id', $gradeIds));
             })
             ->where(function (Builder $q) use ($employee) {
                 $q->whereNull('min_grade_level')

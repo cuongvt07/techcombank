@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\SupportRequest;
 use App\Models\User;
 use Illuminate\View\View;
@@ -17,6 +18,8 @@ use Livewire\WithPagination;
  */
 class SupportManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -100,6 +103,8 @@ class SupportManager extends Component
     /** Nhận xử lý: gán cho chính mình và chuyển sang đang xử lý. */
     public function take(int $id): void
     {
+        $this->requirePermission('support.update');
+
         $request = SupportRequest::findOrFail($id);
 
         if ($request->status === SupportRequest::STATUS_NEW) {
@@ -114,6 +119,8 @@ class SupportManager extends Component
 
     public function assign(): void
     {
+        $this->requirePermission('support.update');
+
         $request = SupportRequest::findOrFail($this->viewingId);
 
         $request->update([
@@ -130,6 +137,8 @@ class SupportManager extends Component
     /** Giải quyết phiếu: bắt buộc ghi câu trả lời để nhân viên đọc được. */
     public function resolve(): void
     {
+        $this->requirePermission('support.update');
+
         $this->validate([
             'resolution' => ['required', 'string', 'min:5', 'max:3000'],
         ], [
@@ -150,7 +159,9 @@ class SupportManager extends Component
 
     public function close(int $id): void
     {
-        SupportRequest::findOrFail($id)->update(['status' => SupportRequest::STATUS_CLOSED]);
+        $this->requirePermission('support.update');
+
+        SupportRequest::findOrFail($id)->update(['status' => SupportRequest::STATUS_CLOSED, 'closed_at' => now()]);
 
         session()->flash('status', 'Đã đóng phiếu.');
     }
@@ -158,9 +169,12 @@ class SupportManager extends Component
     /** Mở lại phiếu đã giải quyết/đóng khi vấn đề chưa xong. */
     public function reopen(int $id): void
     {
+        $this->requirePermission('support.update');
+
         SupportRequest::findOrFail($id)->update([
             'status' => SupportRequest::STATUS_IN_PROGRESS,
             'resolved_at' => null,
+            'closed_at' => null,
         ]);
 
         session()->flash('status', 'Đã mở lại phiếu.');

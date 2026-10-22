@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\Employee;
 use App\Models\Enrollment;
@@ -20,6 +21,8 @@ use Livewire\Component;
  */
 class EmployeeDetail extends Component
 {
+    use ChecksPermissions;
+
     public Employee $employee;
 
     #[Url]
@@ -32,6 +35,9 @@ class EmployeeDetail extends Component
 
     public function mount(Employee $employee): void
     {
+        // Tab hợp đồng hiện đúng trạng thái theo ngày hiện tại
+        \App\Models\Contract::syncStatuses();
+
         $this->employee = $employee->load([
             'department', 'jobTitle', 'jobGrade', 'manager', 'user',
         ]);
@@ -61,6 +67,8 @@ class EmployeeDetail extends Component
 
     public function openAssign(): void
     {
+        $this->requirePermission('employees.update');
+
         $this->reset(['assignCourseId', 'assignDueDays']);
         $this->assignMandatory = true;
         $this->showAssignModal = true;
@@ -68,6 +76,8 @@ class EmployeeDetail extends Component
 
     public function assignCourse(CourseAssignmentService $service): void
     {
+        $this->requirePermission('employees.update');
+
         $this->validate([
             'assignCourseId' => ['required', 'exists:courses,id'],
             'assignDueDays' => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -91,6 +101,8 @@ class EmployeeDetail extends Component
 
     public function unassign(int $enrollmentId, CourseAssignmentService $service): void
     {
+        $this->requirePermission('employees.update');
+
         $enrollment = Enrollment::where('employee_id', $this->employee->id)->findOrFail($enrollmentId);
         $service->unassign($enrollment);
 

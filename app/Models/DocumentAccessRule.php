@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Rule phân quyền tài liệu theo điều kiện (spec 3.3.1).
@@ -60,6 +61,33 @@ class DocumentAccessRule extends Model
         return $this->belongsTo(JobGrade::class);
     }
 
+    /**
+     * Các cấp bậc quy tắc áp dụng. Rỗng = không ràng buộc cấp bậc.
+     */
+    public function jobGrades(): BelongsToMany
+    {
+        return $this->belongsToMany(JobGrade::class, 'document_access_rule_job_grade')->orderBy('level');
+    }
+
+    /**
+     * Id cấp bậc quy tắc ràng buộc: bảng nối, cộng cột job_grade_id cũ phòng khi
+     * dữ liệu còn sót trước lúc chuyển sang bảng nối.
+     *
+     * @return array<int, int>
+     */
+    public function gradeIds(): array
+    {
+        $ids = $this->relationLoaded('jobGrades')
+            ? $this->jobGrades->pluck('id')->all()
+            : $this->jobGrades()->pluck('job_grades.id')->all();
+
+        if ($this->job_grade_id) {
+            $ids[] = $this->job_grade_id;
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -74,10 +102,15 @@ class DocumentAccessRule extends Model
      * Nhân viên có khớp toàn bộ điều kiện của rule không.
      * Điều kiện NULL = không ràng buộc chiều đó, nên rule trống khớp mọi nhân viên.
      */
-    public function matches(Employee $employee): bool
+    /**
+     * @param  array<int, int>|null  $allowedDepartmentIds  Phòng ban hợp lệ đã tính sẵn (gồm phòng con nếu có
+     *                                                     include_sub_departments) — truyền vào khi kiểm hàng loạt
+     *                                                     để khỏi truy vấn cây phòng ban mỗi lần.
+     */
+    public function matches(Employee $employee, ?array $allowedDepartmentIds = null): bool
     {
         if ($this->department_id) {
-            $allowedDepartmentIds = $this->include_sub_departments && $this->department
+            $allowedDepartmentIds ??= $this->include_sub_departments && $this->department
                 ? $this->department->descendantIds()
                 : [$this->department_id];
 
@@ -90,7 +123,10 @@ class DocumentAccessRule extends Model
             return false;
         }
 
-        if ($this->job_grade_id && ! $employee->hasJobGrade((int) $this->job_grade_id)) {
+        // Nhiều cấp bậc: nhân viên chỉ cần thuộc một trong số đó
+        $gradeIds = $this->gradeIds();
+
+        if ($gradeIds !== [] && ! collect($gradeIds)->contains(fn ($id) => $employee->hasJobGrade($id))) {
             return false;
         }
 

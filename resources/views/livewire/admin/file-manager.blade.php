@@ -2,16 +2,20 @@
     <x-admin.page-header title="Kho tài nguyên"
                          subtitle="Thư mục và file dùng chung toàn hệ thống. Kéo file từ máy vào để tải lên.">
         <x-slot:actions>
+            @can('files.create')
             <button type="button" wire:click="createFolder" class="admin-btn-secondary">
                 @svg('heroicon-o-folder-plus', 'h-4 w-4')
                 Thư mục mới
             </button>
+            @endcan
 
+            @can('files.create')
             <label class="admin-btn cursor-pointer">
                 @svg('heroicon-o-arrow-up-tray', 'h-4 w-4')
                 Tải file lên
                 <input type="file" wire:model="uploads" multiple class="hidden">
             </label>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -70,12 +74,12 @@
             </div>
 
             {{-- Vùng kéo thả: bao quanh toàn bộ nội dung nên thả chỗ nào cũng được --}}
-            <div x-data="{ dragging: false }"
-                 x-on:dragover.prevent="dragging = true"
+            <div x-data="{ dragging: false, canUpload: @js(auth()->user()->can('files.create')) }"
+                 x-on:dragover.prevent="dragging = canUpload"
                  x-on:dragleave.prevent="dragging = false"
                  x-on:drop.prevent="
                      dragging = false;
-                     if ($event.dataTransfer.files.length) {
+                     if (canUpload && $event.dataTransfer.files.length) {
                          $refs.fileInput.files = $event.dataTransfer.files;
                          $refs.fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                      }
@@ -113,22 +117,26 @@
                 @enderror
 
                 <div class="admin-panel">
-                    <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+                    <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
                         <div class="min-w-[220px] flex-1">
-                            <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                            <label for="f-file-manager-search-0" class="admin-label">Tìm kiếm</label>
+                            <input id="f-file-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                                    placeholder="Tìm file trong toàn bộ kho...">
                         </div>
 
-                        <select wire:model.live="kindFilter" class="admin-input w-auto min-w-[160px]">
-                            <option value="">Mọi loại file</option>
-                            <option value="document">Văn bản</option>
-                            <option value="spreadsheet">Bảng tính</option>
-                            <option value="presentation">Trình chiếu</option>
-                            <option value="pdf">PDF</option>
-                            <option value="image">Hình ảnh</option>
-                            <option value="video">Video</option>
-                            <option value="archive">File nén</option>
-                        </select>
+                        <div>
+                            <label for="f-file-manager-kindFilter-1" class="admin-label">Loại file</label>
+                            <select id="f-file-manager-kindFilter-1" wire:model.live="kindFilter" class="admin-input w-auto min-w-[160px]">
+                                <option value="">Mọi loại file</option>
+                                <option value="document">Văn bản</option>
+                                <option value="spreadsheet">Bảng tính</option>
+                                <option value="presentation">Trình chiếu</option>
+                                <option value="pdf">PDF</option>
+                                <option value="image">Hình ảnh</option>
+                                <option value="video">Video</option>
+                                <option value="archive">File nén</option>
+                            </select>
+                        </div>
                     </div>
 
                     @if ($search !== '')
@@ -182,14 +190,20 @@
                                         <td class="text-xs text-brand-muted">{{ $sub->created_at?->format('d/m/Y') }}</td>
                                         <td>
                                             <div class="flex items-center justify-end gap-1.5">
+                                                @can('files.update')
                                                 <x-admin.icon-button icon="heroicon-o-pencil-square" label="Đổi tên thư mục"
                                                                      wire:click="editFolder({{ $sub->id }})" />
+                                                @endcan
                                                 @unless ($sub->is_system)
+                                                    @can('files.update')
                                                     <x-admin.icon-button icon="heroicon-o-arrows-right-left" label="Di chuyển thư mục"
                                                                          wire:click="moveFolderTo({{ $sub->id }})" />
+                                                    @endcan
+                                                    @can('files.delete')
                                                     <x-admin.icon-button icon="heroicon-o-trash" label="Xóa thư mục"
                                                                          variant="danger"
                                                                          wire:click="deleteFolder({{ $sub->id }})" data-confirm="Xóa thư mục này?" data-confirm-title="Xác nhận xóa" data-confirm-ok="Xóa" data-confirm-danger />
+                                                    @endcan
                                                 @endunless
                                             </div>
                                         </td>
@@ -232,14 +246,20 @@
                                             <div class="flex items-center justify-end gap-1.5">
                                                 <x-admin.icon-button icon="heroicon-o-arrow-down-tray" label="Tải xuống"
                                                                      wire:click="download({{ $file->id }})" />
+                                                @can('files.update')
                                                 <x-admin.icon-button icon="heroicon-o-pencil-square" label="Đổi tên file"
                                                                      wire:click="renameFile({{ $file->id }})" />
+                                                @endcan
+                                                @can('files.update')
                                                 <x-admin.icon-button icon="heroicon-o-arrows-right-left" label="Di chuyển file"
                                                                      wire:click="moveFile({{ $file->id }})" />
+                                                @endcan
+                                                @can('files.delete')
                                                 <x-admin.icon-button icon="heroicon-o-trash" label="Xóa file"
                                                                      variant="danger"
                                                                      wire:click="deleteFile({{ $file->id }})"
                                                                      data-confirm="Xóa file này?" data-confirm-danger />
+                                                @endcan
                                             </div>
                                         </td>
                                     </tr>

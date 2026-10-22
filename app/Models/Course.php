@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,12 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Course extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasAutoCode, HasFactory, SoftDeletes, LogsActivity;
+
+    /** Mã tự sinh khi tạo mới: KH-0001, KH-0002... */
+    protected const CODE_COLUMN = 'code';
+    protected const CODE_PREFIX = 'KH-';
+    protected const CODE_PAD = 4;
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_PENDING_REVIEW = 'pending_review';

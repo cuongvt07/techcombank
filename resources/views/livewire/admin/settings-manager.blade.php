@@ -2,10 +2,12 @@
     <x-admin.page-header title="Cấu hình chung"
                          subtitle="Danh mục dùng chung và tham số vận hành của hệ thống.">
         <x-slot:actions>
+            @can('settings.create')
             <button type="button" wire:click="create" class="admin-btn">
                 @svg('heroicon-o-plus', 'h-4 w-4')
                 Thêm mục
             </button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -76,12 +78,16 @@
                                 </td>
                                 <td>
                                     <div class="flex items-center justify-end gap-1.5">
+                                        @can('settings.update')
                                         <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa danh mục"
                                                              wire:click="edit({{ $item->id }})" />
+                                        @endcan
+                                        @can('settings.update')
                                         <x-admin.icon-button
                                             :icon="$item->is_active ? 'heroicon-o-pause-circle' : 'heroicon-o-play-circle'"
                                             :label="$item->is_active ? 'Ngưng sử dụng' : 'Bật lại'"
                                             wire:click="toggleActive({{ $item->id }})" data-confirm="Đổi trạng thái bật/tắt của mục này?" data-confirm-title="Ẩn / hiện" data-confirm-ok="Đồng ý" />
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -228,11 +234,7 @@
     @if ($showModal)
         <x-admin.modal :title="($editingId ? 'Sửa ' : 'Thêm ') . mb_strtolower($catalogs[$tab])">
             <form wire:submit="save" id="catalog-form" class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <label for="cat_code" class="admin-label">Mã</label>
-                    <input id="cat_code" type="text" wire:model="code" class="admin-input">
-                    @error('code') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.auto-code id="cat_code" label="Mã" :value="$code" />
 
                 <div>
                     <label for="cat_name" class="admin-label">Tên</label>

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\FileFolder;
 use App\Models\StoredFile;
 use App\Services\FileStorageService;
@@ -22,6 +23,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class FileManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination, WithFileUploads;
 
     /** Thư mục đang mở. NULL = thư mục gốc. */
@@ -93,6 +96,8 @@ class FileManager extends Component
     /** Lưu các file vừa thả vào thư mục đang mở. */
     public function saveUploads(): void
     {
+        $this->requirePermission('files.create');
+
         if ($this->uploads === []) {
             return;
         }
@@ -121,12 +126,16 @@ class FileManager extends Component
 
     public function createFolder(): void
     {
+        $this->requirePermission('files.create');
+
         $this->reset(['editingFolderId', 'folderName', 'folderDescription']);
         $this->showFolderModal = true;
     }
 
     public function editFolder(int $id): void
     {
+        $this->requirePermission('files.update');
+
         $folder = FileFolder::findOrFail($id);
 
         $this->editingFolderId = $folder->id;
@@ -137,6 +146,8 @@ class FileManager extends Component
 
     public function saveFolder(FileStorageService $service): void
     {
+        $this->requirePermission($this->editingFolderId ? 'files.update' : 'files.create');
+
         $this->validate([
             'folderName' => ['required', 'string', 'max:255'],
             'folderDescription' => ['nullable', 'string', 'max:500'],
@@ -167,6 +178,8 @@ class FileManager extends Component
 
     public function deleteFolder(int $id, bool $force = false): void
     {
+        $this->requirePermission('files.delete');
+
         try {
             app(FileStorageService::class)->deleteFolder(FileFolder::findOrFail($id), $force);
             session()->flash('status', 'Đã xóa thư mục.');
@@ -179,6 +192,8 @@ class FileManager extends Component
 
     public function renameFile(int $id): void
     {
+        $this->requirePermission('files.update');
+
         $file = StoredFile::findOrFail($id);
 
         $this->renamingFileId = $file->id;
@@ -188,6 +203,8 @@ class FileManager extends Component
 
     public function saveFileName(FileStorageService $service): void
     {
+        $this->requirePermission('files.update');
+
         $this->validate([
             'fileName' => ['required', 'string', 'max:255'],
         ], [
@@ -204,6 +221,8 @@ class FileManager extends Component
 
     public function deleteFile(int $id, FileStorageService $service): void
     {
+        $this->requirePermission('files.delete');
+
         $service->deleteFile(StoredFile::findOrFail($id));
         session()->flash('status', 'Đã xóa file. File vẫn khôi phục được trong thùng rác.');
     }
@@ -223,6 +242,8 @@ class FileManager extends Component
 
     public function moveFile(int $id): void
     {
+        $this->requirePermission('files.update');
+
         $this->reset(['movingFolderId', 'moveTargetId']);
         $this->movingFileId = $id;
         $this->showMoveModal = true;
@@ -230,6 +251,8 @@ class FileManager extends Component
 
     public function moveFolderTo(int $id): void
     {
+        $this->requirePermission('files.update');
+
         $this->reset(['movingFileId', 'moveTargetId']);
         $this->movingFolderId = $id;
         $this->showMoveModal = true;
@@ -237,6 +260,8 @@ class FileManager extends Component
 
     public function confirmMove(FileStorageService $service): void
     {
+        $this->requirePermission('files.update');
+
         try {
             if ($this->movingFileId) {
                 $service->moveFile(StoredFile::findOrFail($this->movingFileId), $this->moveTargetId);

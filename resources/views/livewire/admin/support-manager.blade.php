@@ -23,27 +23,34 @@
     </div>
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-support-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-support-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo mã phiếu, tiêu đề, tên hoặc mã nhân viên...">
             </div>
 
-            <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                <option value="open">Còn mở</option>
-                <option value="">Tất cả</option>
-                <option value="new">Mới</option>
-                <option value="in_progress">Đang xử lý</option>
-                <option value="resolved">Đã giải quyết</option>
-                <option value="closed">Đã đóng</option>
-            </select>
+            <div>
+                <label for="f-support-manager-statusFilter-1" class="admin-label">Trạng thái</label>
+                <select id="f-support-manager-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
+                    <option value="open">Còn mở</option>
+                    <option value="">Tất cả</option>
+                    <option value="new">Mới</option>
+                    <option value="in_progress">Đang xử lý</option>
+                    <option value="resolved">Đã giải quyết</option>
+                    <option value="closed">Đã đóng</option>
+                </select>
+            </div>
 
-            <select wire:model.live="priorityFilter" class="admin-input w-auto min-w-[140px]">
-                <option value="">Mọi mức ưu tiên</option>
-                <option value="high">Gấp</option>
-                <option value="normal">Bình thường</option>
-                <option value="low">Thấp</option>
-            </select>
+            <div>
+                <label for="f-support-manager-priorityFilter-2" class="admin-label">Mức ưu tiên</label>
+                <select id="f-support-manager-priorityFilter-2" wire:model.live="priorityFilter" class="admin-input w-auto min-w-[140px]">
+                    <option value="">Mọi mức ưu tiên</option>
+                    <option value="high">Gấp</option>
+                    <option value="normal">Bình thường</option>
+                    <option value="low">Thấp</option>
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -75,7 +82,6 @@
                                     <x-user-avatar :employee="$item->employee" size="h-7 w-7" text="text-[10px]" />
                                     <div class="min-w-0">
                                         <span class="block truncate text-sm">{{ $item->employee?->full_name ?? '—' }}</span>
-                                        <span class="block truncate text-xs text-brand-muted">{{ $item->employee?->department?->name }}</span>
                                     </div>
                                 </div>
                             </td>
@@ -101,16 +107,20 @@
                             <td>
                                 <div class="flex items-center justify-end gap-1.5">
                                     @if ($item->status === 'new')
+                                        @can('support.update')
                                         <x-admin.icon-button icon="heroicon-o-hand-raised" label="Nhận xử lý" variant="primary"
                                                              wire:click="take({{ $item->id }})" />
+                                        @endcan
                                     @endif
 
                                     <x-admin.icon-button icon="heroicon-o-chat-bubble-left-ellipsis" label="Xem và phản hồi"
                                                          wire:click="view({{ $item->id }})" />
 
                                     @if (in_array($item->status, ['resolved', 'closed'], true))
+                                        @can('support.update')
                                         <x-admin.icon-button icon="heroicon-o-arrow-path" label="Mở lại"
                                                              wire:click="reopen({{ $item->id }})" />
+                                        @endcan
                                     @endif
                                 </div>
                             </td>
@@ -135,22 +145,51 @@
     <x-admin.modal :title="$viewing ? 'Phiếu ' . $viewing->ticket_no : 'Chi tiết phiếu'" max-width="max-w-3xl">
         @if ($viewing)
             <div class="grid gap-4">
-                <div class="flex items-start gap-3 rounded-admin border border-brand-line p-3">
-                    <x-user-avatar :employee="$viewing->employee" size="h-10 w-10" />
-                    <div class="min-w-0 flex-1">
-                        <p class="font-bold">{{ $viewing->employee?->full_name }}</p>
-                        <p class="text-xs text-brand-muted">
-                            {{ $viewing->employee?->employee_code }} · {{ $viewing->employee?->department?->name }}
-                        </p>
+                <x-admin.detail-field label="Người gửi">
+                    <div class="flex items-center gap-3 rounded-admin border border-brand-line p-3">
+                        <x-user-avatar :employee="$viewing->employee" size="h-10 w-10" />
+                        <div class="min-w-0 flex-1">
+                            <p class="font-bold">{{ $viewing->employee?->full_name ?? '—' }}</p>
+                            <p class="text-xs text-brand-muted">
+                                {{ $viewing->employee?->employee_code }} · {{ $viewing->employee?->department?->name }}
+                            </p>
+                        </div>
                     </div>
-                    <span class="text-xs text-brand-muted">{{ $viewing->created_at->format('d/m/Y H:i') }}</span>
+                </x-admin.detail-field>
+
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <x-admin.detail-field label="Thời gian gửi">
+                        {{ $viewing->created_at->format('d/m/Y H:i') }}
+                    </x-admin.detail-field>
+
+                    <x-admin.detail-field label="Mức ưu tiên">
+                        @if ($viewing->priority === 'high')
+                            <span class="tag tag-red">Gấp</span>
+                        @elseif ($viewing->priority === 'low')
+                            <span class="tag">Thấp</span>
+                        @else
+                            <span class="tag">Bình thường</span>
+                        @endif
+                    </x-admin.detail-field>
+
+                    <x-admin.detail-field label="Trạng thái">
+                        @switch($viewing->status)
+                            @case('new') <span class="tag tag-amber">Mới</span> @break
+                            @case('in_progress') <span class="tag tag-amber">Đang xử lý</span> @break
+                            @case('resolved') <span class="tag tag-green">Đã giải quyết</span> @break
+                            @default <span class="tag">Đã đóng</span>
+                        @endswitch
+                    </x-admin.detail-field>
                 </div>
 
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-brand-muted">{{ $viewing->topic }}</p>
-                    <h3 class="mt-1 text-base font-bold">{{ $viewing->subject }}</h3>
-                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">{{ $viewing->content }}</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-admin.detail-field label="Chủ đề">{{ $viewing->topic ?: '—' }}</x-admin.detail-field>
+                    <x-admin.detail-field label="Tiêu đề"><span class="font-bold">{{ $viewing->subject }}</span></x-admin.detail-field>
                 </div>
+
+                <x-admin.detail-field label="Nội dung yêu cầu">
+                    <p class="whitespace-pre-line rounded-admin border border-brand-line bg-brand-soft p-3 leading-relaxed">{{ $viewing->content }}</p>
+                </x-admin.detail-field>
 
                 <div class="grid gap-4 border-t border-brand-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div>
@@ -162,7 +201,9 @@
                             @endforeach
                         </select>
                     </div>
+                    @can('support.update')
                     <button type="button" wire:click="assign" class="admin-btn-secondary">Cập nhật người xử lý</button>
+                    @endcan
                 </div>
 
                 <div>
@@ -177,9 +218,13 @@
         <x-slot:footer>
             <button type="button" wire:click="$set('showModal', false)" class="admin-btn-secondary">Đóng</button>
             @if ($viewing && $viewing->status !== 'closed')
+                @can('support.update')
                 <button type="button" wire:click="close({{ $viewing->id }})" data-confirm="Đóng phiếu này? Nhân viên sẽ không phản hồi thêm được." data-confirm-title="Đóng phiếu" data-confirm-ok="Đóng phiếu" class="admin-btn-secondary">Đóng phiếu</button>
+                @endcan
             @endif
+            @can('support.update')
             <button type="button" wire:click="resolve" class="admin-btn">Giải quyết &amp; gửi phản hồi</button>
+            @endcan
         </x-slot:footer>
     </x-admin.modal>
 </div>

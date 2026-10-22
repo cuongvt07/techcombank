@@ -4,17 +4,38 @@
         <x-admin.page-header title="Bài kiểm tra"
                              subtitle="Ngân hàng câu hỏi, cấu hình đề thi và số lần làm bài.">
             <x-slot:actions>
+                @can('quizzes.create')
                 <button type="button" wire:click="createQuiz" class="admin-btn">
                     @svg('heroicon-o-plus', 'h-4 w-4')
                     Tạo bài kiểm tra
                 </button>
+                @endcan
             </x-slot:actions>
         </x-admin.page-header>
 
         <div class="admin-panel">
-            <div class="border-b border-brand-line p-4">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input max-w-md"
-                       placeholder="Tìm theo tên bài kiểm tra...">
+            <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
+                <div class="min-w-[240px] flex-1">
+                    <label for="f-quiz-builder-search-0" class="admin-label">Tìm kiếm</label>
+                    <input id="f-quiz-builder-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                           placeholder="Tìm theo tên bài kiểm tra...">
+                </div>
+
+                <div class="min-w-[240px]">
+                    <x-admin.searchable-select id="f-quiz-builder-courseFilter" label="Khóa học" model="courseFilter"
+                        :options="collect([['value' => 'none', 'label' => 'Không thuộc khóa nào']])
+                            ->merge($courses->map(fn ($c) => ['value' => $c->id, 'label' => $c->title]))->all()"
+                        :selected="$courseFilter" emptyLabel="Mọi khóa học" />
+                </div>
+
+                <div>
+                    <label for="f-quiz-builder-statusFilter" class="admin-label">Trạng thái</label>
+                    <select id="f-quiz-builder-statusFilter" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
+                        <option value="">Mọi trạng thái</option>
+                        <option value="draft">Nháp</option>
+                        <option value="published">Đã xuất bản</option>
+                    </select>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -61,12 +82,16 @@
                                     <div class="flex items-center justify-end gap-1.5">
                                         <x-admin.icon-button icon="heroicon-o-list-bullet" label="Ngân hàng câu hỏi"
                                                              wire:click="selectQuiz({{ $quiz->id }})" />
+                                        @can('quizzes.update')
                                         <x-admin.icon-button icon="heroicon-o-cog-6-tooth" label="Cấu hình đề thi"
                                                              wire:click="editQuiz({{ $quiz->id }})" />
+                                        @endcan
                                         @if ($quiz->status !== 'published')
+                                            @can('quizzes.update')
                                             <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản bài kiểm tra"
                                                                  variant="primary"
                                                                  wire:click="publishQuiz({{ $quiz->id }})" data-confirm="Xuất bản bài kiểm tra này? Nhân viên sẽ làm được bài ngay." data-confirm-title="Xuất bản bài kiểm tra" data-confirm-ok="Xuất bản" />
+                                            @endcan
                                         @endif
                                     </div>
                                 </td>
@@ -99,14 +124,18 @@
                     @svg('heroicon-o-arrow-down-tray', 'h-4 w-4')
                     File mẫu
                 </button>
+                @can('quizzes.update')
                 <button type="button" wire:click="openImport" class="admin-btn-secondary">
                     @svg('heroicon-o-arrow-up-tray', 'h-4 w-4')
                     Import Excel
                 </button>
+                @endcan
+                @can('quizzes.update')
                 <button type="button" wire:click="createQuestion" class="admin-btn">
                     @svg('heroicon-o-plus', 'h-4 w-4')
                     Thêm câu hỏi
                 </button>
+                @endcan
             </x-slot:actions>
         </x-admin.page-header>
 
@@ -163,16 +192,22 @@
                         </div>
 
                         <div class="flex shrink-0 items-center gap-1.5">
+                            @can('quizzes.update')
                             <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa câu hỏi"
                                                  wire:click="editQuestion({{ $question->id }})" />
+                            @endcan
+                            @can('quizzes.update')
                             <x-admin.icon-button
                                 :icon="$question->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye'"
                                 :label="$question->is_active ? 'Tắt câu hỏi' : 'Bật câu hỏi'"
                                 wire:click="toggleQuestionActive({{ $question->id }})" data-confirm="Ẩn hoặc hiện câu hỏi này trong bài kiểm tra?" data-confirm-title="Ẩn / hiện câu hỏi" data-confirm-ok="Đồng ý" />
+                            @endcan
+                            @can('quizzes.delete')
                             <x-admin.icon-button icon="heroicon-o-trash" label="Xóa câu hỏi"
                                                  variant="danger"
                                                  wire:click="deleteQuestion({{ $question->id }})"
                                                  data-confirm="Xóa câu hỏi này?" data-confirm-danger />
+                            @endcan
                         </div>
                     </div>
 
@@ -367,8 +402,11 @@
                                     @svg('heroicon-o-check', 'h-4 w-4 stroke-[3]')
                                 </button>
 
-                                <input type="text" wire:model="options.{{ $index }}.content"
-                                       class="admin-input" placeholder="Nội dung đáp án..."
+                                <label for="opt-{{ $index }}" class="w-5 shrink-0 text-center text-xs font-bold text-brand-muted">
+                                    {{ chr(65 + $index) }}
+                                </label>
+                                <input id="opt-{{ $index }}" type="text" wire:model="options.{{ $index }}.content"
+                                       class="admin-input" placeholder="Nội dung đáp án {{ chr(65 + $index) }}..."
                                        @readonly($questionType === 'true_false')>
 
                                 @if ($questionType !== 'true_false' && count($options) > 2)

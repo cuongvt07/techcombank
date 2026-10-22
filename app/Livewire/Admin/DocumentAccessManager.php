@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentAccessRule;
@@ -25,6 +26,8 @@ use Livewire\WithPagination;
  */
 class DocumentAccessManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -44,7 +47,8 @@ class DocumentAccessManager extends Component
     // Điều kiện
     public ?int $departmentId = null;
     public ?int $jobTitleId = null;
-    public ?int $jobGradeId = null;
+    /** Phân quyền tài liệu là nơi duy nhất cho chọn nhiều cấp bậc. Rỗng = mọi cấp bậc. */
+    public array $jobGradeIds = [];
     public ?int $minGradeLevel = null;
     public string $employmentStatus = '';
     public bool $includeSubDepartments = true;
@@ -84,12 +88,16 @@ class DocumentAccessManager extends Component
 
     public function create(): void
     {
+        $this->requirePermission('document_access.create');
+
         $this->resetForm();
         $this->showModal = true;
     }
 
     public function edit(int $id): void
     {
+        $this->requirePermission('document_access.update');
+
         $rule = DocumentAccessRule::findOrFail($id);
 
         $this->editingId = $rule->id;
@@ -98,7 +106,7 @@ class DocumentAccessManager extends Component
         $this->categoryId = $rule->document_category_id;
         $this->departmentId = $rule->department_id;
         $this->jobTitleId = $rule->job_title_id;
-        $this->jobGradeId = $rule->job_grade_id;
+        $this->jobGradeIds = $rule->gradeIds();
         $this->minGradeLevel = $rule->min_grade_level;
         $this->employmentStatus = (string) $rule->employment_status;
         $this->includeSubDepartments = (bool) $rule->include_sub_departments;
@@ -113,12 +121,15 @@ class DocumentAccessManager extends Component
 
     public function save(): void
     {
+        $this->requirePermission($this->editingId ? 'document_access.update' : 'document_access.create');
+
         $this->validate([
             'documentId' => [Rule::requiredIf($this->scope === 'document'), 'nullable', Rule::exists('documents', 'id')],
             'categoryId' => [Rule::requiredIf($this->scope === 'category'), 'nullable', Rule::exists('document_categories', 'id')],
             'departmentId' => ['nullable', Rule::exists('departments', 'id')],
             'jobTitleId' => ['nullable', Rule::exists('job_titles', 'id')],
-            'jobGradeId' => ['nullable', Rule::exists('job_grades', 'id')],
+            'jobGradeIds' => ['array'],
+            'jobGradeIds.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
             'minGradeLevel' => ['nullable', 'integer', 'min:0', 'max:100'],
             'priority' => ['required', 'integer', 'min:0', 'max:1000'],
         ], [
@@ -131,7 +142,8 @@ class DocumentAccessManager extends Component
             'document_category_id' => $this->scope === 'category' ? $this->categoryId : null,
             'department_id' => $this->departmentId,
             'job_title_id' => $this->jobTitleId,
-            'job_grade_id' => $this->jobGradeId,
+            // Cấp bậc lưu ở bảng nối, cột cũ để trống
+            'job_grade_id' => null,
             'min_grade_level' => $this->minGradeLevel,
             'employment_status' => $this->employmentStatus ?: null,
             'include_sub_departments' => $this->includeSubDepartments,
@@ -144,11 +156,15 @@ class DocumentAccessManager extends Component
             'is_active' => true,
         ];
 
+        $gradeIds = array_values(array_unique(array_map('intval', $this->jobGradeIds)));
+
         if ($this->editingId) {
-            DocumentAccessRule::findOrFail($this->editingId)->update($payload);
+            $rule = DocumentAccessRule::findOrFail($this->editingId);
+            $rule->update($payload);
+            $rule->jobGrades()->sync($gradeIds);
             session()->flash('status', 'Đã cập nhật quy tắc phân quyền.');
         } else {
-            DocumentAccessRule::create($payload);
+            DocumentAccessRule::create($payload)->jobGrades()->sync($gradeIds);
             session()->flash('status', 'Đã tạo quy tắc phân quyền.');
         }
 
@@ -158,12 +174,16 @@ class DocumentAccessManager extends Component
 
     public function toggleActive(int $id): void
     {
+        $this->requirePermission('document_access.update');
+
         $rule = DocumentAccessRule::findOrFail($id);
         $rule->update(['is_active' => ! $rule->is_active]);
     }
 
     public function delete(int $id): void
     {
+        $this->requirePermission('document_access.delete');
+
         DocumentAccessRule::findOrFail($id)->delete();
         session()->flash('status', 'Đã xóa quy tắc.');
     }
@@ -209,7 +229,7 @@ class DocumentAccessManager extends Component
     private function rules()
     {
         return DocumentAccessRule::query()
-            ->with(['document', 'category', 'department', 'jobTitle', 'jobGrade'])
+            ->with(['document', 'category', 'department', 'jobTitle', 'jobGrade', 'jobGrades'])
             ->when($this->search, function ($query) {
                 $term = '%' . $this->search . '%';
                 $query->whereHas('document', fn ($d) => $d->where('title', 'like', $term))
@@ -227,7 +247,7 @@ class DocumentAccessManager extends Component
     {
         $this->reset([
             'editingId', 'documentId', 'categoryId', 'departmentId',
-            'jobTitleId', 'jobGradeId', 'minGradeLevel', 'employmentStatus',
+            'jobTitleId', 'jobGradeIds', 'minGradeLevel', 'employmentStatus',
         ]);
         $this->scope = 'document';
         $this->includeSubDepartments = true;

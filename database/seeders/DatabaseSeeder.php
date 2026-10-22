@@ -23,6 +23,9 @@ class DatabaseSeeder extends Seeder
 
             // Hoạt động học tập mẫu, chạy sau khi đã có nhân sự và khoá học
             DemoActivitySeeder::class,
+
+            // Hoạt động rải đều 90 ngày gần nhất cho Tổng quan và các trang Báo cáo
+            DemoReportActivitySeeder::class,
         ]);
     }
 }

@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\RoleName;
 use App\Livewire\Admin\DocumentLibrary;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\Employee;
+use App\Models\JobGrade;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +40,7 @@ class DocumentLibraryTest extends TestCase
             ->set('title', 'Quy trình mở tài khoản')
             ->set('kind', Document::KIND_FILE)
             ->set('upload', UploadedFile::fake()->create('quy-trinh.pdf', 100, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -51,11 +54,71 @@ class DocumentLibraryTest extends TestCase
         $this->assertSame(1, $document->currentVersion->version_no);
     }
 
+    public function test_sua_tai_lieu_co_buoc_phan_quyen_va_cap_nhat_quy_tac_chinh(): void
+    {
+        $dept = Department::factory()->create();
+        $other = Department::factory()->create();
+        $grade = JobGrade::factory()->create();
+
+        Livewire::test(DocumentLibrary::class)
+            ->call('create')
+            ->set('title', 'Tài liệu sửa phân quyền')
+            ->set('upload', UploadedFile::fake()->create('a.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
+            ->set('accessDepartmentId', $dept->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $document = Document::where('title', 'Tài liệu sửa phân quyền')->firstOrFail();
+        $rule = $document->accessRules()->sole();
+
+        // Mở sửa: bước 2 nạp đúng quy tắc hiện có
+        Livewire::test(DocumentLibrary::class)
+            ->call('edit', $document->id)
+            ->assertSet('createStep', 1)
+            ->call('continueToPermissions')
+            ->assertSet('createStep', 2)
+            ->assertSet('accessRuleId', $rule->id)
+            ->assertSet('accessDepartmentId', $dept->id)
+            ->set('accessDepartmentId', $other->id)
+            ->set('accessJobGradeIds', [$grade->id])
+            ->set('accessCanDownload', true)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        // Sửa đúng quy tắc cũ chứ không sinh thêm quy tắc mới
+        $rule = $document->accessRules()->sole();
+        $this->assertSame($other->id, $rule->department_id);
+        $this->assertSame([$grade->id], $rule->gradeIds());
+        $this->assertTrue((bool) $rule->can_download);
+        $this->assertTrue((bool) $document->fresh()->allow_download);
+    }
+
+    public function test_loc_tai_lieu_theo_cap_do_bao_mat(): void
+    {
+        Document::factory()->create(['title' => 'Tài Liệu Tối Mật', 'confidentiality' => 'restricted']);
+        Document::factory()->create(['title' => 'Tài Liệu Công Khai', 'confidentiality' => 'public']);
+
+        Livewire::test(DocumentLibrary::class)
+            ->set('confidentialityFilter', 'restricted')
+            ->assertSee('Tài Liệu Tối Mật')
+            ->assertDontSee('Tài Liệu Công Khai');
+    }
+
+    public function test_bo_chon_danh_muc_khong_loi(): void
+    {
+        // Ô chọn có tìm kiếm gửi null khi chọn lại "Mọi danh mục"
+        Livewire::test(DocumentLibrary::class)
+            ->set('categoryFilter', null)
+            ->assertOk();
+    }
+
     public function test_tai_lieu_moi_bat_buoc_co_file(): void
     {
         Livewire::test(DocumentLibrary::class)
             ->call('create')
             ->set('title', 'Tài liệu không file')
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasErrors(['upload' => 'required']);
     }
@@ -66,6 +129,7 @@ class DocumentLibraryTest extends TestCase
             ->call('create')
             ->set('title', 'Sổ tay nhân viên')
             ->set('upload', UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Sổ tay nhân viên')->first();
@@ -75,6 +139,7 @@ class DocumentLibraryTest extends TestCase
             ->call('edit', $document->id)
             ->set('upload', UploadedFile::fake()->create('v2.pdf', 60, 'application/pdf'))
             ->set('change_note', 'Cập nhật chương 3')
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -92,6 +157,7 @@ class DocumentLibraryTest extends TestCase
             ->call('create')
             ->set('title', 'Chính sách bảo mật')
             ->set('upload', UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Chính sách bảo mật')->first();
@@ -100,6 +166,7 @@ class DocumentLibraryTest extends TestCase
         Livewire::test(DocumentLibrary::class)
             ->call('edit', $document->id)
             ->set('upload', UploadedFile::fake()->create('v2.pdf', 60, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $this->assertNotSame($v1, $document->refresh()->current_version_id);
@@ -126,6 +193,7 @@ class DocumentLibraryTest extends TestCase
             ->call('create')
             ->set('title', 'Hướng dẫn sử dụng hệ thống')
             ->set('upload', UploadedFile::fake()->create('huong-dan.pdf', 40, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Hướng dẫn sử dụng hệ thống')->first();
@@ -144,6 +212,7 @@ class DocumentLibraryTest extends TestCase
             ->call('create')
             ->set('title', 'Video đào tạo')
             ->set('kind', Document::KIND_VIDEO)
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasErrors('video_url');
     }
@@ -155,6 +224,7 @@ class DocumentLibraryTest extends TestCase
             ->set('title', 'Video link lạ')
             ->set('kind', Document::KIND_VIDEO)
             ->set('video_url', 'https://example.com/khong-phai-video')
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasErrors('video_url');
     }
@@ -166,6 +236,7 @@ class DocumentLibraryTest extends TestCase
             ->set('title', 'Video hướng dẫn')
             ->set('kind', Document::KIND_VIDEO)
             ->set('video_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -184,6 +255,7 @@ class DocumentLibraryTest extends TestCase
             ->set('title', 'Video xuất bản')
             ->set('kind', Document::KIND_VIDEO)
             ->set('video_url', 'https://vimeo.com/123456789')
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Video xuất bản')->first();
@@ -201,6 +273,7 @@ class DocumentLibraryTest extends TestCase
                 ->call('create')
                 ->set('title', 'Tài liệu cùng tên')
                 ->set('upload', UploadedFile::fake()->create($file, 30, 'application/pdf'))
+                ->call('continueToPermissions')
                 ->call('save')
                 ->assertHasNoErrors();
         }

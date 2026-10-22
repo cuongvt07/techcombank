@@ -60,6 +60,24 @@ class Quiz extends Model
         return $this->hasMany(QuizAttempt::class);
     }
 
+    /** Lượt làm bài cấp thêm cho từng nhân viên (ngoài max_attempts). */
+    public function attemptGrants(): HasMany
+    {
+        return $this->hasMany(QuizAttemptGrant::class);
+    }
+
+    /** Tổng số lượt một nhân viên được làm: max_attempts + lượt cấp thêm. NULL = không giới hạn. */
+    public function allowedAttemptsFor(Employee $employee): ?int
+    {
+        if ($this->max_attempts === null) {
+            return null;
+        }
+
+        return $this->max_attempts + (int) $this->attemptGrants()
+            ->where('employee_id', $employee->id)
+            ->sum('extra_attempts');
+    }
+
     public function lessons(): HasMany
     {
         return $this->hasMany(Lesson::class);
@@ -97,13 +115,15 @@ class Quiz extends Model
     /** Nhân viên còn lượt thi lại không (spec 3.2.3). */
     public function canAttempt(Employee $employee): bool
     {
-        if ($this->max_attempts === null) {
+        $allowed = $this->allowedAttemptsFor($employee);
+
+        if ($allowed === null) {
             return true;
         }
 
         return $this->attempts()
             ->where('employee_id', $employee->id)
-            ->count() < $this->max_attempts;
+            ->count() < $allowed;
     }
 
     public function attemptCountFor(Employee $employee): int

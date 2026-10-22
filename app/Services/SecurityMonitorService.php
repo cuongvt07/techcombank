@@ -96,7 +96,11 @@ class SecurityMonitorService
      *
      * @return int Số cảnh báo mới tạo
      */
-    public function detectMassDownload(int $withinMinutes = 60): int
+    /**
+     * @param  int|null  $userId  Chỉ quét một người — dùng khi gọi ngay sau mỗi lượt
+     *                           truy cập, tránh quét cả bảng nhật ký mỗi lần.
+     */
+    public function detectMassDownload(int $withinMinutes = 60, ?int $userId = null): int
     {
         $threshold = (int) Setting::get('security.mass_download_threshold', self::DEFAULT_MASS_DOWNLOAD_THRESHOLD);
 
@@ -104,6 +108,7 @@ class SecurityMonitorService
             ->whereIn('action', [DocumentAccessLog::ACTION_DOWNLOAD, DocumentAccessLog::ACTION_VIEW])
             ->where('accessed_at', '>=', now()->subMinutes($withinMinutes))
             ->whereNotNull('user_id')
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->select('user_id')
             ->selectRaw('COUNT(DISTINCT document_id) as doc_count')
             ->groupBy('user_id')
@@ -236,6 +241,8 @@ class SecurityMonitorService
             'status' => SecurityAlert::STATUS_ACKNOWLEDGED,
             'handled_by' => $userId,
             'handled_at' => now(),
+            // Mốc riêng để tính MTTA, không bị lần đóng sau ghi đè
+            'acknowledged_at' => $alert->acknowledged_at ?? now(),
         ]);
     }
 
@@ -245,6 +252,9 @@ class SecurityMonitorService
             'status' => $falsePositive ? SecurityAlert::STATUS_FALSE_POSITIVE : SecurityAlert::STATUS_RESOLVED,
             'handled_by' => $userId,
             'handled_at' => now(),
+            // Đóng thẳng khi chưa ghi nhận thì coi như ghi nhận cùng lúc
+            'acknowledged_at' => $alert->acknowledged_at ?? now(),
+            'resolved_at' => now(),
         ]);
     }
 

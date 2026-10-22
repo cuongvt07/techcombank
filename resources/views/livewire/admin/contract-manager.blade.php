@@ -2,8 +2,9 @@
     <x-admin.page-header title="Quản lý hợp đồng"
                          subtitle="Loại hợp đồng, thời hạn hiệu lực và cảnh báo sắp hết hạn.">
         <x-slot:actions>
-            <button type="button" wire:click="refreshStatuses" class="admin-btn-secondary">Đồng bộ trạng thái</button>
+            @can('contracts.create')
             <button type="button" wire:click="create" class="admin-btn">+ Thêm hợp đồng</button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -20,20 +21,34 @@
     @endif
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-contract-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-contract-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo số hợp đồng, tên hoặc mã nhân viên...">
             </div>
 
-            <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[180px]">
-                <option value="">Mọi trạng thái</option>
-                <option value="draft">Nháp</option>
-                <option value="active">Đang hiệu lực</option>
-                <option value="expiring">Sắp hết hạn</option>
-                <option value="expired">Đã hết hạn</option>
-                <option value="terminated">Đã chấm dứt</option>
-            </select>
+            <div>
+                <label for="f-contract-manager-statusFilter-1" class="admin-label">Trạng thái</label>
+                <select id="f-contract-manager-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[180px]">
+                    <option value="">Mọi trạng thái</option>
+                    <option value="draft">Nháp</option>
+                    <option value="active">Đang hiệu lực</option>
+                    <option value="expiring">Sắp hết hạn</option>
+                    <option value="expired">Đã hết hạn</option>
+                    <option value="terminated">Đã chấm dứt</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="f-contract-manager-typeFilter" class="admin-label">Loại hợp đồng</label>
+                <select id="f-contract-manager-typeFilter" wire:model.live="typeFilter" class="admin-input w-auto min-w-[200px]">
+                    <option value="">Mọi loại hợp đồng</option>
+                    @foreach ($contractTypes as $type)
+                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -58,9 +73,6 @@
                             <td>
                                 <div class="min-w-0">
                                     <div class="truncate font-bold">{{ $contract->employee->full_name }}</div>
-                                    <div class="truncate text-xs text-brand-muted">
-                                        {{ $contract->employee->department?->name ?? '—' }}
-                                    </div>
                                 </div>
                             </td>
                             <td class="text-brand-muted">{{ $contract->contractType->name }}</td>
@@ -92,8 +104,10 @@
                             </td>
                             <td>
                                 <div class="flex justify-end">
+                                    @can('contracts.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa hợp đồng"
                                                          wire:click="edit({{ $contract->id }})" />
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -134,11 +148,7 @@
                     @error('contract_type_id') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
-                    <label for="c_no" class="admin-label">Số hợp đồng</label>
-                    <input id="c_no" type="text" wire:model="contract_no" class="admin-input">
-                    @error('contract_no') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.auto-code id="c_no" label="Số hợp đồng" :value="$contract_no" />
 
                 <div>
                     <label for="c_signed" class="admin-label">Ngày ký</label>

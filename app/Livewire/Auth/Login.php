@@ -65,6 +65,9 @@ class Login extends Component
             RateLimiter::hit($throttleKey);
             $this->recordAttempt($user, 'failed', 'Sai thông tin đăng nhập');
 
+            // Phát hiện dò mật khẩu ngay lúc xảy ra, thay cho nút "Quét ngay"
+            app(SecurityMonitorService::class)->detectBruteForce();
+
             throw ValidationException::withMessages([
                 'email' => 'Email hoặc mật khẩu không đúng.',
             ]);

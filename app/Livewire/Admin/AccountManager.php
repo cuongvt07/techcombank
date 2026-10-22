@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Enums\RoleName;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\CourseAssignmentService;
@@ -23,6 +25,8 @@ use Spatie\Permission\Models\Role;
  */
 class AccountManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -33,6 +37,9 @@ class AccountManager extends Component
 
     #[Url]
     public string $roleFilter = '';
+
+    #[Url]
+    public string $departmentFilter = '';
 
     public bool $showModal = false;
     public bool $showSaveConfirm = false;
@@ -57,19 +64,22 @@ class AccountManager extends Component
         return view('livewire.admin.account-manager', [
             'users' => $this->users(),
             'roles' => Role::orderBy('name')->get(),
+            'departments' => Department::active()->orderBy('name')->get(),
         ])->layout('layouts.admin', ['title' => 'Quản lý tài khoản']);
     }
 
     public function updated($property): void
     {
         // Đổi bộ lọc thì quay về trang 1, tránh rơi vào trang trống
-        if (in_array($property, ['search', 'statusFilter', 'roleFilter'], true)) {
+        if (in_array($property, ['search', 'statusFilter', 'roleFilter', 'departmentFilter'], true)) {
             $this->resetPage();
         }
     }
 
     public function create(): void
     {
+        $this->requirePermission('accounts.create');
+
         $this->resetForm();
         $this->role = RoleName::EMPLOYEE->value;
         $this->showModal = true;
@@ -77,6 +87,8 @@ class AccountManager extends Component
 
     public function edit(int $id): void
     {
+        $this->requirePermission('accounts.update');
+
         $user = User::with('employee')->findOrFail($id);
 
         $this->editingId = $user->id;
@@ -93,12 +105,16 @@ class AccountManager extends Component
 
     public function requestSave(): void
     {
+        $this->requirePermission($this->editingId ? 'accounts.update' : 'accounts.create');
+
         $this->validate($this->rules());
         $this->showSaveConfirm = true;
     }
 
     public function save(): void
     {
+        $this->requirePermission($this->editingId ? 'accounts.update' : 'accounts.create');
+
         if (! $this->showSaveConfirm) {
             return;
         }
@@ -134,7 +150,6 @@ class AccountManager extends Component
                 $user->employee?->update([
                     'full_name' => $data['full_name'],
                     'email' => $data['email'],
-                    'employee_code' => $data['employee_code'],
                 ]);
 
                 session()->flash('status', 'Đã cập nhật tài khoản.');
@@ -154,7 +169,6 @@ class AccountManager extends Component
             $user->assignRole($data['role']);
 
             $employee = Employee::create([
-                'employee_code' => $data['employee_code'],
                 'user_id' => $user->id,
                 'full_name' => $data['full_name'],
                 'email' => $data['email'],
@@ -176,6 +190,8 @@ class AccountManager extends Component
 
     public function prepareStatusChange(int $id): void
     {
+        $this->requirePermission('accounts.update');
+
         $user = User::findOrFail($id);
 
         if ($user->id === auth()->id()) {
@@ -196,6 +212,8 @@ class AccountManager extends Component
 
     public function prepareDelete(int $id): void
     {
+        $this->requirePermission('accounts.delete');
+
         $user = User::findOrFail($id);
 
         if ($user->id === auth()->id()) {
@@ -213,6 +231,8 @@ class AccountManager extends Component
 
     public function confirmPendingAction(): void
     {
+        $this->requirePermission($this->pendingAction === 'delete' ? 'accounts.delete' : 'accounts.update');
+
         if (! $this->pendingUserId || ! in_array($this->pendingAction, ['status', 'delete'], true)) {
             return;
         }
@@ -258,6 +278,10 @@ class AccountManager extends Component
             })
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->roleFilter, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', $this->roleFilter)))
+            ->when($this->departmentFilter, fn ($q) => $q->whereHas(
+                'employee',
+                fn ($e) => $e->inDepartment((int) $this->departmentFilter)
+            ))
             ->orderByDesc('id')
             ->paginate(15);
     }
@@ -267,12 +291,6 @@ class AccountManager extends Component
         return [
             'full_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingId)],
-            'employee_code' => [
-                'required', 'string', 'max:50',
-                Rule::unique('employees', 'employee_code')
-                    ->ignore($this->editingId, 'user_id')
-                    ->whereNull('deleted_at'),
-            ],
             // Tạo mới bắt buộc có mật khẩu; sửa thì để trống nghĩa là giữ nguyên
             'password' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
             'role' => ['required', Rule::exists('roles', 'name')],

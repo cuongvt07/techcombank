@@ -15,10 +15,12 @@
                 @svg('heroicon-o-beaker', 'h-4 w-4')
                 Thử quyền
             </button>
+            @can('document_access.create')
             <button type="button" wire:click="create" class="admin-btn">
                 @svg('heroicon-o-plus', 'h-4 w-4')
                 Thêm quy tắc
             </button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -30,17 +32,21 @@
     </div>
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-document-access-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-document-access-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo tên tài liệu hoặc danh mục...">
             </div>
-            <select wire:model.live="scopeFilter" class="admin-input w-auto min-w-[190px]">
-                <option value="">Mọi quy tắc</option>
-                <option value="document">Áp cho tài liệu</option>
-                <option value="category">Áp cho danh mục</option>
-                <option value="deny">Chỉ quy tắc chặn</option>
-            </select>
+            <div>
+                <label for="f-document-access-manager-scopeFilter-1" class="admin-label">Loại quy tắc</label>
+                <select id="f-document-access-manager-scopeFilter-1" wire:model.live="scopeFilter" class="admin-input w-auto min-w-[190px]">
+                    <option value="">Mọi quy tắc</option>
+                    <option value="document">Áp cho tài liệu</option>
+                    <option value="category">Áp cho danh mục</option>
+                    <option value="deny">Chỉ quy tắc chặn</option>
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -77,7 +83,7 @@
                                             . ($rule->include_sub_departments ? ' (+phòng con)' : '');
                                     }
                                     if ($rule->jobTitle) $conds[] = 'Chức danh: ' . $rule->jobTitle->name;
-                                    if ($rule->jobGrade) $conds[] = 'Cấp bậc: ' . $rule->jobGrade->name;
+                                    if ($rule->jobGrades->isNotEmpty() || $rule->jobGrade) $conds[] = 'Cấp bậc: ' . $rule->jobGrades->pluck('name')->push($rule->jobGrade?->name)->filter()->unique()->implode(', ');
                                     if ($rule->min_grade_level !== null) $conds[] = 'Từ cấp ' . $rule->min_grade_level . ' trở lên';
                                     if ($rule->employment_status) $conds[] = 'Trạng thái: ' . $rule->employment_status;
                                 @endphp
@@ -115,16 +121,22 @@
 
                             <td>
                                 <div class="flex items-center justify-end gap-1.5">
+                                    @can('document_access.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa quy tắc"
                                                          wire:click="edit({{ $rule->id }})" />
+                                    @endcan
+                                    @can('document_access.update')
                                     <x-admin.icon-button
                                         :icon="$rule->is_active ? 'heroicon-o-pause-circle' : 'heroicon-o-play-circle'"
                                         :label="$rule->is_active ? 'Tạm tắt quy tắc' : 'Bật lại quy tắc'"
                                         wire:click="toggleActive({{ $rule->id }})" data-confirm="Đổi trạng thái bật/tắt của mục này?" data-confirm-title="Ẩn / hiện" data-confirm-ok="Đồng ý" />
+                                    @endcan
+                                    @can('document_access.delete')
                                     <x-admin.icon-button icon="heroicon-o-trash" label="Xóa quy tắc"
                                                          variant="danger"
                                                          wire:click="delete({{ $rule->id }})"
                                                          data-confirm="Xóa quy tắc này?" data-confirm-danger />
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -199,10 +211,9 @@
                                                         :options="$titleOptions" :selected="$jobTitleId" />
                         </div>
 
-                        <div>
-                            <x-admin.searchable-select id="a_grade" label="Cấp bậc cụ thể" model="jobGradeId"
-                                                        :options="$gradeOptions" :selected="$jobGradeId" />
-                        </div>
+                        <x-admin.multi-check id="a_grade" label="Cấp bậc" model="jobGradeIds"
+                                             :options="$gradeOptions" class="sm:col-span-2"
+                                             hint="Chọn được nhiều cấp bậc. Không chọn = áp dụng mọi cấp bậc." />
 
                         <div>
                             <label for="a_minlevel" class="admin-label">Hoặc: từ cấp bậc N trở lên</label>

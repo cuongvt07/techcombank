@@ -2,7 +2,9 @@
     <x-admin.page-header title="Sự kiện & thông báo"
                          subtitle="Gửi sự kiện tới toàn công ty hoặc riêng từng nhân viên.">
         <x-slot:actions>
+            @can('announcements.create')
             <button type="button" wire:click="create" class="admin-btn">+ Thêm sự kiện</button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -30,24 +32,51 @@
     </div>
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-announcement-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-announcement-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo tiêu đề, nội dung hoặc địa điểm...">
             </div>
 
-            <select wire:model.live="scopeFilter" class="admin-input w-auto min-w-[170px]">
-                <option value="">Mọi phạm vi</option>
-                <option value="all">Toàn công ty</option>
-                <option value="personal">Riêng cá nhân</option>
-            </select>
+            <div>
+                <label for="f-announcement-manager-scopeFilter-1" class="admin-label">Phạm vi</label>
+                <select id="f-announcement-manager-scopeFilter-1" wire:model.live="scopeFilter" class="admin-input w-auto min-w-[170px]">
+                    <option value="">Mọi phạm vi</option>
+                    <option value="all">Toàn công ty</option>
+                    <option value="personal">Riêng cá nhân</option>
+                </select>
+            </div>
 
-            <select wire:model.live="typeFilter" class="admin-input w-auto min-w-[150px]">
-                <option value="">Mọi loại</option>
-                @foreach ($types as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </select>
+            <div>
+                <label for="f-announcement-manager-typeFilter-2" class="admin-label">Loại</label>
+                <select id="f-announcement-manager-typeFilter-2" wire:model.live="typeFilter" class="admin-input w-auto min-w-[150px]">
+                    <option value="">Mọi loại</option>
+                    @foreach ($types as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="f-announcement-manager-statusFilter" class="admin-label">Trạng thái</label>
+                <select id="f-announcement-manager-statusFilter" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
+                    <option value="">Mọi trạng thái</option>
+                    @foreach (\App\Livewire\Admin\AnnouncementManager::STATUS_FILTERS as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="f-announcement-manager-yearFilter" class="admin-label">Năm</label>
+                <select id="f-announcement-manager-yearFilter" wire:model.live="yearFilter" class="admin-input w-auto min-w-[120px]">
+                    <option value="">Mọi năm</option>
+                    @foreach ($years as $year)
+                        <option value="{{ $year }}">{{ $year }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -116,25 +145,33 @@
                             <td>
                                 <div class="flex items-center justify-end gap-1.5">
                                     @if ($item->published_at)
+                                        @can('announcements.update')
                                         <x-admin.icon-button icon="heroicon-o-eye-slash"
                                                              label="Gỡ khỏi site người dùng"
                                                              wire:click="unpublish({{ $item->id }})" data-confirm="Gỡ khỏi site người dùng? Nhân viên sẽ không còn thấy mục này, nội dung vẫn được giữ lại." data-confirm-title="Gỡ xuất bản" data-confirm-ok="Gỡ xuống" />
+                                        @endcan
                                     @else
+                                        @can('announcements.update')
                                         <x-admin.icon-button icon="heroicon-o-paper-airplane"
                                                              label="Phát hành ngay"
                                                              variant="primary"
                                                              wire:click="publish({{ $item->id }})" data-confirm="Hiển thị mục này cho nhân viên?" data-confirm-title="Xuất bản" data-confirm-ok="Xuất bản" />
+                                        @endcan
                                     @endif
 
+                                    @can('announcements.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square"
                                                          label="Sửa"
                                                          wire:click="edit({{ $item->id }})" />
+                                    @endcan
 
+                                    @can('announcements.delete')
                                     <x-admin.icon-button icon="heroicon-o-trash"
                                                          label="Xóa"
                                                          variant="danger"
                                                          wire:click="delete({{ $item->id }})"
                                                          data-confirm="Xóa sự kiện này?" data-confirm-danger />
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

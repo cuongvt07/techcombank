@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Contract extends Model
 {
-    use SoftDeletes;
+    use HasAutoCode, SoftDeletes;
+
+    /** Số hợp đồng tự sinh: HD-{năm tạo}-{số thứ tự}, số thứ tự chạy liên tục qua các năm. */
+    protected const CODE_COLUMN = 'contract_no';
+    protected const CODE_PREFIX = 'HD-';
+    protected const CODE_PAD = 4;
+
+    protected static function codePrefix(): string
+    {
+        return 'HD-' . now()->year . '-';
+    }
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_ACTIVE = 'active';
@@ -114,5 +125,25 @@ class Contract extends Model
         return $query->whereNotNull('effective_to')
             ->whereDate('effective_to', '<', now())
             ->whereNotIn('status', [self::STATUS_EXPIRED, self::STATUS_TERMINATED]);
+    }
+
+    /**
+     * Cập nhật trạng thái theo ngày: quá hạn -> hết hạn, sắp tới hạn -> sắp hết hạn.
+     *
+     * Chạy tự động khi mở màn Hợp đồng / chi tiết nhân viên và theo lịch hằng
+     * ngày, thay cho nút "Đồng bộ trạng thái" bấm tay trước đây. Chỉ đụng các
+     * bản ghi cần đổi nên gọi nhiều lần không tốn kém.
+     *
+     * @return array{expired: int, expiring: int}
+     */
+    public static function syncStatuses(): array
+    {
+        $expired = static::expired()->update(['status' => self::STATUS_EXPIRED]);
+
+        $expiring = static::needsExpiryAlert()
+            ->where('status', self::STATUS_ACTIVE)
+            ->update(['status' => self::STATUS_EXPIRING]);
+
+        return ['expired' => $expired, 'expiring' => $expiring];
     }
 }

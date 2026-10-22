@@ -48,6 +48,7 @@ class FileStorageIntegrationTest extends TestCase
             ->set('title', 'Quy trình mở tài khoản')
             ->set('kind', Document::KIND_FILE)
             ->set('upload', UploadedFile::fake()->create('quy-trinh.pdf', 100, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -70,6 +71,7 @@ class FileStorageIntegrationTest extends TestCase
             ->set('title', 'Sổ tay nhân viên')
             ->set('kind', Document::KIND_FILE)
             ->set('upload', UploadedFile::fake()->create('so-tay.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $storedFile = Document::where('title', 'Sổ tay nhân viên')
@@ -86,6 +88,7 @@ class FileStorageIntegrationTest extends TestCase
             ->set('title', 'Video hướng dẫn')
             ->set('kind', Document::KIND_VIDEO)
             ->set('video_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            ->call('continueToPermissions')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -103,6 +106,7 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('title', 'Chính sách bảo mật')
             ->set('upload', UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Chính sách bảo mật')->first();
@@ -111,6 +115,7 @@ class FileStorageIntegrationTest extends TestCase
         Livewire::test(DocumentLibrary::class)
             ->call('edit', $document->id)
             ->set('upload', UploadedFile::fake()->create('v2.pdf', 60, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document->refresh();
@@ -127,6 +132,7 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('title', 'Tài liệu rollback')
             ->set('upload', UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         $document = Document::where('title', 'Tài liệu rollback')->first();
@@ -136,6 +142,7 @@ class FileStorageIntegrationTest extends TestCase
         Livewire::test(DocumentLibrary::class)
             ->call('edit', $document->id)
             ->set('upload', UploadedFile::fake()->create('v2.pdf', 60, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         Livewire::test(DocumentLibrary::class)->call('rollback', $v1->id);
@@ -155,13 +162,12 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('employee_id', $employee->id)
             ->set('contract_type_id', $type->id)
-            ->set('contract_no', 'HD-KHO-001')
             ->set('effective_from', now()->toDateString())
             ->set('file', UploadedFile::fake()->create('hop-dong.pdf', 200, 'application/pdf'))
             ->call('save')
             ->assertHasNoErrors();
 
-        $contract = Contract::where('contract_no', 'HD-KHO-001')->first();
+        $contract = Contract::where('employee_id', $employee->id)->first();
 
         $this->assertNotNull($contract->stored_file_id);
         $this->assertSame('hop-dong.pdf', $contract->storedFile->name);
@@ -178,12 +184,11 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('employee_id', $employee->id)
             ->set('contract_type_id', $type->id)
-            ->set('contract_no', 'HD-KHONG-FILE')
             ->set('effective_from', now()->toDateString())
             ->call('save')
             ->assertHasNoErrors();
 
-        $contract = Contract::where('contract_no', 'HD-KHONG-FILE')->first();
+        $contract = Contract::where('employee_id', $employee->id)->first();
         $this->assertNull($contract->stored_file_id);
     }
 
@@ -198,6 +203,7 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('title', 'Tài liệu đầu tiên')
             ->set('upload', UploadedFile::fake()->create('a.pdf', 30, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         // Luồng upload không được vỡ chỉ vì thư mục chưa tồn tại
@@ -217,13 +223,13 @@ class FileStorageIntegrationTest extends TestCase
             ->call('create')
             ->set('title', 'Tài liệu A')
             ->set('upload', UploadedFile::fake()->create('a.pdf', 30, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         Livewire::test(ContractManager::class)
             ->call('create')
             ->set('employee_id', $employee->id)
             ->set('contract_type_id', $type->id)
-            ->set('contract_no', 'HD-XX-001')
             ->set('effective_from', now()->toDateString())
             ->set('file', UploadedFile::fake()->create('b.pdf', 40, 'application/pdf'))
             ->call('save');

@@ -2,25 +2,31 @@
     <x-admin.page-header title="Thư viện tài liệu"
                          subtitle="Tài liệu, video bài giảng, phiên bản và cấp độ bảo mật.">
         <x-slot:actions>
+            @can('documents.create')
             <button type="button" wire:click="create" class="admin-btn">
                 @svg('heroicon-o-plus', 'h-4 w-4')
                 Thêm tài liệu
             </button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
     <div class="admin-panel">
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[220px] flex-1">
-                <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <label for="f-document-library-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-document-library-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                        placeholder="Tìm theo tiêu đề hoặc mô tả...">
             </div>
 
-            <select wire:model.live="kindFilter" class="admin-input w-auto min-w-[140px]">
-                <option value="">Mọi loại</option>
-                <option value="file">Tài liệu</option>
-                <option value="video">Video</option>
-            </select>
+            <div>
+                <label for="f-document-library-kindFilter-1" class="admin-label">Loại tài liệu</label>
+                <select id="f-document-library-kindFilter-1" wire:model.live="kindFilter" class="admin-input w-auto min-w-[140px]">
+                    <option value="">Mọi loại</option>
+                    <option value="file">Tài liệu</option>
+                    <option value="video">Video</option>
+                </select>
+            </div>
 
             <div class="min-w-[220px]">
                 <x-admin.searchable-select id="document_category_filter" label="Danh mục" model="categoryFilter"
@@ -28,13 +34,27 @@
                     :selected="$categoryFilter" emptyLabel="Mọi danh mục" />
             </div>
 
-            <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                <option value="">Mọi trạng thái</option>
-                <option value="draft">Nháp</option>
-                <option value="pending_review">Chờ duyệt</option>
-                <option value="published">Đã xuất bản</option>
-                <option value="archived">Lưu trữ</option>
-            </select>
+            <div>
+                <label for="f-document-library-confidentialityFilter" class="admin-label">Bảo mật</label>
+                <select id="f-document-library-confidentialityFilter" wire:model.live="confidentialityFilter" class="admin-input w-auto min-w-[150px]">
+                    <option value="">Mọi cấp độ</option>
+                    <option value="public">Công khai</option>
+                    <option value="internal">Nội bộ</option>
+                    <option value="confidential">Mật</option>
+                    <option value="restricted">Tối mật</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="f-document-library-statusFilter-2" class="admin-label">Trạng thái</label>
+                <select id="f-document-library-statusFilter-2" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
+                    <option value="">Mọi trạng thái</option>
+                    <option value="draft">Nháp</option>
+                    <option value="pending_review">Chờ duyệt</option>
+                    <option value="published">Đã xuất bản</option>
+                    <option value="archived">Lưu trữ</option>
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -107,18 +127,24 @@
                             </td>
                             <td>
                                 <div class="flex items-center justify-end gap-1.5">
+                                    @can('documents.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa tài liệu"
                                                          wire:click="edit({{ $doc->id }})" />
+                                    @endcan
 
                                     @if ($doc->status === 'published')
+                                        @can('documents.update')
                                         <x-admin.icon-button icon="heroicon-o-archive-box" label="Gỡ xuất bản"
                                                              variant="danger"
                                                              wire:click="unpublish({{ $doc->id }})"
                                                              data-confirm="Gỡ xuất bản tài liệu này?" />
+                                        @endcan
                                     @else
+                                        @can('documents.update')
                                         <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản tài liệu"
                                                              variant="primary"
                                                              wire:click="publish({{ $doc->id }})" data-confirm="Hiển thị mục này cho nhân viên?" data-confirm-title="Xuất bản" data-confirm-ok="Xuất bản" />
+                                        @endcan
                                     @endif
                                 </div>
                             </td>
@@ -136,9 +162,11 @@
     </div>
 
     @if ($showModal)
-        <x-admin.modal :title="$editingId ? 'Sửa tài liệu' : ($createStep === 1 ? 'Bước 1/2 · Tạo tài liệu' : 'Bước 2/2 · Phân quyền')" maxWidth="max-w-3xl">
+        <x-admin.modal :title="$createStep === 1
+                ? ($editingId ? 'Bước 1/2 · Sửa tài liệu' : 'Bước 1/2 · Tạo tài liệu')
+                : 'Bước 2/2 · Phân quyền'" maxWidth="max-w-3xl">
             <form wire:submit="save" id="doc-form" class="grid gap-4 sm:grid-cols-2">
-                @if ($editingId || $createStep === 1)
+                @if ($createStep === 1)
                 <div class="sm:col-span-2">
                     <label for="d_title" class="admin-label">Tiêu đề</label>
                     <input id="d_title" type="text" wire:model="title" class="admin-input">
@@ -283,17 +311,23 @@
                 @else
                     <div class="sm:col-span-2 rounded-admin border border-brand-line bg-brand-soft p-3 text-sm">
                         Thiết lập nhóm nhân viên được xem tài liệu. Để trống cả hai điều kiện nếu áp dụng cho toàn công ty.
+                        @if ($editingId && ($otherRules = $this->otherRuleCount()) > 0)
+                            <span class="mt-1 block text-xs text-brand-muted">
+                                Tài liệu còn {{ $otherRules }} quy tắc khác (theo chức danh, trạng thái...) —
+                                xem và sửa ở màn
+                                <a href="{{ route('admin.access-rules') }}" wire:navigate class="font-semibold text-brand-red hover:underline">Phân quyền tài liệu</a>.
+                            </span>
+                        @endif
                     </div>
                     <div>
                         <x-admin.searchable-select id="doc_access_department" label="Phòng ban được xem" model="accessDepartmentId"
                             :options="$departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all()"
                             :selected="$accessDepartmentId" emptyLabel="Toàn công ty" />
                     </div>
-                    <div>
-                        <x-admin.searchable-select id="doc_access_grade" label="Cấp bậc được xem" model="accessJobGradeId"
-                            :options="$jobGrades->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
-                            :selected="$accessJobGradeId" emptyLabel="Tất cả cấp bậc" />
-                    </div>
+                    <x-admin.multi-check id="doc_access_grade" label="Cấp bậc được xem" model="accessJobGradeIds"
+                        :options="$jobGrades->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
+                        class="sm:col-span-2"
+                        hint="Chọn được nhiều cấp bậc. Không chọn = mọi cấp bậc đều xem được." />
                     <div class="sm:col-span-2 grid gap-2.5 border-t border-brand-line pt-4">
                         <p class="admin-label !mb-0">Quyền truy cập</p>
                         <label class="flex items-center gap-2 text-sm font-medium">
@@ -314,11 +348,11 @@
 
             <x-slot:footer>
                 <button type="button" wire:click="$set('showModal', false)" class="admin-btn-secondary">Hủy</button>
-                @if (! $editingId && $createStep === 2)
+                @if ($createStep === 2)
                     <button type="button" wire:click="backToContent" class="admin-btn-secondary">Quay lại</button>
                 @endif
                 <button type="submit" form="doc-form" class="admin-btn" wire:loading.attr="disabled" wire:target="save,upload">
-                    {{ $editingId ? 'Lưu thay đổi' : ($createStep === 1 ? 'Tiếp tục phân quyền' : 'Tạo tài liệu') }}
+                    {{ $createStep === 1 ? 'Tiếp tục phân quyền' : ($editingId ? 'Lưu thay đổi' : 'Tạo tài liệu') }}
                 </button>
             </x-slot:footer>
         </x-admin.modal>
@@ -357,10 +391,12 @@
                                             @if ($version->isCurrent())
                                                 <span class="tag tag-green">Đang dùng</span>
                                             @else
+                                                @can('documents.update')
                                                 <x-admin.icon-button icon="heroicon-o-arrow-uturn-left"
                                                                      label="Khôi phục phiên bản {{ $version->version_no }}"
                                                                      wire:click="rollback({{ $version->id }})"
                                                                      data-confirm="Khôi phục về phiên bản {{ $version->version_no }}?" />
+                                                @endcan
                                             @endif
                                         </div>
                                     </td>

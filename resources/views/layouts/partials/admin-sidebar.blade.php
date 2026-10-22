@@ -7,14 +7,14 @@
     // Nhóm điều hướng khai báo tập trung để thêm/bớt module không phải sửa markup.
     $navGroups = [
         'Quản lý nhân sự' => [
-            ['route' => 'admin.dashboard', 'label' => 'Tổng quan', 'icon' => 'squares-2x2', 'permission' => null],
+            ['route' => 'admin.dashboard', 'label' => 'Tổng quan', 'icon' => 'squares-2x2', 'permission' => 'dashboard.view'],
             ['route' => 'admin.accounts', 'label' => 'Tài khoản', 'icon' => 'key', 'permission' => 'accounts.view'],
             ['route' => 'admin.employees', 'label' => 'Hồ sơ nhân sự', 'icon' => 'users', 'permission' => 'employees.view'],
             ['route' => 'admin.contracts', 'label' => 'Hợp đồng', 'icon' => 'document-check', 'permission' => 'contracts.view'],
-            ['route' => 'admin.roles', 'label' => 'Phân quyền', 'icon' => 'lock-closed', 'permission' => 'roles.manage'],
+            ['route' => 'admin.roles', 'label' => 'Phân quyền', 'icon' => 'lock-closed', 'permission' => 'roles.view'],
         ],
         'Tài liệu nội bộ' => [
-            ['route' => 'admin.files', 'label' => 'Kho tài nguyên', 'icon' => 'folder', 'permission' => 'documents.view'],
+            ['route' => 'admin.files', 'label' => 'Kho tài nguyên', 'icon' => 'folder', 'permission' => 'files.view'],
             ['route' => 'admin.documents', 'label' => 'Thư viện & phân quyền', 'icon' => 'document-duplicate', 'permission' => 'documents.view'],
             ['route' => 'admin.courses', 'label' => 'Bộ tài liệu ban hành', 'icon' => 'academic-cap', 'permission' => 'courses.view'],
             ['route' => 'admin.quizzes', 'label' => 'Bài kiểm tra', 'icon' => 'clipboard-document-check', 'permission' => 'quizzes.view'],
@@ -22,11 +22,17 @@
         'Sự kiện' => [
             ['route' => 'admin.announcements', 'label' => 'Sự kiện & thông báo', 'icon' => 'megaphone', 'permission' => 'announcements.view'],
         ],
+        'Báo cáo' => [
+            ['route' => 'admin.reports.learning', 'label' => 'Tiến độ học tập', 'icon' => 'chart-bar', 'permission' => 'report_learning.view'],
+            ['route' => 'admin.reports.quiz', 'label' => 'Kết quả kiểm tra', 'icon' => 'clipboard-document-list', 'permission' => 'report_quiz.view'],
+            ['route' => 'admin.reports.documents', 'label' => 'Truy cập tài liệu', 'icon' => 'document-magnifying-glass', 'permission' => 'report_documents.view'],
+            ['route' => 'admin.reports.security', 'label' => 'Bảo mật & đăng nhập', 'icon' => 'shield-check', 'permission' => 'report_security.view'],
+            ['route' => 'admin.reports.support', 'label' => 'Yêu cầu hỗ trợ', 'icon' => 'chat-bubble-left-right', 'permission' => 'report_support.view'],
+        ],
         'Bảo mật & vận hành' => [
             ['route' => 'admin.security', 'label' => 'Trung tâm bảo mật', 'icon' => 'exclamation-triangle', 'permission' => 'security.view'],
-            ['route' => 'admin.reports', 'label' => 'Báo cáo tiến độ', 'icon' => 'chart-bar', 'permission' => 'reports.view'],
-            ['route' => 'admin.support', 'label' => 'Phiếu hỗ trợ', 'icon' => 'lifebuoy', 'permission' => 'support.manage'],
-            ['route' => 'admin.settings', 'label' => 'Cấu hình chung', 'icon' => 'cog-6-tooth', 'permission' => 'settings.manage'],
+            ['route' => 'admin.support', 'label' => 'Phiếu hỗ trợ', 'icon' => 'lifebuoy', 'permission' => 'support.view'],
+            ['route' => 'admin.settings', 'label' => 'Cấu hình chung', 'icon' => 'cog-6-tooth', 'permission' => 'settings.view'],
         ],
     ];
 @endphp

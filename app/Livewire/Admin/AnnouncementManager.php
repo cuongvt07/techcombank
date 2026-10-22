@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Announcement;
 use App\Models\Employee;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -18,6 +20,8 @@ use Livewire\WithPagination;
  */
 class AnnouncementManager extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -29,6 +33,20 @@ class AnnouncementManager extends Component
 
     #[Url]
     public string $typeFilter = '';
+
+    /** Trạng thái tính từ thời gian, khớp nhãn ở cột Trạng thái: draft, happening, showing, ended. */
+    #[Url]
+    public string $statusFilter = '';
+
+    #[Url]
+    public string $yearFilter = '';
+
+    public const STATUS_FILTERS = [
+        'draft' => 'Nháp',
+        'happening' => 'Đang diễn ra',
+        'showing' => 'Đang hiển thị',
+        'ended' => 'Đã qua',
+    ];
 
     public bool $showModal = false;
     public ?int $editingId = null;
@@ -56,12 +74,13 @@ class AnnouncementManager extends Component
             'employees' => Employee::active()->orderBy('full_name')->limit(300)->get(),
             'types' => Announcement::TYPES,
             'stats' => $this->stats(),
+            'years' => $this->years(),
         ])->layout('layouts.admin', ['title' => 'Sự kiện & thông báo']);
     }
 
     public function updated($property): void
     {
-        if (in_array($property, ['search', 'scopeFilter', 'typeFilter'], true)) {
+        if (in_array($property, ['search', 'scopeFilter', 'typeFilter', 'statusFilter', 'yearFilter'], true)) {
             $this->resetPage();
         }
 
@@ -86,11 +105,54 @@ class AnnouncementManager extends Component
             ->when($this->scopeFilter === 'all', fn ($q) => $q->whereNull('employee_id'))
             ->when($this->scopeFilter === 'personal', fn ($q) => $q->whereNotNull('employee_id'))
             ->when($this->typeFilter !== '', fn ($q) => $q->where('type', $this->typeFilter))
+            ->when($this->statusFilter !== '', fn ($q) => $this->applyStatusFilter($q))
+            ->when($this->yearFilter !== '', function ($q) {
+                // Năm theo ngày diễn ra; sự kiện không có ngày diễn ra thì theo ngày tạo.
+                // So khoảng thời gian thay vì YEAR() để dùng được chỉ mục và chạy trên mọi CSDL.
+                $from = Carbon::create((int) $this->yearFilter)->startOfYear();
+
+                $q->whereRaw('COALESCE(starts_at, created_at) >= ? AND COALESCE(starts_at, created_at) < ?', [
+                    $from, $from->copy()->addYear(),
+                ]);
+            })
             // Sắp diễn ra lên đầu, rồi tới sự kiện không có mốc thời gian
             ->orderByRaw('starts_at IS NULL')
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
             ->paginate(15);
+    }
+
+    /**
+     * Cùng quy tắc với nhãn ở cột Trạng thái (Announcement::hasEnded / isHappeningNow).
+     * Mốc "bây giờ" lấy từ PHP, không dùng NOW() của MySQL vì hai bên lệch múi giờ.
+     */
+    private function applyStatusFilter($q): void
+    {
+        $now = now();
+        $end = 'COALESCE(ends_at, starts_at)';
+
+        match ($this->statusFilter) {
+            'draft' => $q->whereNull('published_at'),
+            'ended' => $q->whereNotNull('published_at')->whereRaw("{$end} <= ?", [$now]),
+            'happening' => $q->whereNotNull('published_at')
+                ->where('starts_at', '<=', $now)
+                ->whereRaw("{$end} > ?", [$now]),
+            'showing' => $q->whereNotNull('published_at')
+                ->where(fn ($s) => $s->whereNull('starts_at')->orWhere('starts_at', '>', $now)),
+            default => null,
+        };
+    }
+
+    /** Các năm có sự kiện, mới nhất trước. */
+    private function years()
+    {
+        return Announcement::query()
+            ->get(['starts_at', 'created_at'])
+            ->map(fn ($a) => ($a->starts_at ?? $a->created_at)?->year)
+            ->filter()
+            ->unique()
+            ->sortDesc()
+            ->values();
     }
 
     /** @return array<string, int> */
@@ -106,6 +168,8 @@ class AnnouncementManager extends Component
 
     public function create(): void
     {
+        $this->requirePermission('announcements.create');
+
         $this->resetForm();
         $this->published_at = now()->format('Y-m-d\TH:i');
         $this->showModal = true;
@@ -113,6 +177,8 @@ class AnnouncementManager extends Component
 
     public function edit(int $id): void
     {
+        $this->requirePermission('announcements.update');
+
         $announcement = Announcement::findOrFail($id);
 
         $this->editingId = $announcement->id;
@@ -135,6 +201,8 @@ class AnnouncementManager extends Component
 
     public function save(): void
     {
+        $this->requirePermission($this->editingId ? 'announcements.update' : 'announcements.create');
+
         $data = $this->validate($this->rules(), $this->messages());
 
         Announcement::updateOrCreate(
@@ -168,6 +236,8 @@ class AnnouncementManager extends Component
     /** Phát hành ngay một sự kiện còn ở dạng nháp. */
     public function publish(int $id): void
     {
+        $this->requirePermission('announcements.update');
+
         $announcement = Announcement::findOrFail($id);
         $announcement->update(['published_at' => now()]);
 
@@ -177,6 +247,8 @@ class AnnouncementManager extends Component
     /** Gỡ khỏi site người dùng nhưng vẫn giữ nội dung để đăng lại. */
     public function unpublish(int $id): void
     {
+        $this->requirePermission('announcements.update');
+
         Announcement::findOrFail($id)->update(['published_at' => null]);
 
         session()->flash('status', 'Đã gỡ sự kiện khỏi site người dùng.');
@@ -184,6 +256,8 @@ class AnnouncementManager extends Component
 
     public function delete(int $id): void
     {
+        $this->requirePermission('announcements.delete');
+
         Announcement::findOrFail($id)->delete();
 
         session()->flash('status', 'Đã xóa sự kiện.');

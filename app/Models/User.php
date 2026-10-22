@@ -71,6 +71,22 @@ class User extends Authenticatable
         return $this->status === self::STATUS_ACTIVE;
     }
 
+    /**
+     * Vào được site quản trị: có vai trò quản trị, hoặc được cấp quyền "Xem" ít
+     * nhất một màn quản trị (phân quyền theo vai trò ở màn Phân quyền).
+     */
+    public function canAccessAdminSite(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->getAllPermissions()
+            ->pluck('name')
+            ->intersect(\App\Support\PermissionCatalog::viewPermissions())
+            ->isNotEmpty();
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasAnyRole(RoleName::adminRoles());

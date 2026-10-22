@@ -10,6 +10,8 @@ use App\Models\Contract;
 use App\Models\ContractType;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\JobGrade;
+use App\Models\JobTitle;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,15 +47,30 @@ class AdminHrScreensTest extends TestCase
             ->set('employee_code', 'NV999001')
             ->set('password', 'matkhau123')
             ->set('role', RoleName::EMPLOYEE->value)
+            ->call('requestSave')
+            ->assertSet('showSaveConfirm', true)
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('users', ['email' => 'test.nv@techcombank.local']);
         // Tài khoản không gắn hồ sơ sẽ không nhận được khoá học nào, nên phải tạo cặp
-        $this->assertDatabaseHas('employees', [
-            'employee_code' => 'NV999001',
-            'full_name' => 'Nguyễn Văn Test',
-        ]);
+        $employee = Employee::where('full_name', 'Nguyễn Văn Test')->firstOrFail();
+        // Mã nhân viên do hệ thống tự sinh, không bỏ qua mã gửi kèm request
+        $this->assertMatchesRegularExpression('/^NV\d{6,}$/', $employee->employee_code);
+        $this->assertNotSame('NV999001', $employee->employee_code);
+    }
+
+    public function test_chua_xac_nhan_thi_chua_luu(): void
+    {
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('full_name', 'Chưa Xác Nhận')
+            ->set('email', 'chua.xn@techcombank.local')
+            ->set('employee_code', 'NV999009')
+            ->set('password', 'matkhau123')
+            ->call('save');
+
+        $this->assertDatabaseMissing('users', ['email' => 'chua.xn@techcombank.local']);
     }
 
     public function test_khong_cho_tao_trung_email(): void
@@ -67,8 +84,9 @@ class AdminHrScreensTest extends TestCase
             ->set('employee_code', 'NV999002')
             ->set('password', 'matkhau123')
             ->set('role', RoleName::EMPLOYEE->value)
-            ->call('save')
-            ->assertHasErrors(['email' => 'unique']);
+            ->call('requestSave')
+            ->assertHasErrors(['email' => 'unique'])
+            ->assertSet('showSaveConfirm', false);
     }
 
     public function test_mat_khau_bat_buoc_khi_tao_moi_nhung_tuy_chon_khi_sua(): void
@@ -79,7 +97,7 @@ class AdminHrScreensTest extends TestCase
             ->set('email', 'nopass@techcombank.local')
             ->set('employee_code', 'NV999003')
             ->set('role', RoleName::EMPLOYEE->value)
-            ->call('save')
+            ->call('requestSave')
             ->assertHasErrors(['password' => 'required']);
 
         // Sửa tài khoản có sẵn mà để trống mật khẩu thì vẫn lưu được
@@ -89,6 +107,7 @@ class AdminHrScreensTest extends TestCase
         Livewire::test(AccountManager::class)
             ->call('edit', $user->id)
             ->set('password', '')
+            ->call('requestSave')
             ->call('save')
             ->assertHasNoErrors();
     }
@@ -97,19 +116,82 @@ class AdminHrScreensTest extends TestCase
     {
         $user = User::factory()->create(['status' => User::STATUS_ACTIVE]);
 
-        Livewire::test(AccountManager::class)->call('toggleStatus', $user->id);
+        Livewire::test(AccountManager::class)
+            ->call('prepareStatusChange', $user->id)
+            ->assertSet('showActionConfirm', true)
+            ->call('confirmPendingAction');
         $this->assertSame(User::STATUS_LOCKED, $user->refresh()->status);
 
-        Livewire::test(AccountManager::class)->call('toggleStatus', $user->id);
+        Livewire::test(AccountManager::class)
+            ->call('prepareStatusChange', $user->id)
+            ->call('confirmPendingAction');
         $this->assertSame(User::STATUS_ACTIVE, $user->refresh()->status);
+    }
+
+    public function test_bam_huy_thi_khong_khoa(): void
+    {
+        $user = User::factory()->create(['status' => User::STATUS_ACTIVE]);
+
+        Livewire::test(AccountManager::class)
+            ->call('prepareStatusChange', $user->id)
+            ->set('showActionConfirm', false);
+
+        $this->assertSame(User::STATUS_ACTIVE, $user->refresh()->status);
+    }
+
+    public function test_xoa_tai_khoan(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::test(AccountManager::class)
+            ->call('prepareDelete', $user->id)
+            ->assertSet('showActionConfirm', true)
+            ->call('confirmPendingAction')
+            ->assertSet('showActionConfirm', false);
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_popup_xac_nhan_hien_khi_chua_mo_form_sua(): void
+    {
+        // Lỗi cũ: popup khóa/xóa bám theo biến showModal của form Sửa, nên chỉ
+        // hiện khi đã bấm Sửa trước. Popup phải bám đúng biến của chính nó.
+        $user = User::factory()->create();
+
+        Livewire::test(AccountManager::class)
+            ->call('prepareDelete', $user->id)
+            ->assertSet('showModal', false)
+            ->assertSeeHtml('x-show="$wire.showActionConfirm"');
     }
 
     public function test_khong_the_tu_khoa_tai_khoan_cua_chinh_minh(): void
     {
         Livewire::test(AccountManager::class)
-            ->call('toggleStatus', $this->admin->id);
+            ->call('prepareStatusChange', $this->admin->id)
+            ->assertSet('showActionConfirm', false);
 
         $this->assertSame(User::STATUS_ACTIVE, $this->admin->refresh()->status);
+    }
+
+    public function test_loc_tai_khoan_theo_phong_ban_bao_gom_phong_con(): void
+    {
+        $parent = Department::factory()->create();
+        $child = Department::factory()->create(['parent_id' => $parent->id]);
+
+        Employee::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'department_id' => $child->id,
+            'full_name' => 'Tài Khoản Phòng Con',
+        ]);
+        Employee::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'full_name' => 'Tài Khoản Phòng Khác',
+        ]);
+
+        Livewire::test(AccountManager::class)
+            ->set('departmentFilter', (string) $parent->id)
+            ->assertSee('Tài Khoản Phòng Con')
+            ->assertDontSee('Tài Khoản Phòng Khác');
     }
 
     public function test_tim_kiem_tai_khoan_theo_ma_nhan_vien(): void
@@ -194,7 +276,64 @@ class AdminHrScreensTest extends TestCase
             ->assertDontSee('Nhân Viên Phòng Khác');
     }
 
+    public function test_loc_nhan_su_theo_chuc_danh_cap_bac_va_nam_vao_lam(): void
+    {
+        $title = JobTitle::factory()->create();
+        $grade = JobGrade::factory()->create();
+
+        Employee::factory()->create([
+            'full_name' => 'Người Khớp Bộ Lọc',
+            'job_title_id' => $title->id,
+            'job_grade_id' => $grade->id,
+            'joined_at' => '2023-05-10',
+        ]);
+        Employee::factory()->create(['full_name' => 'Người Khác Chức Danh', 'joined_at' => '2023-02-01']);
+        Employee::factory()->create([
+            'full_name' => 'Người Khác Năm',
+            'job_title_id' => $title->id,
+            'job_grade_id' => $grade->id,
+            'joined_at' => '2021-01-01',
+        ]);
+
+        Livewire::test(EmployeeManager::class)
+            ->set('jobTitleFilter', (string) $title->id)
+            ->set('jobGradeFilter', (string) $grade->id)
+            ->set('joinedYearFilter', '2023')
+            ->assertSee('Người Khớp Bộ Lọc')
+            ->assertDontSee('Người Khác Chức Danh')
+            ->assertDontSee('Người Khác Năm');
+    }
+
+    public function test_bang_nhan_su_khong_con_cot_tien_do(): void
+    {
+        Livewire::test(EmployeeManager::class)->assertDontSee('Tiến độ học tập');
+    }
+
     // ---- 3.1.3 Hợp đồng ----------------------------------------------------
+
+    public function test_loc_hop_dong_theo_loai(): void
+    {
+        $fixed = ContractType::create(['code' => 'LT1', 'name' => 'Loại Xác Định']);
+        $trial = ContractType::create(['code' => 'LT2', 'name' => 'Loại Thử Việc']);
+
+        Contract::create([
+            'employee_id' => Employee::factory()->create(['full_name' => 'NV Hợp Đồng Xác Định'])->id,
+            'contract_type_id' => $fixed->id,
+            'effective_from' => now()->toDateString(),
+            'status' => Contract::STATUS_ACTIVE,
+        ]);
+        Contract::create([
+            'employee_id' => Employee::factory()->create(['full_name' => 'NV Hợp Đồng Thử Việc'])->id,
+            'contract_type_id' => $trial->id,
+            'effective_from' => now()->toDateString(),
+            'status' => Contract::STATUS_ACTIVE,
+        ]);
+
+        Livewire::test(ContractManager::class)
+            ->set('typeFilter', (string) $fixed->id)
+            ->assertSee('NV Hợp Đồng Xác Định')
+            ->assertDontSee('NV Hợp Đồng Thử Việc');
+    }
 
     public function test_tao_hop_dong_moi(): void
     {
@@ -205,14 +344,16 @@ class AdminHrScreensTest extends TestCase
             ->call('create')
             ->set('employee_id', $employee->id)
             ->set('contract_type_id', $type->id)
-            ->set('contract_no', 'HD-TEST-001')
             ->set('effective_from', now()->toDateString())
             ->set('effective_to', now()->addYear()->toDateString())
             ->set('status', Contract::STATUS_ACTIVE)
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('contracts', ['contract_no' => 'HD-TEST-001']);
+        $this->assertDatabaseHas('contracts', [
+            'employee_id' => $employee->id,
+            'contract_no' => 'HD-' . now()->year . '-0001',
+        ]);
     }
 
     public function test_ngay_het_han_phai_sau_ngay_hieu_luc(): void
@@ -224,7 +365,6 @@ class AdminHrScreensTest extends TestCase
             ->call('create')
             ->set('employee_id', $employee->id)
             ->set('contract_type_id', $type->id)
-            ->set('contract_no', 'HD-TEST-002')
             ->set('effective_from', now()->toDateString())
             ->set('effective_to', now()->subDay()->toDateString())
             ->call('save')
@@ -254,7 +394,8 @@ class AdminHrScreensTest extends TestCase
             'status' => Contract::STATUS_ACTIVE,
         ]);
 
-        Livewire::test(ContractManager::class)->call('refreshStatuses');
+        // Không còn nút đồng bộ: chỉ cần mở màn Hợp đồng là trạng thái tự cập nhật
+        Livewire::test(ContractManager::class);
 
         $this->assertSame(Contract::STATUS_EXPIRED, $expired->refresh()->status);
         $this->assertSame(Contract::STATUS_EXPIRING, $expiring->refresh()->status);

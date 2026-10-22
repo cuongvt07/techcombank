@@ -141,6 +141,44 @@ class AnnouncementTest extends TestCase
         $this->assertNull($event->refresh()->published_at);
     }
 
+    public function test_loc_su_kien_theo_trang_thai(): void
+    {
+        $this->makeEvent(['title' => 'SK Nháp', 'published_at' => null]);
+        $this->makeEvent(['title' => 'SK Đã Qua', 'starts_at' => now()->subDays(3), 'ends_at' => now()->subDays(2)]);
+        $this->makeEvent(['title' => 'SK Đang Diễn Ra', 'starts_at' => now()->subHour(), 'ends_at' => now()->addHour()]);
+        $this->makeEvent(['title' => 'SK Sắp Tới', 'starts_at' => now()->addDays(5)]);
+
+        $expect = [
+            'draft' => 'SK Nháp',
+            'ended' => 'SK Đã Qua',
+            'happening' => 'SK Đang Diễn Ra',
+            'showing' => 'SK Sắp Tới',
+        ];
+
+        foreach ($expect as $status => $title) {
+            $titles = collect(
+                Livewire::actingAs($this->admin)->test(AnnouncementManager::class)
+                    ->set('statusFilter', $status)
+                    ->viewData('announcements')
+                    ->items()
+            )->pluck('title')->all();
+
+            $this->assertSame([$title], $titles, "Lọc trạng thái {$status}");
+        }
+    }
+
+    public function test_loc_su_kien_theo_nam(): void
+    {
+        $this->makeEvent(['title' => 'SK Năm 2024', 'starts_at' => '2024-06-01 09:00:00']);
+        $this->makeEvent(['title' => 'SK Năm 2025', 'starts_at' => '2025-03-01 09:00:00']);
+
+        Livewire::actingAs($this->admin)->test(AnnouncementManager::class)
+            ->assertViewHas('years', fn ($years) => $years->contains(2024) && $years->contains(2025))
+            ->set('yearFilter', '2024')
+            ->assertSee('SK Năm 2024')
+            ->assertDontSee('SK Năm 2025');
+    }
+
     // ---- Site người dùng: hiển thị ------------------------------------------
 
     public function test_su_kien_rieng_luon_nam_tren_dau(): void

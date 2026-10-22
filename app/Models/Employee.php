@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,12 +19,30 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Employee extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasAutoCode, HasFactory, SoftDeletes, LogsActivity;
+
+    /** Mã tự sinh khi tạo mới: NV000001, NV000002... */
+    protected const CODE_COLUMN = 'employee_code';
+    protected const CODE_PREFIX = 'NV';
+    protected const CODE_PAD = 6;
 
     public const STATUS_PROBATION = 'probation';
     public const STATUS_OFFICIAL = 'official';
     public const STATUS_RESIGNED = 'resigned';
     public const STATUS_SUSPENDED = 'suspended';
+
+    public const STATUS_LABELS = [
+        self::STATUS_PROBATION => 'Thử việc',
+        self::STATUS_OFFICIAL => 'Chính thức',
+        self::STATUS_RESIGNED => 'Đã nghỉ',
+        self::STATUS_SUSPENDED => 'Tạm đình chỉ',
+    ];
+
+    /** Nhãn tiếng Việt của trạng thái làm việc, thay cho mã lưu trong CSDL. */
+    public static function statusLabel(?string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? ($status ?: '—');
+    }
 
     protected $fillable = [
         'employee_code', 'user_id', 'full_name', 'email', 'phone',

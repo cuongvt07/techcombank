@@ -2,35 +2,54 @@
     <x-admin.page-header title="Quản lý tài khoản"
                          subtitle="Tạo, phân vai trò và khóa tài khoản đăng nhập của nhân viên.">
         <x-slot:actions>
+            @can('accounts.create')
             <button type="button" wire:click="create" class="admin-btn">+ Tạo tài khoản</button>
+            @endcan
         </x-slot:actions>
     </x-admin.page-header>
 
     <div class="admin-panel">
         {{-- Thanh lọc đặt ngay trên bảng: filter/search/sort đi kèm dữ liệu (spec 6.4) --}}
-        <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
-                <input type="search"
+                <label for="f-account-manager-search-0" class="admin-label">Tìm kiếm</label>
+                <input id="f-account-manager-search-0" type="search"
                        wire:model.live.debounce.400ms="search"
                        class="admin-input"
                        placeholder="Tìm theo tên, email hoặc mã nhân viên...">
             </div>
 
-            <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                <option value="">Mọi trạng thái</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="locked">Đã khóa</option>
-                <option value="disabled">Vô hiệu hóa</option>
-            </select>
+            <div>
+                <label for="f-account-manager-statusFilter-1" class="admin-label">Trạng thái</label>
+                <select id="f-account-manager-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
+                    <option value="">Mọi trạng thái</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="locked">Đã khóa</option>
+                    <option value="disabled">Vô hiệu hóa</option>
+                </select>
+            </div>
 
-            <select wire:model.live="roleFilter" class="admin-input w-auto min-w-[180px]">
-                <option value="">Mọi vai trò</option>
-                @foreach ($roles as $r)
-                    <option value="{{ $r->name }}">
-                        {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
-                    </option>
-                @endforeach
-            </select>
+            <div>
+                <label for="f-account-manager-departmentFilter" class="admin-label">Phòng ban</label>
+                <select id="f-account-manager-departmentFilter" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
+                    <option value="">Mọi phòng ban</option>
+                    @foreach ($departments as $dept)
+                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="f-account-manager-roleFilter-2" class="admin-label">Vai trò</label>
+                <select id="f-account-manager-roleFilter-2" wire:model.live="roleFilter" class="admin-input w-auto min-w-[180px]">
+                    <option value="">Mọi vai trò</option>
+                    @foreach ($roles as $r)
+                        <option value="{{ $r->name }}">
+                            {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -56,7 +75,6 @@
                                     </span>
                                     <div class="min-w-0">
                                         <div class="truncate font-bold">{{ $user->employee?->full_name ?? $user->name }}</div>
-                                        <div class="truncate text-xs text-brand-muted">{{ $user->email }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -83,21 +101,29 @@
                             </td>
                             <td>
                                 <div class="flex items-center justify-end gap-1.5">
+                                    @can('accounts.update')
                                     <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa tài khoản"
                                                          wire:click="edit({{ $user->id }})" />
+                                    @endcan
 
                                     @if ($user->id !== auth()->id())
                                         @if ($user->status === 'active')
+                                            @can('accounts.update')
                                             <x-admin.icon-button icon="heroicon-o-lock-closed" label="Khóa tài khoản"
                                                                  variant="danger"
                                                                  wire:click="prepareStatusChange({{ $user->id }})" />
+                                            @endcan
                                         @else
+                                            @can('accounts.update')
                                             <x-admin.icon-button icon="heroicon-o-lock-open" label="Mở khóa tài khoản"
                                                                  wire:click="prepareStatusChange({{ $user->id }})" />
+                                            @endcan
                                         @endif
+                                        @can('accounts.delete')
                                         <x-admin.icon-button icon="heroicon-o-trash" label="Xóa tài khoản"
                                                              variant="danger"
                                                              wire:click="prepareDelete({{ $user->id }})" />
+                                        @endcan
                                     @endif
                                 </div>
                             </td>
@@ -132,11 +158,7 @@
                     @error('email') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
-                    <label for="employee_code" class="admin-label">Mã nhân viên</label>
-                    <input id="employee_code" type="text" wire:model="employee_code" class="admin-input">
-                    @error('employee_code') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.auto-code id="employee_code" label="Mã nhân viên" :value="$employee_code" />
 
                 <div>
                     <label for="password" class="admin-label">
@@ -191,7 +213,7 @@
     @endif
 
     @if ($showSaveConfirm)
-        <x-admin.modal title="Xác nhận lưu tài khoản" maxWidth="max-w-md">
+        <x-admin.modal wireModel="showSaveConfirm" title="Xác nhận lưu tài khoản" maxWidth="max-w-md">
             <p class="text-sm text-brand-muted">
                 {{ $editingId ? 'Bạn có chắc muốn lưu các thay đổi cho tài khoản này?' : 'Bạn có chắc muốn tạo tài khoản mới với thông tin vừa nhập?' }}
             </p>
@@ -203,7 +225,7 @@
     @endif
 
     @if ($showActionConfirm)
-        <x-admin.modal :title="$pendingActionTitle" maxWidth="max-w-md">
+        <x-admin.modal wireModel="showActionConfirm" :title="$pendingActionTitle" maxWidth="max-w-md">
             <p class="text-sm text-brand-muted">{{ $pendingActionMessage }}</p>
             <x-slot:footer>
                 <button type="button" wire:click="$set('showActionConfirm', false)" class="admin-btn-secondary">Hủy</button>

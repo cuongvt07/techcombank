@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasAutoCode, HasFactory, SoftDeletes;
+
+    /** Mã tự sinh khi tạo mới: PB-001, PB-002... */
+    protected const CODE_COLUMN = 'code';
+    protected const CODE_PREFIX = 'PB-';
+    protected const CODE_PAD = 3;
 
     protected $fillable = [
         'code', 'name', 'parent_id', 'description', 'is_active', 'sort_order',

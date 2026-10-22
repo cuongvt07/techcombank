@@ -6,24 +6,31 @@
     @endif
 
     <div class="mb-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-        <input type="search" wire:model.live.debounce.400ms="search"
+        <label for="f-document-browser-search-0" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Tìm kiếm</label>
+        <input id="f-document-browser-search-0" type="search" wire:model.live.debounce.400ms="search"
                class="h-11 w-full rounded-user-md border border-brand-line bg-white px-4 text-sm placeholder:text-brand-muted focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
                placeholder="Tìm tài liệu...">
 
-        <select wire:model.live="categoryFilter"
-                class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
-            <option value="">Mọi danh mục</option>
-            @foreach ($categories as $cat)
-                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-            @endforeach
-        </select>
+        <div>
+            <label for="f-document-browser-categoryFilter-1" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Danh mục</label>
+            <select id="f-document-browser-categoryFilter-1" wire:model.live="categoryFilter"
+                    class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
+                <option value="">Mọi danh mục</option>
+                @foreach ($categories as $cat)
+                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                @endforeach
+            </select>
+        </div>
 
-        <select wire:model.live="kindFilter"
-                class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
-            <option value="">Mọi loại</option>
-            <option value="file">Tài liệu</option>
-            <option value="video">Video</option>
-        </select>
+        <div>
+            <label for="f-document-browser-kindFilter-2" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Loại tài liệu</label>
+            <select id="f-document-browser-kindFilter-2" wire:model.live="kindFilter"
+                    class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
+                <option value="">Mọi loại</option>
+                <option value="file">Tài liệu</option>
+                <option value="video">Video</option>
+            </select>
+        </div>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -84,7 +91,9 @@
                         <div class="min-w-0">
                             <h2 class="text-base font-bold sm:text-lg">{{ $viewingDocument->title }}</h2>
                             @if ($viewingDocument->category)
-                                <p class="mt-0.5 text-xs text-brand-muted">{{ $viewingDocument->category->name }}</p>
+                                <p class="mt-0.5 text-xs text-brand-muted">
+                                    <span class="font-semibold uppercase">Danh mục:</span> {{ $viewingDocument->category->name }}
+                                </p>
                             @endif
                         </div>
 
@@ -109,7 +118,10 @@
 
                         <div class="relative">
                             @if ($viewingDocument->description)
-                                <p class="mb-4 text-sm leading-relaxed text-brand-muted">{{ $viewingDocument->description }}</p>
+                                <div class="mb-4">
+                                    <p class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Mô tả</p>
+                                    <p class="text-sm leading-relaxed text-brand-muted">{{ $viewingDocument->description }}</p>
+                                </div>
                             @endif
 
                             @php

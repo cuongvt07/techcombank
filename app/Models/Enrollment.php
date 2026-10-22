@@ -24,7 +24,7 @@ class Enrollment extends Model
         'course_id', 'employee_id', 'course_assignment_rule_id', 'is_mandatory',
         'status', 'progress_percent', 'completed_lessons', 'total_lessons',
         'final_score', 'assigned_at', 'started_at', 'completed_at',
-        'due_date', 'last_accessed_at', 'assigned_by',
+        'due_date', 'last_accessed_at', 'last_reminded_at', 'assigned_by',
     ];
 
     protected function casts(): array
@@ -40,6 +40,7 @@ class Enrollment extends Model
             'completed_at' => 'datetime',
             'due_date' => 'date',
             'last_accessed_at' => 'datetime',
+            'last_reminded_at' => 'datetime',
         ];
     }
 
@@ -87,7 +88,7 @@ class Enrollment extends Model
     public function scopeOverdue(Builder $query): Builder
     {
         return $query->whereNotNull('due_date')
-            ->whereDate('due_date', '<', now())
+            ->whereDate('due_date', '<', self::today())
             ->whereNotIn('status', [self::STATUS_COMPLETED, self::STATUS_CANCELLED]);
     }
 
@@ -98,8 +99,9 @@ class Enrollment extends Model
 
     public function isOverdue(): bool
     {
+        // So theo ngày: hạn 21/10 nghĩa là còn cả ngày 21/10, sang 22/10 mới quá hạn
         return $this->due_date !== null
-            && $this->due_date->isPast()
+            && $this->due_date->toDateString() < self::today()
             && ! $this->isCompleted();
     }
 
@@ -109,6 +111,15 @@ class Enrollment extends Model
             return null;
         }
 
-        return (int) now()->startOfDay()->diffInDays($this->due_date->startOfDay(), false);
+        return (int) \Carbon\Carbon::parse(self::today())->diffInDays(\Carbon\Carbon::parse($this->due_date->toDateString()), false);
+    }
+
+    /**
+     * Ngày hôm nay theo giờ Việt Nam (Y-m-d). due_date là ngày VN, còn app chạy UTC:
+     * so với now() của UTC sẽ lệch một ngày trong khoảng 00:00–07:00 giờ VN.
+     */
+    public static function today(): string
+    {
+        return now(\App\Support\Reports\ReportPeriod::TIMEZONE)->toDateString();
     }
 }

@@ -4,25 +4,49 @@
         <x-admin.page-header title="Bộ tài liệu ban hành"
                              subtitle="Khóa học gồm nhiều bài giảng xếp theo trình tự, giao tự động theo phòng ban.">
             <x-slot:actions>
+                @can('courses.create')
                 <button type="button" wire:click="createCourse" class="admin-btn">
                     @svg('heroicon-o-plus', 'h-4 w-4')
                     Tạo khóa học
                 </button>
+                @endcan
             </x-slot:actions>
         </x-admin.page-header>
 
         <div class="admin-panel">
-            <div class="flex flex-wrap items-center gap-3 border-b border-brand-line p-4">
+            <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
                 <div class="min-w-[240px] flex-1">
-                    <input type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                    <label for="f-course-builder-search-0" class="admin-label">Tìm kiếm</label>
+                    <input id="f-course-builder-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
                            placeholder="Tìm theo tên hoặc mã khóa học...">
                 </div>
-                <select wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                    <option value="">Mọi trạng thái</option>
-                    <option value="draft">Nháp</option>
-                    <option value="published">Đã xuất bản</option>
-                    <option value="archived">Lưu trữ</option>
-                </select>
+                <div>
+                    <label for="f-course-builder-statusFilter-1" class="admin-label">Trạng thái</label>
+                    <select id="f-course-builder-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
+                        <option value="">Mọi trạng thái</option>
+                        <option value="draft">Nháp</option>
+                        <option value="published">Đã xuất bản</option>
+                        <option value="archived">Lưu trữ</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="f-course-builder-departmentFilter" class="admin-label">Phòng ban</label>
+                    <select id="f-course-builder-departmentFilter" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
+                        <option value="">Mọi phòng ban</option>
+                        @foreach ($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="f-course-builder-learningTypeFilter" class="admin-label">Kiểu học</label>
+                    <select id="f-course-builder-learningTypeFilter" wire:model.live="learningTypeFilter" class="admin-input w-auto min-w-[190px]">
+                        <option value="">Mọi kiểu học</option>
+                        @foreach (\App\Livewire\Admin\CourseBuilder::LEARNING_TYPES as $key => [$typeLabel])
+                            <option value="{{ $key }}">{{ $typeLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -32,7 +56,6 @@
                             <th>Khóa học</th>
                             <th>Phòng ban</th>
                             <th class="w-24">Bài học</th>
-                            <th class="w-48">Tiến độ chung</th>
                             <th class="w-36">Kiểu học</th>
                             <th class="w-28">Trạng thái</th>
                             <th class="w-32 text-right">Thao tác</th>
@@ -51,38 +74,15 @@
                                 <td class="text-brand-muted">{{ $course->ownerDepartment?->name ?? '—' }}</td>
                                 <td><span class="tag">{{ $course->lessons_count }} bài</span></td>
                                 <td>
-                                    @if ($course->enrollments_count > 0)
-                                        @php $avg = (int) round($course->avg_progress ?? 0); @endphp
-
-                                        <div class="flex items-center gap-2">
-                                            <div class="progress-track w-20">
-                                                <div class="progress-fill {{ $avg >= 80 ? '!bg-state-success' : '' }}"
-                                                     style="width: {{ $avg }}%"></div>
-                                            </div>
-                                            <span class="text-xs font-semibold">{{ $avg }}%</span>
-                                        </div>
-
-                                        <div class="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-brand-muted">
-                                            <span>{{ $course->completed_count }}/{{ $course->enrollments_count }} người xong</span>
-                                            @php $pending = $course->enrollments_count - $course->completed_count; @endphp
-                                            @if ($pending > 0)
-                                                <span class="font-semibold text-state-warning">còn {{ $pending }}</span>
-                                            @endif
-                                            @if ($course->overdue_count > 0)
-                                                <span class="font-semibold text-brand-red">
-                                                    {{ $course->overdue_count }} quá hạn
-                                                </span>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-brand-muted">Chưa giao cho ai</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <span class="tag">{{ $course->sequential ? 'Tuần tự' : 'Tự do' }}</span>
-                                    @if ($course->is_onboarding)
-                                        <span class="tag tag-amber mt-1 block w-fit">Onboarding</span>
-                                    @endif
+                                    <div class="flex flex-wrap gap-1">
+                                        <span class="tag">{{ $course->sequential ? 'Tuần tự' : 'Tự do' }}</span>
+                                        @if ($course->is_onboarding)
+                                            <span class="tag tag-amber">Onboarding</span>
+                                        @endif
+                                        @if ($course->issue_certificate)
+                                            <span class="tag tag-green">Chứng nhận</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     @php
@@ -100,23 +100,29 @@
                                     <div class="flex items-center justify-end gap-1.5">
                                         <x-admin.icon-button icon="heroicon-o-list-bullet" label="Danh sách bài học"
                                                              wire:click="selectCourse({{ $course->id }})" />
+                                        @can('courses.update')
                                         <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa khóa học"
                                                              wire:click="editCourse({{ $course->id }})" />
+                                        @endcan
                                         @if ($course->status === 'published')
+                                            @can('courses.update')
                                             <x-admin.icon-button icon="heroicon-o-archive-box" label="Gỡ xuất bản"
                                                                  variant="danger"
                                                                  wire:click="unpublishCourse({{ $course->id }})"
                                                                  data-confirm="Gỡ xuất bản khóa học này?" />
+                                            @endcan
                                         @else
+                                            @can('courses.update')
                                             <x-admin.icon-button icon="heroicon-o-paper-airplane" label="Xuất bản khóa học"
                                                                  variant="primary"
                                                                  wire:click="publishCourse({{ $course->id }})" data-confirm="Xuất bản khóa học này? Nhân viên được gán khóa sẽ thấy và bắt đầu học được." data-confirm-title="Xuất bản khóa học" data-confirm-ok="Xuất bản" />
+                                            @endcan
                                         @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="text-center text-brand-muted">Chưa có khóa học nào.</td></tr>
+                            <tr><td colspan="6" class="text-center text-brand-muted">Chưa có khóa học nào.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -139,13 +145,17 @@
                                 ? 'Học tuần tự — phải hoàn thành bài trước mới mở được bài sau.'
                                 : 'Học tự do — người học chọn bài bất kỳ.'">
             <x-slot:actions>
+                @can('courses.update')
                 <button type="button" wire:click="editCourse({{ $editingCourse->id }})" class="admin-btn-secondary">
                     Cấu hình khóa
                 </button>
+                @endcan
+                @can('courses.update')
                 <button type="button" wire:click="createLesson" class="admin-btn">
                     @svg('heroicon-o-plus', 'h-4 w-4')
                     Thêm bài học
                 </button>
+                @endcan
             </x-slot:actions>
         </x-admin.page-header>
 
@@ -236,30 +246,40 @@
 
                             <div class="flex shrink-0 items-center gap-1.5">
                                 @if (! $loop->first)
+                                    @can('courses.update')
                                     <button type="button" wire:click="moveLesson({{ $lesson->id }}, -1)"
                                             class="grid h-8 w-8 place-items-center rounded-admin border border-brand-line text-brand-muted transition-colors hover:border-brand-red hover:text-brand-red"
                                             aria-label="Chuyển lên">
                                         @svg('heroicon-o-chevron-up', 'h-4 w-4')
                                     </button>
+                                    @endcan
                                 @endif
                                 @if (! $loop->last)
+                                    @can('courses.update')
                                     <button type="button" wire:click="moveLesson({{ $lesson->id }}, 1)"
                                             class="grid h-8 w-8 place-items-center rounded-admin border border-brand-line text-brand-muted transition-colors hover:border-brand-red hover:text-brand-red"
                                             aria-label="Chuyển xuống">
                                         @svg('heroicon-o-chevron-down', 'h-4 w-4')
                                     </button>
+                                    @endcan
                                 @endif
 
+                                @can('courses.update')
                                 <x-admin.icon-button
                                     :icon="$lesson->is_required ? 'heroicon-s-star' : 'heroicon-o-star'"
                                     :label="$lesson->is_required ? 'Bỏ đánh dấu bắt buộc' : 'Đánh dấu bắt buộc'"
                                     wire:click="toggleLessonRequired({{ $lesson->id }})" data-confirm="Đổi bài học này giữa bắt buộc và tùy chọn?" data-confirm-title="Đổi trạng thái bài học" data-confirm-ok="Đồng ý" />
+                                @endcan
+                                @can('courses.update')
                                 <x-admin.icon-button icon="heroicon-o-pencil-square" label="Sửa bài học"
                                                      wire:click="editLesson({{ $lesson->id }})" />
+                                @endcan
+                                @can('courses.delete')
                                 <x-admin.icon-button icon="heroicon-o-trash" label="Xóa bài học"
                                                      variant="danger"
                                                      wire:click="deleteLesson({{ $lesson->id }})"
                                                      data-confirm="Xóa bài học này? Tiến độ của người đang học sẽ được tính lại." data-confirm-danger />
+                                @endcan
                             </div>
                         </div>
                     </div>
@@ -277,8 +297,10 @@
             <div class="admin-panel">
                 <div class="admin-panel-head">
                     <h3>Điều kiện giao khóa</h3>
+                    @can('courses.update')
                     <button type="button" wire:click="createRule"
                             class="whitespace-nowrap text-xs font-semibold text-brand-red hover:underline">+ Thêm</button>
+                    @endcan
                 </div>
 
                 <div class="grid gap-2.5 p-4">
@@ -289,12 +311,11 @@
                                     {{ $rule->is_mandatory ? 'Bắt buộc' : 'Tự chọn' }}
                                 </span>
                                 <div class="flex shrink-0 gap-1">
-                                    <button type="button" wire:click="applyRuleNow({{ $rule->id }})"
-                                            class="whitespace-nowrap text-[11px] font-semibold text-brand-red hover:underline">Áp dụng</button>
-                                    <span class="text-brand-line">|</span>
+                                    @can('courses.delete')
                                     <button type="button" wire:click="deleteRule({{ $rule->id }})"
                                             data-confirm="Xóa điều kiện này?" data-confirm-danger
                                             class="whitespace-nowrap text-[11px] font-semibold text-brand-muted hover:text-brand-red">Xóa</button>
+                                    @endcan
                                 </div>
                             </div>
 
@@ -313,7 +334,7 @@
                                     <li><strong class="text-brand-ink">Cấp bậc:</strong> {{ $rule->jobGrade->name }}</li>
                                 @endif
                                 @if ($rule->employment_status)
-                                    <li><strong class="text-brand-ink">Trạng thái:</strong> {{ $rule->employment_status }}</li>
+                                    <li><strong class="text-brand-ink">Trạng thái:</strong> {{ \App\Models\Employee::statusLabel($rule->employment_status) }}</li>
                                 @endif
                                 @if ($rule->due_days)
                                     <li><strong class="text-brand-ink">Hạn:</strong> {{ $rule->due_days }} ngày</li>
@@ -336,11 +357,7 @@
                        :title="$courseFormId ? 'Cấu hình khóa học' : 'Tạo khóa học'"
                        maxWidth="max-w-3xl">
             <form wire:submit="saveCourse" id="course-form" class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <label for="c_code" class="admin-label">Mã khóa học</label>
-                    <input id="c_code" type="text" wire:model="code" class="admin-input">
-                    @error('code') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.auto-code id="c_code" label="Mã khóa học" :value="$code" />
 
                 <div>
                     <label for="c_dept" class="admin-label">Phòng ban ban hành</label>
@@ -377,34 +394,29 @@
                     @error('pass_score') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="grid gap-2.5 border-t border-brand-line pt-4 sm:col-span-2">
-                    <label class="flex cursor-pointer items-start gap-2.5 text-sm font-medium">
-                        <input type="checkbox" wire:model="sequential"
-                               class="mt-0.5 h-4 w-4 shrink-0 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                        <span>
-                            Học tuần tự
-                            <span class="mt-0.5 block text-xs font-normal text-brand-muted">
-                                Phải hoàn thành bài trước mới mở được bài tiếp theo.
-                            </span>
-                        </span>
-                    </label>
+                <div class="border-t border-brand-line pt-4 sm:col-span-2">
+                    <p class="admin-label">Kiểu học</p>
+                    <p class="mb-3 text-xs text-brand-muted">
+                        Ba tùy chọn độc lập, bật được cùng lúc. Tắt "Học tuần tự" nghĩa là học tự do.
+                    </p>
 
-                    <label class="flex cursor-pointer items-start gap-2.5 text-sm font-medium">
-                        <input type="checkbox" wire:model="is_onboarding"
-                               class="mt-0.5 h-4 w-4 shrink-0 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                        <span>
-                            Lộ trình onboarding
-                            <span class="mt-0.5 block text-xs font-normal text-brand-muted">
-                                Tự động giao cho mọi nhân viên mới ngay khi tạo tài khoản.
-                            </span>
-                        </span>
-                    </label>
-
-                    <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium">
-                        <input type="checkbox" wire:model="issue_certificate"
-                               class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                        Cấp chứng nhận khi hoàn thành
-                    </label>
+                    <div class="grid gap-2.5 sm:grid-cols-3">
+                        @foreach (['sequential' => 'sequential', 'is_onboarding' => 'onboarding', 'issue_certificate' => 'certificate'] as $field => $type)
+                            @php [$typeLabel, $typeHint] = \App\Livewire\Admin\CourseBuilder::LEARNING_TYPES[$type]; @endphp
+                            <label @class([
+                                       'flex cursor-pointer items-start gap-2.5 rounded-admin border p-3 transition-colors',
+                                       'border-brand-red bg-brand-red-tint' => $this->{$field},
+                                       'border-brand-line hover:border-brand-red' => ! $this->{$field},
+                                   ])>
+                                <input type="checkbox" wire:model.live="{{ $field }}"
+                                       class="mt-0.5 h-4 w-4 shrink-0 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
+                                <span class="text-sm font-semibold">
+                                    {{ $typeLabel }}
+                                    <span class="mt-0.5 block text-xs font-normal text-brand-muted">{{ $typeHint }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
             </form>
 

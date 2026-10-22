@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\RoleName;
 use Closure;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -15,8 +16,11 @@ class EnsureUserIsAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user()?->hasAnyRole(RoleName::adminRoles())) {
-            return redirect()->route('learn.events');
+        // Vai trò quản trị, hoặc được cấp quyền Xem ít nhất một màn quản trị
+        if (! $request->user()?->canAccessAdminSite()) {
+            // Tự tạo RedirectResponse: trong request Livewire, redirect() trả Redirector
+            // của Livewire (không phải Response) và làm vỡ kiểu trả về của middleware
+            return new RedirectResponse(route('learn.events'));
         }
 
         return $next($request);

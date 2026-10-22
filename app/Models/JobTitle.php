@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAutoCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class JobTitle extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasAutoCode, HasFactory, SoftDeletes;
+
+    /** Mã tự sinh khi tạo mới: CD-001, CD-002... */
+    protected const CODE_COLUMN = 'code';
+    protected const CODE_PREFIX = 'CD-';
+    protected const CODE_PAD = 3;
 
     protected $fillable = [
         'code', 'name', 'department_id', 'description', 'is_active',

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\CourseAssignmentRule;
 use App\Models\Department;
@@ -28,6 +29,8 @@ use Livewire\WithPagination;
  */
 class CourseBuilder extends Component
 {
+    use ChecksPermissions;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]
@@ -35,6 +38,26 @@ class CourseBuilder extends Component
 
     #[Url]
     public string $statusFilter = '';
+
+    #[Url]
+    public string $departmentFilter = '';
+
+    /** Lọc theo kiểu học: một trong các khóa của LEARNING_TYPES. */
+    #[Url]
+    public string $learningTypeFilter = '';
+
+    /**
+     * Các kiểu học — ba thuộc tính độc lập, một khóa có thể mang nhiều kiểu
+     * (vd. onboarding vừa học tuần tự vừa cấp chứng nhận). "Tự do" là khi tắt tuần tự.
+     *
+     * @var array<string, array{0: string, 1: string}> khóa => [nhãn, mô tả]
+     */
+    public const LEARNING_TYPES = [
+        'sequential' => ['Học tuần tự', 'Phải hoàn thành bài trước mới mở được bài tiếp theo.'],
+        'free' => ['Học tự do', 'Người học chọn bài bất kỳ, không cần theo thứ tự.'],
+        'onboarding' => ['Lộ trình onboarding', 'Tự động giao cho mọi nhân viên mới ngay khi tạo tài khoản.'],
+        'certificate' => ['Cấp chứng nhận', 'Cấp chứng nhận cho người học khi hoàn thành khóa.'],
+    ];
 
     /** Khoá đang mở. NULL = đang ở danh sách khoá. */
     #[Url]
@@ -97,7 +120,7 @@ class CourseBuilder extends Component
 
     public function updated($property): void
     {
-        if (in_array($property, ['search', 'statusFilter'], true)) {
+        if (in_array($property, ['search', 'statusFilter', 'departmentFilter', 'learningTypeFilter'], true)) {
             $this->resetPage();
         }
     }
@@ -106,12 +129,16 @@ class CourseBuilder extends Component
 
     public function createCourse(): void
     {
+        $this->requirePermission('courses.create');
+
         $this->resetCourseForm();
         $this->showCourseModal = true;
     }
 
     public function editCourse(int $id): void
     {
+        $this->requirePermission('courses.update');
+
         $course = Course::findOrFail($id);
 
         $this->courseFormId = $course->id;
@@ -130,8 +157,9 @@ class CourseBuilder extends Component
 
     public function saveCourse(): void
     {
+        $this->requirePermission($this->courseFormId ? 'courses.update' : 'courses.create');
+
         $data = $this->validate([
-            'code' => ['required', 'string', 'max:50', Rule::unique('courses', 'code')->ignore($this->courseFormId)->whereNull('deleted_at')],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'owner_department_id' => ['nullable', Rule::exists('departments', 'id')],
@@ -163,6 +191,8 @@ class CourseBuilder extends Component
 
     public function publishCourse(int $id, CourseBuilderService $service): void
     {
+        $this->requirePermission('courses.update');
+
         $result = $service->publish(Course::findOrFail($id));
 
         session()->flash($result['ok'] ? 'status' : 'error', $result['message']);
@@ -170,6 +200,8 @@ class CourseBuilder extends Component
 
     public function unpublishCourse(int $id): void
     {
+        $this->requirePermission('courses.update');
+
         Course::findOrFail($id)->update(['status' => Course::STATUS_ARCHIVED]);
         session()->flash('status', 'Đã lưu trữ khóa học.');
     }
@@ -188,12 +220,16 @@ class CourseBuilder extends Component
 
     public function createLesson(): void
     {
+        $this->requirePermission('courses.update');
+
         $this->resetLessonForm();
         $this->showLessonModal = true;
     }
 
     public function editLesson(int $id): void
     {
+        $this->requirePermission('courses.update');
+
         $lesson = Lesson::findOrFail($id);
 
         $this->lessonId = $lesson->id;
@@ -212,6 +248,8 @@ class CourseBuilder extends Component
 
     public function saveLesson(CourseBuilderService $service): void
     {
+        $this->requirePermission('courses.update');
+
         $course = $this->editingCourse();
 
         $this->validate([
@@ -272,6 +310,8 @@ class CourseBuilder extends Component
 
     public function deleteLesson(int $id, CourseBuilderService $service): void
     {
+        $this->requirePermission('courses.delete');
+
         $lesson = Lesson::findOrFail($id);
         $course = $lesson->course;
         $lesson->delete();
@@ -283,11 +323,15 @@ class CourseBuilder extends Component
 
     public function moveLesson(int $id, int $direction, CourseBuilderService $service): void
     {
+        $this->requirePermission('courses.update');
+
         $service->moveLesson(Lesson::findOrFail($id), $direction);
     }
 
     public function toggleLessonRequired(int $id, CourseBuilderService $service): void
     {
+        $this->requirePermission('courses.update');
+
         $lesson = Lesson::findOrFail($id);
         $lesson->update(['is_required' => ! $lesson->is_required]);
 
@@ -298,12 +342,16 @@ class CourseBuilder extends Component
 
     public function createRule(): void
     {
+        $this->requirePermission('courses.update');
+
         $this->resetRuleForm();
         $this->showRuleModal = true;
     }
 
     public function saveRule(CourseAssignmentService $service): void
     {
+        $this->requirePermission('courses.update');
+
         $this->validate([
             'ruleDepartmentId' => ['nullable', Rule::exists('departments', 'id')],
             'ruleJobTitleId' => ['nullable', Rule::exists('job_titles', 'id')],
@@ -340,15 +388,10 @@ class CourseBuilder extends Component
 
     public function deleteRule(int $id): void
     {
+        $this->requirePermission('courses.delete');
+
         CourseAssignmentRule::findOrFail($id)->delete();
         session()->flash('status', 'Đã xóa điều kiện gán. Các nhân viên đã được giao vẫn giữ nguyên khóa học.');
-    }
-
-    public function applyRuleNow(int $id, CourseAssignmentService $service): void
-    {
-        $assigned = $service->applyRule(CourseAssignmentRule::findOrFail($id));
-
-        session()->flash('status', "Đã giao khóa học cho {$assigned} nhân viên mới khớp điều kiện.");
     }
 
     // ---- Truy vấn -----------------------------------------------------------
@@ -357,20 +400,25 @@ class CourseBuilder extends Component
     {
         return Course::query()
             ->with('ownerDepartment')
-            ->withCount([
-                'lessons',
-                'enrollments',
-                'enrollments as completed_count' => fn ($q) => $q->where('status', 'completed'),
-                'enrollments as overdue_count' => fn ($q) => $q->where('status', 'overdue'),
-            ])
-            // Tiến độ trung bình để thấy ngay khóa nào đang bị bỏ dở
-            ->withAvg(
-                ['enrollments as avg_progress' => fn ($q) => $q->whereNot('status', 'cancelled')],
-                'progress_percent'
-            )
-            ->when($this->search, fn ($q) => $q->where('title', 'like', '%' . $this->search . '%')
-                ->orWhere('code', 'like', '%' . $this->search . '%'))
+            ->withCount('lessons')
+            // Gom điều kiện tìm kiếm trong ngoặc, nếu không orWhere sẽ phá các bộ lọc phía sau
+            ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
+                ->where('title', 'like', '%' . $this->search . '%')
+                ->orWhere('code', 'like', '%' . $this->search . '%')))
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($this->departmentFilter, function ($q) {
+                // Gồm cả khóa của phòng con
+                $department = Department::find((int) $this->departmentFilter);
+
+                $q->whereIn('owner_department_id', $department ? $department->descendantIds() : [(int) $this->departmentFilter]);
+            })
+            ->when($this->learningTypeFilter, fn ($q) => match ($this->learningTypeFilter) {
+                'sequential' => $q->where('sequential', true),
+                'free' => $q->where('sequential', false),
+                'onboarding' => $q->where('is_onboarding', true),
+                'certificate' => $q->where('issue_certificate', true),
+                default => $q,
+            })
             ->orderByDesc('id')
             ->paginate(12);
     }

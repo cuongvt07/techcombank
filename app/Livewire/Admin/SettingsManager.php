@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\ContractType;
 use App\Models\Department;
 use App\Models\DocumentCategory;
@@ -22,6 +23,8 @@ use Livewire\Component;
  */
 class SettingsManager extends Component
 {
+    use ChecksPermissions;
+
     /** Cấu hình từng loại danh mục: model, nhãn và các cột hiển thị. */
     private const CATALOGS = [
         'departments' => [
@@ -94,12 +97,16 @@ class SettingsManager extends Component
 
     public function create(): void
     {
+        $this->requirePermission('settings.create');
+
         $this->resetForm();
         $this->showModal = true;
     }
 
     public function edit(int $id): void
     {
+        $this->requirePermission('settings.update');
+
         $item = $this->modelClass()::findOrFail($id);
 
         $this->editingId = $item->id;
@@ -116,11 +123,12 @@ class SettingsManager extends Component
 
     public function save(): void
     {
+        $this->requirePermission($this->editingId ? 'settings.update' : 'settings.create');
+
         $config = self::CATALOGS[$this->tab];
         $data = $this->validate($this->rules());
 
         $payload = [
-            'code' => $data['code'],
             'name' => $data['name'],
             'is_active' => $this->is_active,
         ];
@@ -155,12 +163,16 @@ class SettingsManager extends Component
 
     public function toggleActive(int $id): void
     {
+        $this->requirePermission('settings.update');
+
         $item = $this->modelClass()::findOrFail($id);
         $item->update(['is_active' => ! $item->is_active]);
     }
 
     public function saveSettings(): void
     {
+        $this->requirePermission('settings.update');
+
         $this->validate([
             'settings.contract_alert_days' => ['required', 'integer', 'min:1', 'max:365'],
             'settings.max_devices' => ['required', 'integer', 'min:1', 'max:10'],
@@ -262,10 +274,6 @@ class SettingsManager extends Component
         $table = (new ($config['model']))->getTable();
 
         $rules = [
-            'code' => [
-                'required', 'string', 'max:50',
-                Rule::unique($table, 'code')->ignore($this->editingId),
-            ],
             'name' => ['required', 'string', 'max:255'],
         ];
 

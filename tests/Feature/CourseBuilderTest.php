@@ -42,29 +42,89 @@ class CourseBuilderTest extends TestCase
     {
         Livewire::test(CourseBuilder::class)
             ->call('createCourse')
-            ->set('code', 'C-TEST')
             ->set('title', 'Khóa học thử nghiệm')
             ->set('duration_days', 30)
             ->call('saveCourse')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('courses', [
-            'code' => 'C-TEST',
+            'title' => 'Khóa học thử nghiệm',
+            'code' => 'KH-0001',
             'status' => Course::STATUS_DRAFT,
             'sequential' => true,
         ]);
     }
 
-    public function test_ma_khoa_hoc_khong_duoc_trung(): void
+    public function test_ma_khoa_hoc_tu_sinh_va_giu_nguyen_khi_sua(): void
     {
-        Course::factory()->create(['code' => 'C-DUP']);
+        Course::factory()->create(['code' => 'KH-0041']);
 
         Livewire::test(CourseBuilder::class)
             ->call('createCourse')
-            ->set('code', 'C-DUP')
-            ->set('title', 'Khóa trùng mã')
+            ->set('code', 'KH-0041')
+            ->set('title', 'Khóa mã nối tiếp')
             ->call('saveCourse')
-            ->assertHasErrors(['code' => 'unique']);
+            ->assertHasNoErrors();
+
+        $course = Course::where('title', 'Khóa mã nối tiếp')->firstOrFail();
+        $this->assertSame('KH-0042', $course->code);
+
+        // Sửa khóa học không đổi mã, kể cả khi request gửi kèm mã khác
+        Livewire::test(CourseBuilder::class)
+            ->call('editCourse', $course->id)
+            ->set('code', 'MA-KHAC')
+            ->set('title', 'Khóa mã nối tiếp (sửa)')
+            ->call('saveCourse')
+            ->assertHasNoErrors();
+
+        $this->assertSame('KH-0042', $course->fresh()->code);
+    }
+
+    public function test_loc_khoa_hoc_theo_phong_ban_gom_phong_con(): void
+    {
+        $parent = Department::factory()->create();
+        $child = Department::factory()->create(['parent_id' => $parent->id]);
+
+        Course::factory()->create(['title' => 'Khóa Của Phòng Con', 'owner_department_id' => $child->id]);
+        Course::factory()->create(['title' => 'Khóa Phòng Khác']);
+
+        Livewire::test(CourseBuilder::class)
+            ->set('departmentFilter', (string) $parent->id)
+            ->assertSee('Khóa Của Phòng Con')
+            ->assertDontSee('Khóa Phòng Khác');
+    }
+
+    public function test_loc_khoa_hoc_theo_kieu_hoc(): void
+    {
+        Course::factory()->create(['title' => 'Khóa Tuần Tự', 'sequential' => true]);
+        Course::factory()->create(['title' => 'Khóa Tự Do', 'sequential' => false]);
+        Course::factory()->create(['title' => 'Khóa Onboarding', 'sequential' => true, 'is_onboarding' => true]);
+        Course::factory()->create(['title' => 'Khóa Chứng Nhận', 'sequential' => false, 'issue_certificate' => true]);
+
+        Livewire::test(CourseBuilder::class)
+            ->set('learningTypeFilter', 'free')
+            ->assertSee('Khóa Tự Do')
+            ->assertSee('Khóa Chứng Nhận')
+            ->assertDontSee('Khóa Tuần Tự')
+            ->set('learningTypeFilter', 'onboarding')
+            ->assertSee('Khóa Onboarding')
+            ->assertDontSee('Khóa Tự Do')
+            ->set('learningTypeFilter', 'certificate')
+            ->assertSee('Khóa Chứng Nhận')
+            ->assertDontSee('Khóa Onboarding');
+    }
+
+    public function test_tim_kiem_khong_pha_bo_loc_trang_thai(): void
+    {
+        // Lỗi cũ: orWhere không gom nhóm nên khóa khớp mã vẫn lọt qua bộ lọc trạng thái
+        Course::factory()->draft()->create(['title' => 'An Toàn Nháp', 'code' => 'KH-ATN']);
+        Course::factory()->create(['title' => 'An Toàn Đã Xuất Bản', 'code' => 'KH-ATX', 'status' => Course::STATUS_PUBLISHED]);
+
+        Livewire::test(CourseBuilder::class)
+            ->set('search', 'KH-AT')
+            ->set('statusFilter', Course::STATUS_DRAFT)
+            ->assertSee('An Toàn Nháp')
+            ->assertDontSee('An Toàn Đã Xuất Bản');
     }
 
     public function test_khong_xuat_ban_duoc_khoa_chua_co_bai_hoc(): void
@@ -363,9 +423,7 @@ class CourseBuilderTest extends TestCase
             'department_id' => $department->id,
         ]);
 
-        Livewire::test(CourseBuilder::class)
-            ->set('editingCourseId', $course->id)
-            ->call('applyRuleNow', $rule->id);
+        app(\App\Services\CourseAssignmentService::class)->applyRule($rule);
 
         $this->assertSame(1, Enrollment::where('course_id', $course->id)->count());
 

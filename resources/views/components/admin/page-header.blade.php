@@ -16,7 +16,8 @@
     </div>
 
     @if (isset($actions))
-        <div class="flex shrink-0 flex-wrap items-center gap-2">
+        {{-- Không shrink-0: trên điện thoại các nút phải xuống dòng thay vì tràn ngang --}}
+        <div class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {{ $actions }}
         </div>
     @endif

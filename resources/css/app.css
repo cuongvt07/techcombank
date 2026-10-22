@@ -97,13 +97,15 @@
         @apply h-11 border-b border-brand-line bg-[#fafbfc] px-3.5 text-left text-[11px]
                font-semibold uppercase tracking-wide text-brand-muted;
         overflow-wrap: anywhere;
+        vertical-align: middle;
     }
 
     .admin-table td {
-        @apply h-[58px] border-b border-[#eef0f4] px-3.5 text-brand-ink;
+        @apply h-[58px] border-b border-[#eef0f4] px-3.5 py-2 text-brand-ink;
         overflow-wrap: anywhere;
         word-break: break-word;
-        vertical-align: top;
+        /* Mọi ô cùng dòng căn giữa theo chiều dọc, kể cả khi một ô xuống nhiều dòng */
+        vertical-align: middle;
     }
 
     /* Dùng cho nội dung lấy trực tiếp từ database/API trong card, modal và bài học. */
