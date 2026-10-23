@@ -15,12 +15,6 @@
     <x-admin.page-header title="Báo cáo truy cập và sử dụng tài liệu"
                          subtitle="Lượt xem lặp của cùng người trong 5 phút được gộp thành một lượt">
         <x-slot:actions>
-            @can('document_access.view')
-                {{-- Màn phân quyền chưa nhận tham số mở sẵn công cụ thử quyền, nên chỉ dẫn sang màn đó --}}
-                <a href="{{ route('admin.access-rules') }}" wire:navigate class="admin-btn-secondary">
-                    @svg('heroicon-o-shield-check', 'h-4 w-4') Thử quyền truy cập
-                </a>
-            @endcan
             <x-admin.report.export-menu />
         </x-slot:actions>
     </x-admin.page-header>
@@ -71,16 +65,21 @@
     </section>
 
     {{-- Chỉ số tóm tắt --}}
-    <section class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Chỉ số tóm tắt">
-        <x-admin.report.kpi label="Lượt xem" :value="$fmt($kpis['views'])" />
-        <x-admin.report.kpi label="Người xem phân biệt" :value="$fmt($kpis['viewers'])" />
-        <x-admin.report.kpi label="Lượt tải" :value="$fmt($kpis['downloads'])" />
+    {{-- Mỗi thẻ có một dòng giải thích: người xem báo cáo này không phải ai cũng quen thuật ngữ --}}
+    <section class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Chỉ số tóm tắt">
+        <x-admin.report.kpi label="Lượt xem" :value="$fmt($kpis['views'])"
+                            hint="Số lần mở xem; cùng người mở lại trong 5 phút tính 1 lần" />
+        <x-admin.report.kpi label="Số người đã xem" :value="$fmt($kpis['viewers'])"
+                            hint="Mỗi nhân viên chỉ tính 1 lần dù xem nhiều tài liệu" />
+        <x-admin.report.kpi label="Lượt tải" :value="$fmt($kpis['downloads'])"
+                            hint="Số lần tải file gốc về máy" />
         <x-admin.report.kpi label="Lượt bị chặn" :value="$fmt($kpis['denied'])"
+                            hint="Lần mở tài liệu không có quyền xem, hệ thống từ chối"
                             :alert="($kpis['denied'] ?? 0) > 0"
-                            :note="$kpis['burst_people'] !== null ? $fmt($kpis['burst_people']) . ' người ≥ ' . $burstThreshold . ' lượt/giờ' : null"
+                            :note="$kpis['burst_people'] !== null ? $fmt($kpis['burst_people']) . ' người bị chặn ≥ ' . $burstThreshold . ' lần trong 1 giờ' : null"
                             :noteTone="($kpis['burst_people'] ?? 0) > 0 ? 'danger' : null" />
-        <x-admin.report.kpi label="Đã xuất bản, chưa ai mở" :value="$fmt($kpis['unopened'])" />
-        <x-admin.report.kpi label="Quá hạn rà soát" :value="$fmt($kpis['stale'])" note="không đổi bản > 12 tháng" />
+        <x-admin.report.kpi label="Cần rà soát lại" :value="$fmt($kpis['stale'])"
+                            hint="Tài liệu hơn 12 tháng chưa có phiên bản mới — nên kiểm tra nội dung còn đúng không" />
     </section>
 
     <div class="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">

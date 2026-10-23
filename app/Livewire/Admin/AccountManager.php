@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Enums\RoleName;
 use App\Models\Department;
@@ -19,12 +20,15 @@ use Spatie\Permission\Models\Role;
 /**
  * Quản lý tài khoản nhân viên (spec 3.1.1).
  *
- * Tạo tài khoản đồng thời tạo hồ sơ nhân sự tối thiểu, vì hai bảng này
- * luôn đi cặp trong nghiệp vụ — tài khoản không gắn nhân sự sẽ không nhận
- * được khoá học nào (mọi enrollment đều tham chiếu employee_id).
+ * Luồng: tạo Hồ sơ nhân sự trước → tạo Tài khoản bằng cách chọn mã nhân viên
+ * từ các hồ sơ chưa có tài khoản. Họ tên, phòng ban, chức danh lấy từ hồ sơ;
+ * ở đây chỉ nhập thông tin đăng nhập. Tài khoản phải gắn hồ sơ vì mọi
+ * enrollment đều tham chiếu employee_id.
  */
 class AccountManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;
@@ -51,9 +55,9 @@ class AccountManager extends Component
     public string $pendingActionMessage = '';
 
     // Trường form
-    public string $full_name = '';
+    /** Hồ sơ nhân sự gắn với tài khoản (ô chọn có tìm kiếm gửi null khi bỏ chọn). */
+    public ?int $employee_id = null;
     public string $email = '';
-    public string $employee_code = '';
     public string $password = '';
     public string $role = '';
     public string $status = User::STATUS_ACTIVE;
@@ -65,6 +69,10 @@ class AccountManager extends Component
             'users' => $this->users(),
             'roles' => Role::orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
+            'employeeOptions' => $this->showModal ? $this->employeeOptions() : [],
+            'selectedEmployee' => $this->employee_id
+                ? Employee::with(['department', 'jobTitle', 'jobGrade'])->find($this->employee_id)
+                : null,
         ])->layout('layouts.admin', ['title' => 'Quản lý tài khoản']);
     }
 
@@ -85,6 +93,18 @@ class AccountManager extends Component
         $this->showModal = true;
     }
 
+    /** Chọn hồ sơ: hồ sơ đã có email công việc thì điền sẵn làm email đăng nhập. */
+    public function updatedEmployeeId(): void
+    {
+        $employee = $this->employee_id ? Employee::find($this->employee_id) : null;
+
+        if ($employee?->email && blank($this->email)) {
+            $this->email = $employee->email;
+        }
+
+        $this->resetValidation('employee_id');
+    }
+
     public function edit(int $id): void
     {
         $this->requirePermission('accounts.update');
@@ -92,9 +112,8 @@ class AccountManager extends Component
         $user = User::with('employee')->findOrFail($id);
 
         $this->editingId = $user->id;
-        $this->full_name = $user->employee?->full_name ?? $user->name;
+        $this->employee_id = $user->employee?->id;
         $this->email = $user->email;
-        $this->employee_code = $user->employee?->employee_code ?? '';
         $this->role = $user->getRoleNames()->first() ?? RoleName::EMPLOYEE->value;
         $this->status = $user->status;
         $this->password = '';
@@ -123,10 +142,19 @@ class AccountManager extends Component
         $editingSelf = $this->editingId === auth()->id();
 
         DB::transaction(function () use ($data, $editingSelf) {
+            $employee = $data['employee_id'] ? Employee::findOrFail($data['employee_id']) : null;
+
             if ($this->editingId) {
-                $user = User::findOrFail($this->editingId);
+                $user = User::with('employee')->findOrFail($this->editingId);
+
+                // Tài khoản cũ chưa gắn hồ sơ: gắn vào hồ sơ vừa chọn
+                if ($employee && ! $user->employee) {
+                    $employee->update(['user_id' => $user->id]);
+                }
+
                 $changes = [
-                    'name' => $data['full_name'],
+                    // Tên hiển thị luôn theo hồ sơ nhân sự
+                    'name' => ($user->employee ?? $employee)?->full_name ?? $user->name,
                     'email' => $data['email'],
                     'must_change_password' => $this->must_change_password,
                 ];
@@ -147,18 +175,13 @@ class AccountManager extends Component
                     $user->syncRoles([$data['role']]);
                 }
 
-                $user->employee?->update([
-                    'full_name' => $data['full_name'],
-                    'email' => $data['email'],
-                ]);
-
                 session()->flash('status', 'Đã cập nhật tài khoản.');
 
                 return;
             }
 
             $user = User::create([
-                'name' => $data['full_name'],
+                'name' => $employee->full_name,
                 'email' => $data['email'],
                 'password' => $this->password,
                 'status' => $data['status'],
@@ -168,19 +191,12 @@ class AccountManager extends Component
 
             $user->assignRole($data['role']);
 
-            $employee = Employee::create([
-                'user_id' => $user->id,
-                'full_name' => $data['full_name'],
-                'email' => $data['email'],
-                'employment_status' => Employee::STATUS_PROBATION,
-                'joined_at' => now(),
-                'is_new_hire' => true,
-            ]);
+            $employee->update(['user_id' => $user->id]);
 
-            // Nhân viên mới nhận ngay lộ trình onboarding (spec 4.4)
-            app(CourseAssignmentService::class)->syncForEmployee($employee);
+            // Có tài khoản là học được: giao ngay lộ trình theo vị trí + onboarding (spec 4.4)
+            app(CourseAssignmentService::class)->syncForEmployee($employee->refresh());
 
-            session()->flash('status', 'Đã tạo tài khoản và gán lộ trình onboarding.');
+            session()->flash('status', "Đã tạo tài khoản cho {$employee->employee_code} · {$employee->full_name}.");
         });
 
         $this->showSaveConfirm = false;
@@ -289,7 +305,14 @@ class AccountManager extends Component
     private function rules(): array
     {
         return [
-            'full_name' => ['required', 'string', 'max:255'],
+            // Tạo mới: bắt buộc chọn hồ sơ chưa có tài khoản. Sửa: chỉ chọn được khi tài khoản chưa gắn hồ sơ.
+            'employee_id' => [
+                $this->editingId ? 'nullable' : 'required',
+                'integer',
+                Rule::exists('employees', 'id')->whereNull('deleted_at')->where(fn ($q) => $q
+                    ->whereNull('user_id')
+                    ->when($this->editingId, fn ($q2) => $q2->orWhere('user_id', $this->editingId))),
+            ],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingId)],
             // Tạo mới bắt buộc có mật khẩu; sửa thì để trống nghĩa là giữ nguyên
             'password' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
@@ -298,10 +321,31 @@ class AccountManager extends Component
         ];
     }
 
+    /**
+     * Hồ sơ chọn được: chưa có tài khoản (và hồ sơ đang gắn với tài khoản đang sửa).
+     *
+     * @return array<int, array{value: int, label: string}>
+     */
+    private function employeeOptions(): array
+    {
+        return Employee::query()
+            ->with('department:id,name')
+            ->where(fn ($q) => $q->whereNull('user_id')
+                ->when($this->editingId, fn ($q2) => $q2->orWhere('user_id', $this->editingId)))
+            ->whereIn('employment_status', [Employee::STATUS_PROBATION, Employee::STATUS_OFFICIAL])
+            ->orderByDesc('id')
+            ->get(['id', 'employee_code', 'full_name', 'department_id'])
+            ->map(fn (Employee $e) => [
+                'value' => $e->id,
+                'label' => $e->employee_code . ' · ' . $e->full_name . ($e->department ? ' · ' . $e->department->name : ''),
+            ])
+            ->all();
+    }
+
     private function resetForm(): void
     {
         $this->reset([
-            'editingId', 'full_name', 'email', 'employee_code',
+            'editingId', 'employee_id', 'email',
             'password', 'role',
         ]);
         $this->status = User::STATUS_ACTIVE;

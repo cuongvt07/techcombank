@@ -38,7 +38,7 @@ class CourseAssignmentService
 
         $rules = CourseAssignmentRule::query()
             ->active()
-            ->with(['course', 'department'])
+            ->with(['course', 'department', 'departments'])
             ->whereHas('course', fn ($q) => $q->where('status', Course::STATUS_PUBLISHED))
             ->get();
 
@@ -67,7 +67,7 @@ class CourseAssignmentService
     {
         // Nạp lại từ DB: rule vừa create() chưa có giá trị mặc định của cột (is_active)
         // và chưa load quan hệ course, nên kiểm tra trên instance thô sẽ sai.
-        $rule->refresh()->loadMissing('course', 'department');
+        $rule->refresh()->loadMissing('course', 'department', 'departments');
 
         if (! $rule->is_active || ! $rule->course?->isPublished()) {
             return 0;
@@ -75,8 +75,13 @@ class CourseAssignmentService
 
         $created = 0;
 
+        // Thu hẹp sẵn theo phòng ban của điều kiện (bảng nối + phòng con) để khỏi
+        // duyệt cả công ty; các chiều còn lại vẫn để matches() kiểm.
+        $departmentIds = $rule->allowedDepartmentIds();
+
         Employee::query()
             ->active()
+            ->when($departmentIds !== null, fn ($q) => $q->whereIn('department_id', $departmentIds))
             ->with(['department', 'jobGrade'])
             ->chunkById(200, function ($employees) use ($rule, &$created) {
                 foreach ($employees as $employee) {

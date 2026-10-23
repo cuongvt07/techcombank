@@ -78,28 +78,62 @@ class AdminConfigScreensTest extends TestCase
         $this->assertTrue(Role::findByName(RoleName::EMPLOYEE->value)->fresh()->hasPermissionTo('learning.access'));
     }
 
-    public function test_tick_them_sua_xoa_tu_tick_xem(): void
+    public function test_tick_thao_tac_cap_moi_them_sua_xoa_va_tu_tick_xem(): void
     {
+        // "Thao tác" là một ô duy nhất: cấp tất cả Thêm/Sửa/Xóa của màn, không chia lẻ
         Livewire::test(PermissionMatrix::class)
-            ->call('toggle', 'quizzes', 'delete')
-            ->assertSet('granted', fn ($g) => $g['quizzes.view'] === true)
-            ->assertSet('granted', fn ($g) => $g['quizzes.delete'] === true)
+            ->call('toggle', 'quizzes', 'manage')
+            ->assertSet('granted', fn ($g) => $g['quizzes.view'] && $g['quizzes.create'] && $g['quizzes.update'] && $g['quizzes.delete'])
+            ->call('save');
+
+        $role = Role::findByName(RoleName::EMPLOYEE->value)->fresh();
+        foreach (['view', 'create', 'update', 'delete'] as $action) {
+            $this->assertTrue($role->hasPermissionTo("quizzes.{$action}"));
+        }
+    }
+
+    public function test_bo_thao_tac_giu_quyen_xem(): void
+    {
+        Role::findByName(RoleName::EMPLOYEE->value)
+            ->givePermissionTo(['quizzes.view', 'quizzes.create', 'quizzes.update', 'quizzes.delete']);
+
+        Livewire::test(PermissionMatrix::class)
+            ->call('toggle', 'quizzes', 'manage')
             ->call('save');
 
         $role = Role::findByName(RoleName::EMPLOYEE->value)->fresh();
         $this->assertTrue($role->hasPermissionTo('quizzes.view'));
-        $this->assertTrue($role->hasPermissionTo('quizzes.delete'));
         $this->assertFalse($role->hasPermissionTo('quizzes.create'));
+        $this->assertFalse($role->hasPermissionTo('quizzes.delete'));
+    }
+
+    public function test_thao_tac_cap_le_cu_hien_mot_phan_va_bam_thi_cap_du(): void
+    {
+        // Dữ liệu cũ chỉ có quyền Sửa — ô Thao tác hiện "một phần"; bấm vào thì cấp đủ
+        Role::findByName(RoleName::EMPLOYEE->value)->givePermissionTo(['quizzes.view', 'quizzes.update']);
+
+        $component = Livewire::test(PermissionMatrix::class);
+        $this->assertTrue($component->instance()->hasPartialManage('quizzes'));
+
+        $component->call('toggle', 'quizzes', 'manage')
+            ->assertSet('granted', fn ($g) => $g['quizzes.create'] && $g['quizzes.update'] && $g['quizzes.delete']);
+    }
+
+    public function test_bang_chi_co_hai_cot_xem_va_thao_tac(): void
+    {
+        Livewire::test(PermissionMatrix::class)
+            ->assertViewHas('columns', ['view' => 'Xem', 'manage' => 'Thao tác'])
+            ->assertDontSee('Cả dòng');
     }
 
     public function test_chon_ca_dong_bat_moi_thao_tac_cua_man(): void
     {
         $component = Livewire::test(PermissionMatrix::class)
-            ->call('toggleRow', 'contracts')
-            ->assertSet('granted', fn ($g) => $g['contracts.view'] && $g['contracts.create'] && $g['contracts.update'])
+            ->call('toggleRow', 'documents')
+            ->assertSet('granted', fn ($g) => $g['documents.view'] && $g['documents.create'] && $g['documents.update'])
             // Bấm lần nữa thì bỏ hết
-            ->call('toggleRow', 'contracts')
-            ->assertSet('granted', fn ($g) => ! $g['contracts.view'] && ! $g['contracts.create'] && ! $g['contracts.update']);
+            ->call('toggleRow', 'documents')
+            ->assertSet('granted', fn ($g) => ! $g['documents.view'] && ! $g['documents.create'] && ! $g['documents.update']);
 
         $component->call('toggleRow', 'khong-ton-tai')->assertStatus(404);
     }
@@ -121,9 +155,9 @@ class AdminConfigScreensTest extends TestCase
 
     public function test_khong_tick_duoc_thao_tac_man_khong_co(): void
     {
-        // Màn Tổng quan chỉ có Xem — gửi thẳng request tick "Xóa" phải bị từ chối
+        // Màn Tổng quan chỉ có Xem — gửi thẳng request tick "Thao tác" phải bị từ chối
         Livewire::test(PermissionMatrix::class)
-            ->call('toggle', 'dashboard', 'delete')
+            ->call('toggle', 'dashboard', 'manage')
             ->assertStatus(404);
     }
 
@@ -145,7 +179,7 @@ class AdminConfigScreensTest extends TestCase
         // màn hình hợp đồng / lương.
         $role = Role::findByName(RoleName::ADMIN->value);
 
-        foreach (['contracts.create', 'employees.update', 'courses.delete', 'roles.update'] as $permission) {
+        foreach (['accounts.create', 'employees.update', 'courses.delete', 'roles.update'] as $permission) {
             $this->assertTrue(
                 $role->hasPermissionTo($permission),
                 "Quản trị viên phải có quyền {$permission}"
@@ -158,7 +192,7 @@ class AdminConfigScreensTest extends TestCase
         $role = Role::findByName(RoleName::EMPLOYEE->value);
 
         Livewire::test(PermissionMatrix::class)
-            ->call('toggle', 'accounts', 'update')
+            ->call('toggle', 'accounts', 'manage')
             ->assertSet('dirty', true)
             ->call('resetChanges')
             ->assertSet('dirty', false);
@@ -289,14 +323,12 @@ class AdminConfigScreensTest extends TestCase
     {
         Livewire::test(SettingsManager::class)
             ->set('settings.display_name', 'LMS Thử Nghiệm')
-            ->set('settings.contract_alert_days', 45)
             ->set('settings.max_devices', 3)
             ->set('settings.watermark', true)
             ->call('saveSettings')
             ->assertHasNoErrors();
 
         $this->assertSame('LMS Thử Nghiệm', Setting::get('app.display_name'));
-        $this->assertSame(45, Setting::get('contract.alert_before_days'));
         $this->assertSame(3, Setting::get('security.max_concurrent_devices'));
         $this->assertTrue(Setting::get('security.watermark_enabled'));
     }
@@ -304,8 +336,8 @@ class AdminConfigScreensTest extends TestCase
     public function test_tham_so_he_thong_duoc_kiem_tra_gioi_han(): void
     {
         Livewire::test(SettingsManager::class)
-            ->set('settings.contract_alert_days', 999)
+            ->set('settings.max_devices', 99)
             ->call('saveSettings')
-            ->assertHasErrors('settings.contract_alert_days');
+            ->assertHasErrors('settings.max_devices');
     }
 }

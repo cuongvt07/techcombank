@@ -37,10 +37,10 @@
                     <select id="s_topic" wire:model="topic"
                             class="h-11 w-full rounded-user-md border border-brand-line bg-white px-3.5 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red">
                         <option value="">— Chọn chủ đề —</option>
-                        @foreach ($contacts as $contact)
-                            <option value="{{ $contact->topic }}">{{ $contact->topic }}</option>
+                        {{-- Chủ đề lấy từ danh sách chuẩn, không từ đầu mối liên hệ — để khớp với báo cáo --}}
+                        @foreach (\App\Models\SupportRequest::TOPICS as $topicOption)
+                            <option value="{{ $topicOption }}">{{ $topicOption }}</option>
                         @endforeach
-                        <option value="Khác">Khác</option>
                     </select>
                     @error('topic') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>

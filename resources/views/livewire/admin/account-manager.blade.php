@@ -14,7 +14,7 @@
             <div class="min-w-[240px] flex-1">
                 <label for="f-account-manager-search-0" class="admin-label">Tìm kiếm</label>
                 <input id="f-account-manager-search-0" type="search"
-                       wire:model.live.debounce.400ms="search"
+                       wire:model="search" wire:keydown.enter="applySearch"
                        class="admin-input"
                        placeholder="Tìm theo tên, email hoặc mã nhân viên...">
             </div>
@@ -49,6 +49,13 @@
                         </option>
                     @endforeach
                 </select>
+            </div>
+            <div class="ml-auto flex items-end gap-2">
+                <button type="button" wire:click="applySearch" class="admin-btn">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                    Tìm kiếm
+                </button>
+                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
             </div>
         </div>
 
@@ -146,23 +153,47 @@
     @if ($showModal)
         <x-admin.modal :title="$editingId ? 'Sửa tài khoản' : 'Tạo tài khoản mới'">
             <form wire:submit="requestSave" id="account-form" class="grid gap-4 sm:grid-cols-2">
+                {{-- Bước 1: chọn hồ sơ nhân sự — thông tin cá nhân lấy từ hồ sơ, không nhập lại --}}
                 <div class="sm:col-span-2">
-                    <label for="full_name" class="admin-label">Họ và tên</label>
-                    <input id="full_name" type="text" wire:model="full_name" class="admin-input">
-                    @error('full_name') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                    @if ($editingId && $selectedEmployee && $selectedEmployee->user_id === $editingId)
+                        <span class="admin-label">Mã nhân viên</span>
+                        <p class="admin-input flex items-center bg-brand-soft font-mono text-brand-muted">{{ $selectedEmployee->employee_code }}</p>
+                    @else
+                        <x-admin.searchable-select id="employee_id" model="employee_id"
+                            label="Mã nhân viên" :required="true"
+                            :options="$employeeOptions" :selected="$employee_id"
+                            placeholder="Gõ mã hoặc tên nhân viên..." emptyLabel="— Chọn hồ sơ nhân sự —" />
+                        <p class="mt-1 text-xs text-brand-muted">
+                            Chỉ hiện hồ sơ đang làm việc chưa có tài khoản. Chưa có hồ sơ?
+                            @can('employees.create')
+                                <a href="{{ route('admin.employees') }}" wire:navigate class="font-semibold text-brand-red hover:underline">Tạo hồ sơ nhân sự</a> trước.
+                            @else
+                                Cần tạo hồ sơ nhân sự trước.
+                            @endcan
+                        </p>
+                    @endif
+                    @error('employee_id') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
+                @if ($selectedEmployee)
+                    <div class="grid gap-3 rounded-admin border border-brand-line bg-brand-soft p-3 sm:col-span-2 sm:grid-cols-2">
+                        <x-admin.detail-field label="Họ và tên">{{ $selectedEmployee->full_name }}</x-admin.detail-field>
+                        <x-admin.detail-field label="Phòng ban">{{ $selectedEmployee->department?->name ?? '—' }}</x-admin.detail-field>
+                        <x-admin.detail-field label="Chức danh">{{ $selectedEmployee->jobTitle?->name ?? '—' }}</x-admin.detail-field>
+                        <x-admin.detail-field label="Trạng thái làm việc">{{ \App\Models\Employee::statusLabel($selectedEmployee->employment_status) }}</x-admin.detail-field>
+                    </div>
+                @endif
+
+                {{-- Bước 2: thông tin đăng nhập --}}
                 <div>
-                    <label for="email" class="admin-label">Email đăng nhập</label>
-                    <input id="email" type="email" wire:model="email" class="admin-input">
+                    <label for="email" class="admin-label">Email đăng nhập <span class="text-brand-red" aria-hidden="true">*</span></label>
+                    <input id="email" type="email" wire:model="email" class="admin-input" autocomplete="off">
                     @error('email') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
-                <x-admin.auto-code id="employee_code" label="Mã nhân viên" :value="$employee_code" />
-
                 <div>
                     <label for="password" class="admin-label">
-                        Mật khẩu {{ $editingId ? '(để trống nếu giữ nguyên)' : '' }}
+                        Mật khẩu {!! $editingId ? '(để trống nếu giữ nguyên)' : '<span class="text-brand-red" aria-hidden="true">*</span>' !!}
                     </label>
                     <input id="password" type="password" wire:model="password" class="admin-input" autocomplete="new-password">
                     @error('password') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
@@ -175,7 +206,7 @@
                     </div>
                 @else
                     <div>
-                        <label for="role" class="admin-label">Vai trò</label>
+                        <label for="role" class="admin-label">Vai trò <span class="text-brand-red" aria-hidden="true">*</span></label>
                         <select id="role" wire:model="role" class="admin-input">
                             @foreach ($roles as $r)
                                 <option value="{{ $r->name }}">
@@ -187,7 +218,7 @@
                     </div>
 
                     <div>
-                        <label for="status" class="admin-label">Trạng thái</label>
+                        <label for="status" class="admin-label">Trạng thái <span class="text-brand-red" aria-hidden="true">*</span></label>
                         <select id="status" wire:model="status" class="admin-input">
                             <option value="active">Đang hoạt động</option>
                             <option value="locked">Đã khóa</option>
@@ -201,6 +232,7 @@
                            class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
                     Bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên
                 </label>
+                <p class="text-xs text-brand-muted sm:col-span-2"><span class="text-brand-red">*</span> Trường bắt buộc</p>
             </form>
 
             <x-slot:footer>

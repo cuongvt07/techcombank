@@ -32,7 +32,6 @@ class EmployeeTimelineService
             ->merge($this->lessonEvents($employee))
             ->merge($this->quizEvents($employee))
             ->merge($this->certificateEvents($employee))
-            ->merge($this->contractEvents($employee))
             ->merge($this->documentEvents($employee))
             ->merge($this->supportEvents($employee));
 
@@ -148,21 +147,6 @@ class EmployeeTimelineService
             ]);
     }
 
-    private function contractEvents(Employee $employee): Collection
-    {
-        return $employee->contracts()
-            ->with('contractType')
-            ->get()
-            ->map(fn ($contract) => [
-                'at' => $contract->created_at,
-                'type' => 'contract',
-                'icon' => 'heroicon-o-document-check',
-                'tone' => 'neutral',
-                'title' => 'Hợp đồng ' . ($contract->contractType?->name ?? ''),
-                'detail' => $contract->contract_no . ' · hiệu lực từ '
-                    . $contract->effective_from?->format('d/m/Y'),
-            ]);
-    }
 
     /** Gộp lượt xem tài liệu theo ngày, nếu không dòng thời gian sẽ ngập log truy cập. */
     private function documentEvents(Employee $employee): Collection

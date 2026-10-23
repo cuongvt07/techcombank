@@ -1,6 +1,8 @@
 @props([
     'id',
     'label',
+    // Trường bắt buộc: thêm dấu * đỏ sau nhãn
+    'required' => false,
     'model',
     'options' => [],
     'selected' => null,
@@ -31,7 +33,7 @@
      x-init="query = selectedLabel"
      x-on:click.outside="open = false; query = selectedLabel"
      class="relative">
-    <label for="{{ $id }}" class="admin-label">{{ $label }}</label>
+    <label for="{{ $id }}" class="admin-label">{{ $label }}@if ($required) <span class="text-brand-red" aria-hidden="true">*</span>@endif</label>
     <input id="{{ $id }}"
            type="search"
            x-model="query"

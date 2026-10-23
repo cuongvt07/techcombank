@@ -3,10 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\RoleName;
-use App\Livewire\Admin\ContractManager;
 use App\Livewire\Admin\DocumentLibrary;
-use App\Models\Contract;
-use App\Models\ContractType;
 use App\Models\Document;
 use App\Models\Employee;
 use App\Models\FileFolder;
@@ -153,45 +150,6 @@ class FileStorageIntegrationTest extends TestCase
 
     // ---- Hợp đồng -----------------------------------------------------------
 
-    public function test_file_hop_dong_upload_vao_kho(): void
-    {
-        $employee = Employee::factory()->create();
-        $type = ContractType::create(['code' => 'HD1', 'name' => 'Xác định thời hạn']);
-
-        Livewire::test(ContractManager::class)
-            ->call('create')
-            ->set('employee_id', $employee->id)
-            ->set('contract_type_id', $type->id)
-            ->set('effective_from', now()->toDateString())
-            ->set('file', UploadedFile::fake()->create('hop-dong.pdf', 200, 'application/pdf'))
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $contract = Contract::where('employee_id', $employee->id)->first();
-
-        $this->assertNotNull($contract->stored_file_id);
-        $this->assertSame('hop-dong.pdf', $contract->storedFile->name);
-        $this->assertSame('Hợp đồng', $contract->storedFile->folder->name);
-        Storage::disk(FileStorageService::DISK)->assertExists($contract->storedFile->path);
-    }
-
-    public function test_hop_dong_khong_co_file_van_luu_duoc(): void
-    {
-        $employee = Employee::factory()->create();
-        $type = ContractType::create(['code' => 'HD2', 'name' => 'Thử việc']);
-
-        Livewire::test(ContractManager::class)
-            ->call('create')
-            ->set('employee_id', $employee->id)
-            ->set('contract_type_id', $type->id)
-            ->set('effective_from', now()->toDateString())
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $contract = Contract::where('employee_id', $employee->id)->first();
-        $this->assertNull($contract->stored_file_id);
-    }
-
     // ---- Thư mục hệ thống ---------------------------------------------------
 
     public function test_thu_muc_he_thong_tu_tao_khi_chua_co(): void
@@ -215,10 +173,7 @@ class FileStorageIntegrationTest extends TestCase
 
     public function test_file_tu_moi_nguon_deu_thay_duoc_trong_kho(): void
     {
-        $employee = Employee::factory()->create();
-        $type = ContractType::create(['code' => 'HD3', 'name' => 'Ngắn hạn']);
-
-        // Tải lên từ hai màn hình khác nhau
+        // Tải lên hai lần, mỗi lần một tài liệu
         Livewire::test(DocumentLibrary::class)
             ->call('create')
             ->set('title', 'Tài liệu A')
@@ -226,12 +181,11 @@ class FileStorageIntegrationTest extends TestCase
             ->call('continueToPermissions')
             ->call('save');
 
-        Livewire::test(ContractManager::class)
+        Livewire::test(DocumentLibrary::class)
             ->call('create')
-            ->set('employee_id', $employee->id)
-            ->set('contract_type_id', $type->id)
-            ->set('effective_from', now()->toDateString())
-            ->set('file', UploadedFile::fake()->create('b.pdf', 40, 'application/pdf'))
+            ->set('title', 'Tài liệu B')
+            ->set('upload', UploadedFile::fake()->create('b.pdf', 40, 'application/pdf'))
+            ->call('continueToPermissions')
             ->call('save');
 
         // Cả hai đều nằm trong kho chung

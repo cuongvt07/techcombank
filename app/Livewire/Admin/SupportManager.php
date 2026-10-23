@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\SupportRequest;
 use App\Models\User;
+use App\Services\NotificationCenter;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -18,6 +20,8 @@ use Livewire\WithPagination;
  */
 class SupportManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;
@@ -113,6 +117,10 @@ class SupportManager extends Component
                 'status' => SupportRequest::STATUS_IN_PROGRESS,
             ]);
 
+            // Báo nhân viên gửi phiếu; tự nhận cho mình thì không báo chính mình
+            $this->notifier()->supportAccepted($request);
+            $this->notifier()->supportAssigned($request, auth()->id());
+
             session()->flash('status', "Đã nhận xử lý phiếu {$request->ticket_no}.");
         }
     }
@@ -122,6 +130,8 @@ class SupportManager extends Component
         $this->requirePermission('support.update');
 
         $request = SupportRequest::findOrFail($this->viewingId);
+        $previousAssignee = $request->assigned_to;
+        $wasNew = $request->status === SupportRequest::STATUS_NEW;
 
         $request->update([
             'assigned_to' => $this->assigned_to ?: null,
@@ -130,6 +140,14 @@ class SupportManager extends Component
                 ? SupportRequest::STATUS_IN_PROGRESS
                 : $request->status,
         ]);
+
+        // Chỉ báo khi thật sự đổi người phụ trách / phiếu vừa được tiếp nhận
+        if ($request->assigned_to && $request->assigned_to !== $previousAssignee) {
+            $this->notifier()->supportAssigned($request, auth()->id());
+        }
+        if ($wasNew && $request->status === SupportRequest::STATUS_IN_PROGRESS) {
+            $this->notifier()->supportAccepted($request);
+        }
 
         session()->flash('status', 'Đã cập nhật người xử lý.');
     }
@@ -146,15 +164,23 @@ class SupportManager extends Component
             'resolution.min' => 'Nội dung phản hồi quá ngắn.',
         ]);
 
-        SupportRequest::findOrFail($this->viewingId)->update([
+        $request = SupportRequest::findOrFail($this->viewingId);
+        $request->update([
             'status' => SupportRequest::STATUS_RESOLVED,
             'resolution' => $this->resolution,
             'resolved_at' => now(),
             'assigned_to' => $this->assigned_to ?: auth()->id(),
         ]);
 
+        $this->notifier()->supportResolved($request);
+
         session()->flash('status', 'Đã giải quyết phiếu và gửi phản hồi.');
         $this->showModal = false;
+    }
+
+    private function notifier(): NotificationCenter
+    {
+        return app(NotificationCenter::class);
     }
 
     public function close(int $id): void

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Announcement;
 use App\Models\Employee;
@@ -20,6 +21,8 @@ use Livewire\WithPagination;
  */
 class AnnouncementManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;

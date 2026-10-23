@@ -31,7 +31,10 @@
     };
 
     $sortMark = fn (string $field) => $sort === $field ? ($direction === 'desc' ? '▼' : '▲') : '';
-    $pageIds = $rows->getCollection()->pluck('id')->map(fn ($id) => (string) $id)->values();
+    // Chỉ phiếu đang mở và chưa có người phụ trách mới chọn được để phân công
+    $assignable = fn ($row) => $row->assigned_to === null
+        && in_array($row->status, [\App\Models\SupportRequest::STATUS_NEW, \App\Models\SupportRequest::STATUS_IN_PROGRESS], true);
+    $pageIds = $rows->getCollection()->filter($assignable)->pluck('id')->map(fn ($id) => (string) $id)->values();
     $hasTicketLink = auth()->user()->can('support.view');
     $tableTitle = $overSla ? 'Yêu cầu quá SLA' : 'Danh sách yêu cầu';
 @endphp
@@ -113,12 +116,14 @@
     <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <x-admin.report.kpi label="Yêu cầu mới" :value="$fmt($kpi['new'])" note="gửi trong kỳ" />
         <x-admin.report.kpi label="Đang mở" :value="$fmt($kpi['open'])" :alert="$kpi['open_over_sla'] > 0"
+                            hint="Mới + đang xử lý; quá SLA = đã quá hạn xử lý mà chưa xong"
                             :note="$fmt($kpi['open_over_sla']) . ' quá SLA'" :noteTone="$kpi['open_over_sla'] > 0 ? 'danger' : null"
                             :href="$kpiLink(['trang_thai' => 'open', 'qua_sla' => 1])" />
         <x-admin.report.kpi label="Đã giải quyết" :value="$fmt($kpi['resolved'])" note="xong trong kỳ" />
         <x-admin.report.kpi label="Thời gian giải quyết" :value="$kpi['median_hours'] !== null ? $fmt1($kpi['median_hours']) : '—'"
                             :note="$kpi['median_hours'] !== null ? 'giờ, trung vị' : 'chưa có phiếu xong'" />
         <x-admin.report.kpi label="Tỷ lệ đúng SLA" :value="$kpi['sla_rate'] !== null ? $fmt1($kpi['sla_rate']) . '%' : '—'"
+                            hint="Phiếu giải quyết trước hạn SLA / tổng phiếu đã giải quyết"
                             :delta="$slaDelta" :deltaTone="$slaTone"
                             :note="$kpi['sla_rate'] === null ? 'chưa có phiếu xong' : null" />
         <x-admin.report.kpi label="Chưa phân công" :value="$fmt($kpi['unassigned'])"
@@ -184,6 +189,14 @@
             <div class="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
                 <h2 class="text-[15px] font-bold">{{ $tableTitle }}</h2>
                 <span class="text-xs text-brand-muted">{{ $fmt($rows->total()) }} yêu cầu{{ $sort === 'overdue' && $direction === 'desc' ? ' · xếp theo thời gian quá hạn giảm dần' : '' }}</span>
+                @if ($overSla)
+                    {{-- Định nghĩa "quá SLA" ngay cạnh tiêu đề: người xem hay hỏi đây là gì --}}
+                    <p class="basis-full text-xs text-brand-muted">
+                        <strong class="text-brand-ink">Quá SLA</strong> = yêu cầu chưa được giải quyết xong khi đã quá hạn xử lý cam kết
+                        theo độ ưu tiên (Cao 8 giờ, Thường 24 giờ, Thấp 72 giờ kể từ lúc gửi).
+                        Ô chọn chỉ có ở yêu cầu chưa có người phụ trách.
+                    </p>
+                @endif
             </div>
             <div x-data="{ open: false }" class="relative" x-on:keydown.escape.window="open = false">
                 <button type="button" x-on:click="open = ! open" class="admin-btn-secondary" aria-haspopup="menu" x-bind:aria-expanded="open">
@@ -250,8 +263,10 @@
                         <tr wire:key="sr-row-{{ $row->id }}">
                             <td>
                                 @can('report_support.update')
-                                    <input type="checkbox" wire:model.live="selected" value="{{ $row->id }}" aria-label="Chọn {{ $row->ticket_no }}"
-                                           class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
+                                    @if ($assignable($row))
+                                        <input type="checkbox" wire:model.live="selected" value="{{ $row->id }}" aria-label="Chọn {{ $row->ticket_no }}"
+                                               class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
+                                    @endif
                                 @endcan
                             </td>
                             <td class="font-semibold text-brand-red">

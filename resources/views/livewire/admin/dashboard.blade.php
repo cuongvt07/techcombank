@@ -517,10 +517,13 @@
                                 @if ($isDone)
                                     <span class="text-brand-muted">—</span>
                                 @elseif (! $reminder->canRemind($row))
-                                    <span class="inline-block rounded-admin-sm border border-brand-line bg-brand-soft px-2 py-1 text-xs text-brand-muted"
-                                          title="Đã nhắc lúc {{ ReportPeriod::local($row->last_reminded_at)?->format('H:i d/m/Y') }} — nhắc lại sau {{ \App\Services\LearningReminderService::COOLDOWN_HOURS }} giờ">
+                                    {{-- Đang trong thời gian chờ: nút bị khóa, ghi rõ lúc nào nhắc lại được --}}
+                                    <button type="button" disabled
+                                            class="admin-btn-secondary cursor-not-allowed whitespace-nowrap text-xs text-brand-muted opacity-70" style="min-height: 32px"
+                                            title="Mỗi lượt chỉ nhắc lại sau {{ \App\Services\LearningReminderService::COOLDOWN_HOURS }} giờ">
                                         Đã nhắc {{ ReportPeriod::local($row->last_reminded_at)?->format('H:i') }}
-                                    </span>
+                                        · nhắc lại sau {{ ReportPeriod::local(\App\Services\LearningReminderService::nextRemindAt($row->last_reminded_at))?->format('H:i') }}
+                                    </button>
                                 @else
                                     @can('report_learning.update')
                                         <button type="button" wire:click="remind({{ $row->id }})" wire:loading.attr="disabled"

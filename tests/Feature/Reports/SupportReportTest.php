@@ -224,10 +224,24 @@ class SupportReportTest extends TestCase
 
         $this->assertSame($agent->id, $t['d']->fresh()->assigned_to);
         $this->assertSame(SupportRequest::STATUS_IN_PROGRESS, $t['d']->fresh()->status);
-        $this->assertSame($agent->id, $t['e']->fresh()->assigned_to);
+        // Phiếu đã có người phụ trách thì không bị phân công đè
+        $this->assertNotSame($agent->id, $t['e']->fresh()->assigned_to);
+        $this->assertNotNull($t['e']->fresh()->assigned_to);
         // Phiếu đã giải quyết không bị đổi người
         $this->assertNotSame($agent->id, $t['b']->fresh()->assigned_to);
         $this->assertSame(SupportRequest::STATUS_RESOLVED, $t['b']->fresh()->status);
+    }
+
+    public function test_phieu_da_co_nguoi_phu_trach_khong_co_o_chon(): void
+    {
+        $t = $this->seedScenario();
+
+        Livewire::test(SupportReport::class)
+            ->set('overSla', false)
+            ->set('status', '')
+            // Phiếu chưa phân công (d) có ô chọn; phiếu đang xử lý đã có người (e) thì không
+            ->assertSeeHtml('aria-label="Chọn ' . $t['d']->ticket_no . '"')
+            ->assertDontSeeHtml('aria-label="Chọn ' . $t['e']->ticket_no . '"');
     }
 
     public function test_khong_phan_cong_cho_nguoi_khong_co_quyen_xu_ly(): void

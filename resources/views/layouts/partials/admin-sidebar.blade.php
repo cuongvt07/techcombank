@@ -10,7 +10,6 @@
             ['route' => 'admin.dashboard', 'label' => 'Tổng quan', 'icon' => 'squares-2x2', 'permission' => 'dashboard.view'],
             ['route' => 'admin.accounts', 'label' => 'Tài khoản', 'icon' => 'key', 'permission' => 'accounts.view'],
             ['route' => 'admin.employees', 'label' => 'Hồ sơ nhân sự', 'icon' => 'users', 'permission' => 'employees.view'],
-            ['route' => 'admin.contracts', 'label' => 'Hợp đồng', 'icon' => 'document-check', 'permission' => 'contracts.view'],
             ['route' => 'admin.roles', 'label' => 'Phân quyền', 'icon' => 'lock-closed', 'permission' => 'roles.view'],
         ],
         'Tài liệu nội bộ' => [

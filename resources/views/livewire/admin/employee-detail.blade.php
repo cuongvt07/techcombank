@@ -109,7 +109,6 @@
                     'courses' => 'Khóa học',
                     'lessons' => 'Chi tiết bài học',
                     'quizzes' => 'Kết quả kiểm tra',
-                    'contracts' => 'Hợp đồng',
                     'activity' => 'Đăng nhập',
                 ] as $key => $label)
                     <button type="button" wire:click="setTab('{{ $key }}')"
@@ -357,46 +356,6 @@
                                 </tr>
                             @empty
                                 <tr><td colspan="5" class="text-center text-brand-muted">Chưa có lượt kiểm tra nào.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-            @elseif ($tab === 'contracts')
-                <div class="overflow-x-auto">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Số hợp đồng</th>
-                                <th>Loại</th>
-                                <th class="w-28">Hiệu lực</th>
-                                <th class="w-28">Hết hạn</th>
-                                <th class="w-28">Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($contracts as $contract)
-                                <tr wire:key="ct-{{ $contract->id }}">
-                                    <td class="font-mono text-xs font-semibold">{{ $contract->contract_no }}</td>
-                                    <td class="text-brand-muted">{{ $contract->contractType?->name }}</td>
-                                    <td class="text-xs">{{ $contract->effective_from?->format('d/m/Y') }}</td>
-                                    <td class="text-xs">{{ $contract->effective_to?->format('d/m/Y') ?? 'Không thời hạn' }}</td>
-                                    <td>
-                                        @php
-                                            $map = [
-                                                'draft' => ['', 'Nháp'],
-                                                'active' => ['tag-green', 'Hiệu lực'],
-                                                'expiring' => ['tag-amber', 'Sắp hết hạn'],
-                                                'expired' => ['tag-red', 'Hết hạn'],
-                                                'terminated' => ['', 'Chấm dứt'],
-                                            ];
-                                            [$ccls, $clabel] = $map[$contract->status] ?? ['', $contract->status];
-                                        @endphp
-                                        <span class="tag {{ $ccls }}">{{ $clabel }}</span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="text-center text-brand-muted">Chưa có hợp đồng nào.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

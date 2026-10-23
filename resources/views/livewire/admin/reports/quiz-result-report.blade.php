@@ -307,9 +307,13 @@
                 <div class="relative min-w-[220px] flex-1">
                     <label for="qr-search" class="sr-only">Lọc trong bảng</label>
                     <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-brand-muted">@svg('heroicon-o-magnifying-glass', 'h-4 w-4')</span>
-                    <input id="qr-search" type="search" wire:model.live.debounce.400ms="search" class="admin-input pl-9"
+                    <input id="qr-search" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input pl-9"
                            placeholder="Lọc theo mã NV, họ tên, đơn vị, bài kiểm tra...">
                 </div>
+                <button type="button" wire:click="applySearch" class="admin-btn">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                    Tìm kiếm
+                </button>
                 <span class="text-xs text-brand-muted">{{ $num($rows->total()) }} dòng</span>
             @endif
 
@@ -510,6 +514,13 @@
                                         @case('exhausted') <span class="tag bg-brand-red font-semibold text-white">Hết lượt</span> @break
                                         @default <span class="tag border border-brand-red bg-white text-brand-red">Chưa đạt</span>
                                     @endswitch
+                                    @if ($remindedAt = $retakeReminded[$key] ?? null)
+                                        {{-- Vừa nhắc làm lại: trong thời gian chờ, "Gửi nhắc" sẽ bỏ qua dòng này --}}
+                                        <span class="mt-1 block whitespace-nowrap text-xs text-brand-muted">
+                                            Đã nhắc {{ ReportPeriod::local($remindedAt)->format('H:i') }}
+                                            · nhắc lại sau {{ ReportPeriod::local(\App\Services\LearningReminderService::nextRemindAt($remindedAt))->format('H:i') }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="text-right tabular-nums">{{ $r->pass_no ?? '—' }}</td>
                                 <td class="whitespace-nowrap tabular-nums">{{ $r->passed_at ? ReportPeriod::local($r->passed_at)->format('d/m/Y') : '—' }}</td>

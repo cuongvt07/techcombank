@@ -65,7 +65,7 @@ class DocumentLibraryTest extends TestCase
             ->set('title', 'Tài liệu sửa phân quyền')
             ->set('upload', UploadedFile::fake()->create('a.pdf', 50, 'application/pdf'))
             ->call('continueToPermissions')
-            ->set('accessDepartmentId', $dept->id)
+            ->set('accessDepartmentIds', [$dept->id])
             ->call('save')
             ->assertHasNoErrors();
 
@@ -79,8 +79,8 @@ class DocumentLibraryTest extends TestCase
             ->call('continueToPermissions')
             ->assertSet('createStep', 2)
             ->assertSet('accessRuleId', $rule->id)
-            ->assertSet('accessDepartmentId', $dept->id)
-            ->set('accessDepartmentId', $other->id)
+            ->assertSet('accessDepartmentIds', [$dept->id])
+            ->set('accessDepartmentIds', [$dept->id, $other->id])
             ->set('accessJobGradeIds', [$grade->id])
             ->set('accessCanDownload', true)
             ->call('save')
@@ -88,7 +88,8 @@ class DocumentLibraryTest extends TestCase
 
         // Sửa đúng quy tắc cũ chứ không sinh thêm quy tắc mới
         $rule = $document->accessRules()->sole();
-        $this->assertSame($other->id, $rule->department_id);
+        $this->assertNull($rule->department_id);
+        $this->assertEqualsCanonicalizing([$dept->id, $other->id], $rule->departmentIds());
         $this->assertSame([$grade->id], $rule->gradeIds());
         $this->assertTrue((bool) $rule->can_download);
         $this->assertTrue((bool) $document->fresh()->allow_download);

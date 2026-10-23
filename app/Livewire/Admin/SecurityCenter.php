@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\DeviceSession;
 use App\Models\DocumentAccessLog;
@@ -23,6 +24,8 @@ use Livewire\WithPagination;
  */
 class SecurityCenter extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;

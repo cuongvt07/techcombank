@@ -13,6 +13,19 @@ class SupportRequest extends Model
     public const STATUS_RESOLVED = 'resolved';
     public const STATUS_CLOSED = 'closed';
 
+    /**
+     * Danh sách chủ đề duy nhất — form nhân viên, kiểm tra hợp lệ, báo cáo và dữ liệu
+     * demo đều dùng danh sách này để chủ đề luôn khớp nhau.
+     */
+    public const TOPICS = [
+        'Tài khoản & đăng nhập',
+        'Nội dung bài giảng',
+        'Bài kiểm tra',
+        'Kỹ thuật, trình duyệt',
+        'Hồ sơ & chế độ',
+        'Khác',
+    ];
+
     public const PRIORITY_HIGH = 'high';
     public const PRIORITY_NORMAL = 'normal';
     public const PRIORITY_LOW = 'low';

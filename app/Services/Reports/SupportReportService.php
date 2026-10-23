@@ -5,6 +5,7 @@ namespace App\Services\Reports;
 use App\Enums\RoleName;
 use App\Models\SupportRequest;
 use App\Models\User;
+use App\Services\NotificationCenter;
 use App\Support\Reports\ReportPeriod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -249,11 +250,22 @@ class SupportReportService
             return ['assigned' => 0, 'skipped' => 0];
         }
 
-        $assigned = DB::transaction(function () use ($ids, $userId) {
+        // Chỉ nhận phiếu đang mở CHƯA có người phụ trách: phiếu đã có người nhận thì
+        // không phân công đè ở đây (đổi người phụ trách làm từng phiếu ở màn Phiếu hỗ trợ)
+        $targetIds = collect();
+        $assigned = DB::transaction(function () use ($ids, $userId, &$targetIds) {
+            // Ghi lại đúng các phiếu sắp được giao (khóa dòng) để chỉ báo cho chúng
+            $targetIds = SupportRequest::whereIn('id', $ids)
+                ->whereIn('status', [SupportRequest::STATUS_NEW, SupportRequest::STATUS_IN_PROGRESS])
+                ->whereNull('assigned_to')
+                ->lockForUpdate()
+                ->pluck('id');
+
             $fromNew = SupportRequest::whereIn('id', $ids)->where('status', SupportRequest::STATUS_NEW)
+                ->whereNull('assigned_to')
                 ->update(['assigned_to' => $userId, 'status' => SupportRequest::STATUS_IN_PROGRESS, 'updated_at' => now()]);
             $inProgress = SupportRequest::whereIn('id', $ids)->where('status', SupportRequest::STATUS_IN_PROGRESS)
-                ->where(fn ($q) => $q->whereNull('assigned_to')->orWhere('assigned_to', '!=', $userId))
+                ->whereNull('assigned_to')
                 ->update(['assigned_to' => $userId, 'updated_at' => now()]);
 
             return $fromNew + $inProgress;
@@ -261,10 +273,32 @@ class SupportReportService
 
         $existing = SupportRequest::whereIn('id', $ids)->count();
 
+        $this->notifyAssigned($targetIds);
+
         return ['assigned' => $assigned, 'skipped' => $existing - $assigned];
     }
 
     // ---- Nội bộ ----------------------------------------------------------------
+
+    /**
+     * Báo người được giao cho từng phiếu THỰC SỰ vừa giao (phiếu bị bỏ qua vì đã
+     * có người phụ trách thì không báo); nhân viên gửi phiếu được báo đã tiếp nhận.
+     */
+    private function notifyAssigned(Collection $targetIds): void
+    {
+        if ($targetIds->isEmpty()) {
+            return;
+        }
+
+        $notifier = app(NotificationCenter::class);
+        $actorId = auth()->id();
+
+        SupportRequest::whereIn('id', $targetIds)->get()
+            ->each(function (SupportRequest $request) use ($notifier, $actorId) {
+                $notifier->supportAssigned($request, $actorId);
+                $notifier->supportAccepted($request);
+            });
+    }
 
     /** Phiếu xong trong kỳ: chủ đề, số giây xử lý, có hạn SLA không, đúng hạn không. */
     private function doneRows(ReportPeriod $period, array $filters): Collection

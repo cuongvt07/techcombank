@@ -128,11 +128,10 @@ class DemoActivitySeeder extends Seeder
             if ($course->owner_department_id) {
                 CourseAssignmentRule::create([
                     'course_id' => $course->id,
-                    'department_id' => $course->owner_department_id,
                     'is_mandatory' => true,
                     'due_days' => $data['days'],
                     'is_active' => true,
-                ]);
+                ])->departments()->sync([$course->owner_department_id]);
             }
         }
     }
@@ -478,9 +477,9 @@ class DemoActivitySeeder extends Seeder
         }
 
         $samples = [
-            ['Hợp đồng & chế độ', 'Hỏi về thời hạn hợp đồng', 'Tôi muốn biết hợp đồng của mình còn hạn đến khi nào.', 'normal', SupportRequest::STATUS_NEW, null],
+            ['Hồ sơ & chế độ', 'Hỏi về thời hạn hợp đồng', 'Tôi muốn biết hợp đồng của mình còn hạn đến khi nào.', 'normal', SupportRequest::STATUS_NEW, null],
             ['Nội dung bài giảng', 'Video bài học không phát được', 'Bài "Nhận diện email lừa đảo" không tải được video trên máy của tôi.', 'high', SupportRequest::STATUS_IN_PROGRESS, null],
-            ['Sự cố kỹ thuật', 'Không đăng nhập được sáng nay', 'Tôi nhập đúng mật khẩu nhưng hệ thống báo sai.', 'high', SupportRequest::STATUS_RESOLVED, 'Tài khoản đã bị khóa tạm do nhập sai nhiều lần, đã mở lại lúc 9h30.'],
+            ['Kỹ thuật, trình duyệt', 'Không đăng nhập được sáng nay', 'Tôi nhập đúng mật khẩu nhưng hệ thống báo sai.', 'high', SupportRequest::STATUS_RESOLVED, 'Tài khoản đã bị khóa tạm do nhập sai nhiều lần, đã mở lại lúc 9h30.'],
             ['Nội dung bài giảng', 'Đề nghị bổ sung tài liệu tham khảo', 'Mong bổ sung thêm ví dụ thực tế cho khóa AML.', 'low', SupportRequest::STATUS_NEW, null],
         ];
 

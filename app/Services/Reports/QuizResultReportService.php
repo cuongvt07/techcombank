@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizAttemptGrant;
+use App\Services\NotificationCenter;
 use App\Services\LearningReminderService;
 use App\Support\Reports\ReportPeriod;
 use Illuminate\Database\Query\Builder;
@@ -257,6 +258,8 @@ class QuizResultReportService
                     'reason' => $reason,
                     'granted_by' => $byUserId,
                 ]);
+                // Nhân viên thấy ngay trên chuông (tab Học tập), bấm vào tới khóa chứa bài
+                app(NotificationCenter::class)->attemptsGranted($quiz, $employee, $extra);
                 $granted++;
             }
         });
@@ -288,8 +291,9 @@ class QuizResultReportService
         $sent = 0;
         $reminder = app(LearningReminderService::class);
 
+        // Người vừa được nhắc cùng bài trong thời gian chờ bị bỏ qua bên trong remindRetake
         foreach ($byQuiz as $quizId => $employeeIds) {
-            $sent += $reminder->remindRetake($quizzes->get($quizId), array_unique($employeeIds), $byUserId);
+            $sent += $reminder->remindRetake($quizzes->get($quizId), array_unique($employeeIds), $byUserId)['sent'];
         }
 
         return ['sent' => $sent, 'skipped' => count($pairs) - $sent];

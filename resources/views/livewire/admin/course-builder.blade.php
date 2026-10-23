@@ -17,7 +17,7 @@
             <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
                 <div class="min-w-[240px] flex-1">
                     <label for="f-course-builder-search-0" class="admin-label">Tìm kiếm</label>
-                    <input id="f-course-builder-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                    <input id="f-course-builder-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
                            placeholder="Tìm theo tên hoặc mã khóa học...">
                 </div>
                 <div>
@@ -47,6 +47,13 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="ml-auto flex items-end gap-2">
+                    <button type="button" wire:click="applySearch" class="admin-btn">
+                        @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                        Tìm kiếm
+                    </button>
+                    <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -71,7 +78,17 @@
                                         <span class="block font-mono text-[11px] text-brand-muted">{{ $course->code }}</span>
                                     </button>
                                 </td>
-                                <td class="text-brand-muted">{{ $course->ownerDepartment?->name ?? '—' }}</td>
+                                {{-- Phòng ban được giao, gộp từ các điều kiện giao đang bật --}}
+                                @php $assignedDepartments = $course->assignedDepartmentNames(); @endphp
+                                <td class="text-brand-muted">
+                                    @if ($assignedDepartments === null)
+                                        —
+                                    @elseif ($assignedDepartments === ['*'])
+                                        <span class="tag">Tất cả</span>
+                                    @else
+                                        {{ implode(', ', $assignedDepartments) }}
+                                    @endif
+                                </td>
                                 <td><span class="tag">{{ $course->lessons_count }} bài</span></td>
                                 <td>
                                     <div class="flex flex-wrap gap-1">
@@ -320,13 +337,17 @@
                             </div>
 
                             <ul class="grid gap-1 text-xs text-brand-muted">
-                                @if ($rule->department)
-                                    <li><strong class="text-brand-ink">Phòng ban:</strong> {{ $rule->department->name }}
+                                @php $ruleDepartments = $rule->targetDepartments(); @endphp
+                                <li><strong class="text-brand-ink">Phòng ban:</strong>
+                                    @if ($ruleDepartments->isEmpty())
+                                        Mọi phòng ban
+                                    @else
+                                        {{ $ruleDepartments->pluck('name')->implode(', ') }}
                                         @if ($rule->include_sub_departments)
                                             <span class="text-[11px]">(gồm phòng con)</span>
                                         @endif
-                                    </li>
-                                @endif
+                                    @endif
+                                </li>
                                 @if ($rule->jobTitle)
                                     <li><strong class="text-brand-ink">Chức danh:</strong> {{ $rule->jobTitle->name }}</li>
                                 @endif
@@ -358,16 +379,6 @@
                        maxWidth="max-w-3xl">
             <form wire:submit="saveCourse" id="course-form" class="grid gap-4 sm:grid-cols-2">
                 <x-admin.auto-code id="c_code" label="Mã khóa học" :value="$code" />
-
-                <div>
-                    <label for="c_dept" class="admin-label">Phòng ban ban hành</label>
-                    <select id="c_dept" wire:model="owner_department_id" class="admin-input">
-                        <option value="">— Chọn —</option>
-                        @foreach ($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
 
                 <div class="sm:col-span-2">
                     <label for="c_title" class="admin-label">Tên khóa học</label>
@@ -541,19 +552,13 @@
             <form wire:submit="saveRule" id="rule-form" class="grid gap-4">
                 <p class="rounded-admin border border-brand-line bg-brand-soft p-3 text-xs text-brand-muted">
                     Nhân viên khớp <strong class="text-brand-ink">tất cả</strong> điều kiện dưới đây sẽ được giao khóa học này.
+                    Để trống mọi điều kiện = giao cho toàn bộ nhân viên.
                     Khi nhân viên đổi phòng ban hoặc chức danh, hệ thống tự giao lại theo điều kiện mới.
                 </p>
 
-                <div>
-                    <label for="r_dept" class="admin-label">Phòng ban</label>
-                    <select id="r_dept" wire:model="ruleDepartmentId" class="admin-input">
-                        <option value="">— Không ràng buộc —</option>
-                        @foreach ($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->full_path }}</option>
-                        @endforeach
-                    </select>
-                    @error('ruleDepartmentId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
+                <x-admin.multi-check id="rule_dept" label="Phòng ban" model="ruleDepartmentIds"
+                    :options="$departments->map(fn ($dept) => ['value' => $dept->id, 'label' => $dept->full_path])->all()"
+                    hint="Chọn được nhiều phòng ban. Không chọn = mọi phòng ban." />
 
                 <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium">
                     <input type="checkbox" wire:model="ruleIncludeSub"

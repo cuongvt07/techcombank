@@ -193,6 +193,16 @@ class UserScreensTest extends TestCase
 
     // ---- 4.5 Hỗ trợ ---------------------------------------------------------
 
+    public function test_chu_de_phai_thuoc_danh_sach_chuan(): void
+    {
+        Livewire::test(SupportRequestForm::class)
+            ->set('topic', 'Chủ đề tự đặt')
+            ->set('subject', 'Thử')
+            ->set('content', 'Nội dung')
+            ->call('submit')
+            ->assertHasErrors(['topic' => 'in']);
+    }
+
     public function test_gui_yeu_cau_ho_tro(): void
     {
         SupportContact::create([
@@ -202,7 +212,7 @@ class UserScreensTest extends TestCase
         ]);
 
         Livewire::test(SupportRequestForm::class)
-            ->set('topic', 'Hợp đồng & chế độ')
+            ->set('topic', 'Hồ sơ & chế độ')
             ->set('subject', 'Hỏi về phụ cấp')
             ->set('content', 'Tôi muốn hỏi về chế độ phụ cấp đi lại.')
             ->call('submit')
@@ -228,7 +238,7 @@ class UserScreensTest extends TestCase
 
         foreach (range(1, 3) as $i) {
             Livewire::test(SupportRequestForm::class)
-                ->set('topic', 'Kỹ thuật')
+                ->set('topic', 'Kỹ thuật, trình duyệt')
                 ->set('subject', 'Yêu cầu ' . $i)
                 ->set('content', 'Nội dung ' . $i)
                 ->call('submit');

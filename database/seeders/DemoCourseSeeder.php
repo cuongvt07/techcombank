@@ -190,10 +190,9 @@ class DemoCourseSeeder extends Seeder
 
         $assign = $def['assign'];
 
-        CourseAssignmentRule::create([
+        $rule = CourseAssignmentRule::create([
             'course_id' => $course->id,
             'name' => 'Gán tự động: ' . $course->title,
-            'department_id' => isset($assign['dept']) ? $departments->get($assign['dept'])?->id : null,
             'job_grade_id' => isset($assign['grade']) ? $grades->get($assign['grade'])?->id : null,
             // Khóa onboarding nhắm nhân viên đang thử việc
             'employment_status' => ($assign['new_hire'] ?? false)
@@ -204,6 +203,10 @@ class DemoCourseSeeder extends Seeder
             'due_days' => $assign['due_days'] ?? 30,
             'is_active' => true,
         ]);
+
+        // Phòng ban nằm ở bảng nối; không có phòng = giao mọi phòng ban
+        $departmentId = isset($assign['dept']) ? $departments->get($assign['dept'])?->id : null;
+        $rule->departments()->sync(array_filter([$departmentId]));
     }
 
     /**

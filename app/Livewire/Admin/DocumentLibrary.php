@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Department;
 use App\Models\Document;
@@ -29,6 +30,8 @@ use Livewire\WithPagination;
  */
 class DocumentLibrary extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination, WithFileUploads;
@@ -68,7 +71,8 @@ class DocumentLibrary extends Component
     public string $video_url = '';
     public string $change_note = '';
     public $upload = null;
-    public ?int $accessDepartmentId = null;
+    /** Phòng ban được xem tài liệu, chọn nhiều. Rỗng = toàn công ty. */
+    public array $accessDepartmentIds = [];
     /** Cấp bậc được xem tài liệu, chọn nhiều. Rỗng = mọi cấp bậc. */
     public array $accessJobGradeIds = [];
     public bool $accessCanDownload = false;
@@ -142,7 +146,8 @@ class DocumentLibrary extends Component
 
         $data = $this->validate($this->rules());
         $accessData = $this->validate([
-            'accessDepartmentId' => ['nullable', Rule::exists('departments', 'id')],
+            'accessDepartmentIds' => ['array'],
+            'accessDepartmentIds.*' => ['integer', 'distinct', Rule::exists('departments', 'id')],
             'accessJobGradeIds' => ['array'],
             'accessJobGradeIds.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
             'accessCanDownload' => ['boolean'],
@@ -235,7 +240,7 @@ class DocumentLibrary extends Component
         $rule = $this->primaryRule($document);
 
         $this->accessRuleId = $rule?->id;
-        $this->accessDepartmentId = $rule?->department_id;
+        $this->accessDepartmentIds = $rule ? $rule->departmentIds() : [];
         $this->accessJobGradeIds = $rule ? $rule->gradeIds() : [];
         $this->accessCanDownload = (bool) $rule?->can_download;
         $this->accessCanPrint = (bool) $rule?->can_print;
@@ -244,8 +249,8 @@ class DocumentLibrary extends Component
     private function savePrimaryRule(Document $document, array $accessData): void
     {
         $values = [
-            'department_id' => $accessData['accessDepartmentId'],
-            // Cấp bậc nằm ở bảng nối; cột cũ để trống, tránh lệch với danh sách vừa chọn
+            // Phòng ban, cấp bậc nằm ở bảng nối; cột cũ để trống, tránh lệch với danh sách vừa chọn
+            'department_id' => null,
             'job_grade_id' => null,
             'can_view' => true,
             'can_download' => $accessData['accessCanDownload'],
@@ -268,6 +273,7 @@ class DocumentLibrary extends Component
             ]);
         }
 
+        $rule->departments()->sync(array_values(array_unique(array_map('intval', $accessData['accessDepartmentIds'] ?? []))));
         $rule->jobGrades()->sync(array_values(array_unique(array_map('intval', $accessData['accessJobGradeIds'] ?? []))));
     }
 
@@ -456,7 +462,7 @@ class DocumentLibrary extends Component
         $this->reset([
             'editingId', 'title', 'description', 'document_category_id',
             'owner_department_id', 'duration_seconds', 'video_url', 'change_note', 'upload',
-            'accessDepartmentId', 'accessJobGradeIds', 'accessRuleId',
+            'accessDepartmentIds', 'accessJobGradeIds', 'accessRuleId',
         ]);
         $this->createStep = 1;
         $this->kind = Document::KIND_FILE;

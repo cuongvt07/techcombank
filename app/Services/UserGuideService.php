@@ -299,17 +299,19 @@ class UserGuideService
                         . 'site Học tập (/hoc-tap). Nhân viên thường vào site quản trị sẽ được chuyển '
                         . 'về site học tập.',
                     'Có hai vai trò: Quản trị viên (toàn quyền) và Nhân viên (chỉ học tập).',
-                    'Lưu ý quan trọng: Quản trị viên có toàn quyền, bao gồm xem hợp đồng và lương của '
-                        . 'mọi nhân viên. Chỉ cấp vai trò này cho người được phép tiếp cận dữ liệu nhân sự.',
+                    'Lưu ý quan trọng: Quản trị viên có toàn quyền, bao gồm xem hồ sơ của mọi nhân viên. '
+                        . 'Chỉ cấp vai trò này cho người được phép tiếp cận dữ liệu nhân sự.',
                 ],
             ],
             [
                 'title' => '2. Màn hình Tổng quan',
                 'body' => [
-                    'Bốn thẻ đầu là việc cần xử lý: khóa học quá hạn, hợp đồng sắp hết hạn, cảnh báo '
-                        . 'bảo mật, phiếu hỗ trợ chờ. Bấm vào để mở màn hình tương ứng.',
-                    'Chọn khoảng thời gian 7/30/90 ngày để xem số liệu theo kỳ.',
-                    'Con số màu vàng là việc chưa hoàn thành, cần chú ý.',
+                    'Thanh lọc trên cùng: kỳ báo cáo, so sánh với kỳ trước, đơn vị, chức danh, loại khóa.',
+                    'Năm thẻ chỉ số: hoàn thành đúng hạn, học viên hoạt động, lượt ghi danh quá hạn, đạt kiểm tra '
+                        . 'lần đầu, tổng giờ học — kèm mức tăng giảm so với kỳ so sánh.',
+                    'Hai dòng việc cần xử lý: cảnh báo bảo mật chưa đóng, yêu cầu hỗ trợ quá SLA. Bấm "Xử lý".',
+                    'Bảng "Nhân viên cần nhắc" gửi nhắc học từng người hoặc hàng loạt. Menu "Báo cáo chi tiết" '
+                        . 'mở các trang báo cáo tiến độ, kết quả kiểm tra, tài liệu, bảo mật, hỗ trợ.',
                     'Mục "Khóa học cần can thiệp" liệt kê khóa có tiến độ thấp nhất — dấu hiệu nội dung '
                         . 'khó hiểu hoặc thời hạn quá gấp.',
                 ],
@@ -317,24 +319,24 @@ class UserGuideService
             [
                 'title' => '3. Quản lý tài khoản và nhân sự',
                 'body' => [
-                    'Tài khoản: tạo, sửa, khóa tài khoản đăng nhập. Tài khoản mới đánh dấu "nhân viên mới" '
-                        . 'sẽ tự được gán lộ trình onboarding.',
+                    'Thứ tự: tạo Hồ sơ nhân sự trước (mã nhân viên tự sinh), rồi tạo Tài khoản bằng cách chọn '
+                        . 'mã nhân viên — họ tên, phòng ban, chức danh lấy từ hồ sơ, chỉ cần nhập email đăng nhập '
+                        . 'và mật khẩu.',
+                    'Có tài khoản là nhân viên được giao ngay các khóa theo vị trí và lộ trình onboarding.',
                     'Hồ sơ nhân sự: thông tin nhân viên, phòng ban, chức danh, cấp bậc, quản lý trực tiếp. '
-                        . 'Nhập khẩu hàng loạt từ file Excel được.',
+                        . 'Trường có dấu * là bắt buộc.',
                     'Chuyển phòng ban hoặc đổi chức danh sẽ ghi lại lịch sử điều chuyển, xem được ở trang '
                         . 'chi tiết nhân viên.',
-                    'Hợp đồng: quản lý loại hợp đồng, thời hạn hiệu lực, file scan. Hệ thống cảnh báo hợp '
-                        . 'đồng sắp hết hạn theo số ngày cấu hình được.',
                 ],
             ],
             [
                 'title' => '4. Kho tài nguyên',
                 'body' => [
-                    'Mọi file trong hệ thống đều nằm ở đây: tài liệu đào tạo, hợp đồng, ảnh đại diện, biểu mẫu.',
+                    'Mọi file trong hệ thống đều nằm ở đây: tài liệu đào tạo, ảnh đại diện, biểu mẫu.',
                     'Tạo thư mục, kéo thả file từ máy để tải lên. Giới hạn 2MB mỗi file.',
                     'Bộ thư mục hệ thống được tạo tự động và không xóa được, để các phân hệ khác luôn có '
                         . 'chỗ lưu file.',
-                    'File xóa vào thùng rác, khôi phục được. File đang được tài liệu hoặc hợp đồng tham chiếu '
+                    'File xóa vào thùng rác, khôi phục được. File đang được tài liệu tham chiếu '
                         . 'thì không xóa vĩnh viễn được.',
                 ],
             ],
@@ -411,8 +413,8 @@ class UserGuideService
             [
                 'title' => '11. Cấu hình chung',
                 'body' => [
-                    'Danh mục dùng chung: phòng ban, chức danh, cấp bậc, loại hợp đồng, danh mục tài liệu.',
-                    'Tham số hệ thống: tên hiển thị, số ngày cảnh báo hợp đồng, số thiết bị đăng nhập tối đa, '
+                    'Danh mục dùng chung: phòng ban, chức danh, cấp bậc, danh mục tài liệu.',
+                    'Tham số hệ thống: tên hiển thị, số thiết bị đăng nhập tối đa, '
                         . 'bật/tắt watermark toàn hệ thống.',
                     'Nội dung màn Chào mừng nhân viên mới: giới thiệu công ty, giá trị cốt lõi, quy trình cần biết. '
                         . 'Để trống mục nào thì mục đó không hiện.',

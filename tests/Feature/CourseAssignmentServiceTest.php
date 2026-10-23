@@ -172,6 +172,101 @@ class CourseAssignmentServiceTest extends TestCase
         $this->assertSame(3, $this->service->applyRule($rule));
     }
 
+    // ---- Điều kiện nhiều phòng ban (bảng nối course_assignment_rule_department) ----
+
+    public function test_rule_nhieu_phong_ban_giao_dung_nguoi(): void
+    {
+        $a = Department::factory()->create();
+        $b = Department::factory()->create();
+        $c = Department::factory()->create();
+        $inA = Employee::factory()->count(2)->create(['department_id' => $a->id]);
+        $inB = Employee::factory()->count(3)->create(['department_id' => $b->id]);
+        $inC = Employee::factory()->create(['department_id' => $c->id]);
+
+        $course = Course::factory()->create();
+        $rule = CourseAssignmentRule::create(['course_id' => $course->id]);
+        $rule->departments()->sync([$a->id, $b->id]);
+
+        $this->assertSame(5, $this->service->applyRule($rule));
+        $this->assertEqualsCanonicalizing(
+            $inA->merge($inB)->pluck('id')->all(),
+            Enrollment::where('course_id', $course->id)->pluck('employee_id')->all()
+        );
+        $this->assertFalse($rule->matches($inC));
+
+        // Nhân viên mới vào phòng B cũng được giao qua syncForEmployee
+        $newcomer = Employee::factory()->create(['department_id' => $b->id]);
+        $this->assertSame(1, $this->service->syncForEmployee($newcomer));
+    }
+
+    public function test_rule_khong_chon_phong_ban_giao_moi_nhan_vien(): void
+    {
+        Employee::factory()->count(2)->create(['department_id' => Department::factory()->create()->id]);
+        Employee::factory()->count(3)->create(['department_id' => Department::factory()->create()->id]);
+        Employee::factory()->resigned()->create();
+
+        $course = Course::factory()->create();
+        $rule = CourseAssignmentRule::create(['course_id' => $course->id]);
+
+        $this->assertNull($rule->allowedDepartmentIds());
+        $this->assertSame(Employee::active()->count(), $this->service->applyRule($rule));
+    }
+
+    public function test_phong_con_khop_khi_bat_gom_phong_con(): void
+    {
+        $parent = Department::factory()->create();
+        $child = Department::factory()->create(['parent_id' => $parent->id]);
+        $grandChild = Department::factory()->create(['parent_id' => $child->id]);
+        $employee = Employee::factory()->create(['department_id' => $grandChild->id]);
+
+        $withSub = CourseAssignmentRule::create([
+            'course_id' => Course::factory()->create()->id,
+            'include_sub_departments' => true,
+        ]);
+        $withSub->departments()->sync([$parent->id]);
+
+        $withoutSub = CourseAssignmentRule::create([
+            'course_id' => Course::factory()->create()->id,
+            'include_sub_departments' => false,
+        ]);
+        $withoutSub->departments()->sync([$parent->id]);
+
+        $this->assertTrue($withSub->fresh()->matches($employee));
+        $this->assertFalse($withoutSub->fresh()->matches($employee));
+        $this->assertSame(1, $this->service->syncForEmployee($employee));
+    }
+
+    public function test_rule_chi_nham_phong_ban_da_xoa_khong_thanh_giao_moi_nguoi(): void
+    {
+        $closed = Department::factory()->create();
+        $rule = CourseAssignmentRule::create(['course_id' => Course::factory()->create()->id]);
+        $rule->departments()->sync([$closed->id]);
+        $closed->delete();
+
+        $employee = Employee::factory()->create();
+
+        $this->assertSame([$closed->id], $rule->fresh()->allowedDepartmentIds());
+        $this->assertFalse($rule->fresh()->matches($employee));
+    }
+
+    public function test_cot_department_id_cu_van_khop_va_gop_voi_bang_noi(): void
+    {
+        // Dữ liệu trước khi chuyển sang bảng nối vẫn còn cột cũ
+        $legacy = Department::factory()->create();
+        $added = Department::factory()->create();
+        $rule = CourseAssignmentRule::create([
+            'course_id' => Course::factory()->create()->id,
+            'department_id' => $legacy->id,
+        ]);
+        $rule->departments()->sync([$added->id]);
+        $rule = $rule->fresh();
+
+        $this->assertTrue($rule->matches(Employee::factory()->create(['department_id' => $legacy->id])));
+        $this->assertTrue($rule->matches(Employee::factory()->create(['department_id' => $added->id])));
+        $this->assertFalse($rule->matches(Employee::factory()->create()));
+        $this->assertEqualsCanonicalizing([$legacy->id, $added->id], $rule->targetDepartments()->pluck('id')->all());
+    }
+
     public function test_go_gan_chi_danh_dau_huy_va_giu_lai_lich_su(): void
     {
         $course = Course::factory()->create();

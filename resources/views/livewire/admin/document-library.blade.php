@@ -15,7 +15,7 @@
         <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[220px] flex-1">
                 <label for="f-document-library-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-document-library-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <input id="f-document-library-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
                        placeholder="Tìm theo tiêu đề hoặc mô tả...">
             </div>
 
@@ -54,6 +54,13 @@
                     <option value="published">Đã xuất bản</option>
                     <option value="archived">Lưu trữ</option>
                 </select>
+            </div>
+            <div class="ml-auto flex items-end gap-2">
+                <button type="button" wire:click="applySearch" class="admin-btn">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                    Tìm kiếm
+                </button>
+                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
             </div>
         </div>
 
@@ -319,11 +326,10 @@
                             </span>
                         @endif
                     </div>
-                    <div>
-                        <x-admin.searchable-select id="doc_access_department" label="Phòng ban được xem" model="accessDepartmentId"
-                            :options="$departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all()"
-                            :selected="$accessDepartmentId" emptyLabel="Toàn công ty" />
-                    </div>
+                    <x-admin.multi-check id="doc_access_department" label="Phòng ban được xem" model="accessDepartmentIds"
+                        :options="$departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all()"
+                        class="sm:col-span-2"
+                        hint="Chọn được nhiều phòng ban (gồm cả phòng con). Không chọn = toàn công ty." />
                     <x-admin.multi-check id="doc_access_grade" label="Cấp bậc được xem" model="accessJobGradeIds"
                         :options="$jobGrades->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
                         class="sm:col-span-2"

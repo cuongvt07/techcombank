@@ -55,9 +55,9 @@ class PermissionMatrix extends Component
         return view('livewire.admin.permission-matrix', [
             'roles' => $this->editableRoles(),
             'modules' => PermissionCatalog::MODULES,
-            'actions' => PermissionCatalog::ACTIONS,
+            'columns' => PermissionCatalog::COLUMNS,
             'canEdit' => auth()->user()->can('roles.update'),
-            'totalPermissions' => count(PermissionCatalog::all()),
+            'totalPermissions' => count(PermissionCatalog::viewPermissions()),
         ])->layout('layouts.admin', ['title' => 'Phân quyền']);
     }
 
@@ -69,26 +69,60 @@ class PermissionMatrix extends Component
         $this->loadGranted();
     }
 
-    public function toggle(string $module, string $action): void
+    /**
+     * Bật/tắt một ô. $column = 'view' (Xem) hoặc 'manage' (Thao tác = mọi Thêm/Sửa/Xóa của màn).
+     */
+    public function toggle(string $module, string $column): void
     {
         $this->requirePermission('roles.update');
-        abort_unless(in_array($action, PermissionCatalog::actionsOf($module), true), 404);
 
-        $name = PermissionCatalog::name($module, $action);
-        $on = ! ($this->granted[$name] ?? false);
-        $this->granted[$name] = $on;
+        $view = PermissionCatalog::name($module, PermissionCatalog::VIEW);
 
-        if ($action === PermissionCatalog::VIEW && ! $on) {
-            // Không xem được màn hình thì cũng không thao tác được gì trên đó
-            foreach (PermissionCatalog::actionsOf($module) as $other) {
-                $this->granted[PermissionCatalog::name($module, $other)] = false;
+        if ($column === PermissionCatalog::VIEW) {
+            abort_unless(in_array(PermissionCatalog::VIEW, PermissionCatalog::actionsOf($module), true), 404);
+            $on = ! ($this->granted[$view] ?? false);
+            $this->granted[$view] = $on;
+
+            if (! $on) {
+                // Không xem được màn hình thì cũng không thao tác được gì trên đó
+                $this->setManage($module, false);
             }
-        } elseif ($action !== PermissionCatalog::VIEW && $on) {
-            // Thêm / Sửa / Xóa đều cần vào được màn hình trước
-            $this->granted[PermissionCatalog::name($module, PermissionCatalog::VIEW)] = true;
+        } elseif ($column === PermissionCatalog::MANAGE) {
+            abort_if(PermissionCatalog::manageActions($module) === [], 404);
+            $on = ! $this->hasManage($module);
+            $this->setManage($module, $on);
+
+            if ($on) {
+                // Thao tác cần vào được màn hình trước
+                $this->granted[$view] = true;
+            }
+        } else {
+            abort(404);
         }
 
         $this->dirty = true;
+    }
+
+    /** Màn có đủ mọi quyền Thêm/Sửa/Xóa không (ô "Thao tác" được tick). */
+    public function hasManage(string $module): bool
+    {
+        $actions = PermissionCatalog::manageActions($module);
+
+        return $actions !== [] && collect($actions)->every(fn ($a) => $this->granted[PermissionCatalog::name($module, $a)] ?? false);
+    }
+
+    /** Có một phần quyền thao tác (dữ liệu cũ cấp lẻ từng quyền) — hiện ô dạng "một phần". */
+    public function hasPartialManage(string $module): bool
+    {
+        return ! $this->hasManage($module)
+            && collect(PermissionCatalog::manageActions($module))->contains(fn ($a) => $this->granted[PermissionCatalog::name($module, $a)] ?? false);
+    }
+
+    private function setManage(string $module, bool $on): void
+    {
+        foreach (PermissionCatalog::manageActions($module) as $action) {
+            $this->granted[PermissionCatalog::name($module, $action)] = $on;
+        }
     }
 
     /** Tick / bỏ tick mọi thao tác của một màn hình. */
@@ -108,30 +142,38 @@ class PermissionMatrix extends Component
         $this->dirty = true;
     }
 
-    /** Số quyền màn hình vai trò đang có (đã lưu) — hiện trên tab vai trò. */
+    /** Số màn vai trò được xem (đã lưu) — hiện cạnh tên vai trò. */
     public function grantedCount(Role $role): int
     {
-        return $role->permissions->pluck('name')->intersect(PermissionCatalog::all())->count();
+        return $role->permissions->pluck('name')->intersect(PermissionCatalog::viewPermissions())->count();
     }
 
     /** Tick / bỏ tick cả cột của một thao tác. */
-    public function toggleColumn(string $action): void
+    public function toggleColumn(string $column): void
     {
         $this->requirePermission('roles.update');
+        abort_unless(array_key_exists($column, PermissionCatalog::COLUMNS), 404);
 
-        $names = collect(PermissionCatalog::all())->filter(fn ($p) => str_ends_with($p, '.' . $action));
-        $on = ! $names->every(fn ($p) => $this->granted[$p] ?? false);
+        $modules = collect(PermissionCatalog::MODULES)->flatMap(fn ($group) => array_keys($group));
 
-        foreach ($names as $name) {
-            $this->granted[$name] = $on;
+        if ($column === PermissionCatalog::VIEW) {
+            $on = ! $modules->every(fn ($m) => $this->granted[PermissionCatalog::name($m, PermissionCatalog::VIEW)] ?? false);
 
-            $module = strstr($name, '.', true);
-            if ($action === PermissionCatalog::VIEW && ! $on) {
-                foreach (PermissionCatalog::actionsOf($module) as $other) {
-                    $this->granted[PermissionCatalog::name($module, $other)] = false;
+            foreach ($modules as $m) {
+                $this->granted[PermissionCatalog::name($m, PermissionCatalog::VIEW)] = $on;
+                if (! $on) {
+                    $this->setManage($m, false);
                 }
-            } elseif ($on) {
-                $this->granted[PermissionCatalog::name($module, PermissionCatalog::VIEW)] = true;
+            }
+        } else {
+            $withManage = $modules->filter(fn ($m) => PermissionCatalog::manageActions($m) !== []);
+            $on = ! $withManage->every(fn ($m) => $this->hasManage($m));
+
+            foreach ($withManage as $m) {
+                $this->setManage($m, $on);
+                if ($on) {
+                    $this->granted[PermissionCatalog::name($m, PermissionCatalog::VIEW)] = true;
+                }
             }
         }
 

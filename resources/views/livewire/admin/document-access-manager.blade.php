@@ -35,7 +35,7 @@
         <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
                 <label for="f-document-access-manager-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-document-access-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                <input id="f-document-access-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
                        placeholder="Tìm theo tên tài liệu hoặc danh mục...">
             </div>
             <div>
@@ -46,6 +46,13 @@
                     <option value="category">Áp cho danh mục</option>
                     <option value="deny">Chỉ quy tắc chặn</option>
                 </select>
+            </div>
+            <div class="ml-auto flex items-end gap-2">
+                <button type="button" wire:click="applySearch" class="admin-btn">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                    Tìm kiếm
+                </button>
+                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
             </div>
         </div>
 
@@ -78,24 +85,25 @@
                             <td>
                                 @php
                                     $conds = [];
-                                    if ($rule->department) {
-                                        $conds[] = 'Phòng: ' . $rule->department->name
-                                            . ($rule->include_sub_departments ? ' (+phòng con)' : '');
-                                    }
+                                    // Luôn nêu phạm vi phòng ban: tên các phòng đã chọn hoặc "Toàn công ty"
+                                    $hasDepartments = $rule->departments->isNotEmpty() || $rule->department_id;
+                                    $conds[] = 'Phòng: ' . $rule->departmentLabel()
+                                        . ($hasDepartments && $rule->include_sub_departments ? ' (+phòng con)' : '');
+                                    $onlyCompanyWide = ! $hasDepartments;
                                     if ($rule->jobTitle) $conds[] = 'Chức danh: ' . $rule->jobTitle->name;
                                     if ($rule->jobGrades->isNotEmpty() || $rule->jobGrade) $conds[] = 'Cấp bậc: ' . $rule->jobGrades->pluck('name')->push($rule->jobGrade?->name)->filter()->unique()->implode(', ');
                                     if ($rule->min_grade_level !== null) $conds[] = 'Từ cấp ' . $rule->min_grade_level . ' trở lên';
                                     if ($rule->employment_status) $conds[] = 'Trạng thái: ' . $rule->employment_status;
                                 @endphp
 
-                                @if ($conds)
+                                @if ($onlyCompanyWide && count($conds) === 1)
+                                    <span class="tag tag-amber">Toàn công ty · mọi nhân viên</span>
+                                @else
                                     <ul class="grid gap-0.5 text-xs text-brand-muted">
                                         @foreach ($conds as $cond)
                                             <li>{{ $cond }}</li>
                                         @endforeach
                                     </ul>
-                                @else
-                                    <span class="tag tag-amber">Mọi nhân viên</span>
                                 @endif
                             </td>
 
@@ -195,10 +203,9 @@
                     </p>
 
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="sm:col-span-2">
-                            <x-admin.searchable-select id="a_dept" label="Phòng ban" model="departmentId"
-                                                        :options="$departmentOptions" :selected="$departmentId" />
-                        </div>
+                        <x-admin.multi-check id="a_dept" label="Phòng ban" model="departmentIds"
+                                             :options="$departmentOptions" class="sm:col-span-2"
+                                             hint="Chọn được nhiều phòng ban. Không chọn = toàn công ty." />
 
                         <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium sm:col-span-2">
                             <input type="checkbox" wire:model="includeSubDepartments"

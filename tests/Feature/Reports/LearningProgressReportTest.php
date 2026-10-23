@@ -282,6 +282,20 @@ class LearningProgressReportTest extends TestCase
         $this->assertNull($this->e['future']->fresh()->last_reminded_at);
     }
 
+    public function test_gui_nhac_lai_bi_chan_trong_2_gio(): void
+    {
+        $only = [(string) $this->e['overdue']->id];
+
+        Livewire::test(LearningProgressReport::class)->set('selected', $only)->call('sendReminders');
+        Livewire::test(LearningProgressReport::class)->set('selected', $only)->call('sendReminders')
+            ->assertSet('notice', fn ($n) => str_contains($n, 'vừa được nhắc trong 2 giờ'));
+        $this->assertSame(1, Announcement::whereNotNull('employee_id')->count());
+
+        $this->travel(121)->minutes();
+        Livewire::test(LearningProgressReport::class)->set('selected', $only)->call('sendReminders');
+        $this->assertSame(2, Announcement::whereNotNull('employee_id')->count());
+    }
+
     public function test_gui_nhac_chi_cac_dong_dang_chon(): void
     {
         Livewire::test(LearningProgressReport::class)

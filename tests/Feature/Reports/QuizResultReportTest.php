@@ -174,10 +174,20 @@ class QuizResultReportTest extends TestCase
 
         Livewire::test(QuizResultReport::class)
             ->set('selected', [$this->key('out'), $this->key('retry')])
-            ->call('remindSelected');
+            ->call('remindSelected')
+            // Vừa nhắc cùng bài → trong thời gian chờ 2 giờ, bỏ qua
+            ->assertSee('Đã nhắc')
+            ->assertSee('được nhắc trong 2 giờ');
 
-        $this->assertSame(2, Announcement::where('employee_id', $this->emp['retry']->id)->count());
+        $this->assertSame(1, Announcement::where('employee_id', $this->emp['retry']->id)->count());
         $this->assertSame(0, Announcement::where('employee_id', $this->emp['out']->id)->count());
+
+        // Qua 2 giờ thì nhắc lại được
+        $this->travel(121)->minutes();
+        Livewire::test(QuizResultReport::class)
+            ->set('selected', [$this->key('retry')])
+            ->call('remindSelected');
+        $this->assertSame(2, Announcement::where('employee_id', $this->emp['retry']->id)->count());
     }
 
     public function test_thieu_quyen_bi_chan(): void

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\User;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Models\Document;
 use App\Models\DocumentAccessLog;
 use App\Models\DocumentCategory;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class DocumentBrowser extends Component
 {
+    use HasSearchFilters;
+
     use WithPagination;
 
     #[Url(as: 'q', keep: false)]

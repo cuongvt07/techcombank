@@ -120,7 +120,7 @@
                     <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
                         <div class="min-w-[220px] flex-1">
                             <label for="f-file-manager-search-0" class="admin-label">Tìm kiếm</label>
-                            <input id="f-file-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
+                            <input id="f-file-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
                                    placeholder="Tìm file trong toàn bộ kho...">
                         </div>
 
@@ -136,6 +136,13 @@
                                 <option value="video">Video</option>
                                 <option value="archive">File nén</option>
                             </select>
+                        </div>
+                        <div class="ml-auto flex items-end gap-2">
+                            <button type="button" wire:click="applySearch" class="admin-btn">
+                                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                                Tìm kiếm
+                            </button>
+                            <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
                         </div>
                     </div>
 

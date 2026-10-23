@@ -59,8 +59,8 @@
                 <button type="button" wire:click="sendReminders" class="admin-btn-secondary"
                         @disabled($remindCount === 0)
                         data-confirm="{{ $selected !== []
-                            ? 'Gửi nhắc cho ' . $num($remindCount) . ' lượt ghi danh đang chọn? Lượt đã hoàn thành hoặc vừa được nhắc trong 12 giờ sẽ được bỏ qua.'
-                            : 'Chưa chọn dòng nào — gửi nhắc cho toàn bộ ' . $num($remindCount) . ' lượt chưa hoàn thành khớp bộ lọc? Lượt vừa được nhắc trong 12 giờ sẽ được bỏ qua.' }}"
+                            ? 'Gửi nhắc cho ' . $num($remindCount) . ' lượt ghi danh đang chọn? Lượt đã hoàn thành hoặc vừa được nhắc trong ' . \App\Services\LearningReminderService::COOLDOWN_HOURS . ' giờ sẽ được bỏ qua.'
+                            : 'Chưa chọn dòng nào — gửi nhắc cho toàn bộ ' . $num($remindCount) . ' lượt chưa hoàn thành khớp bộ lọc? Lượt vừa được nhắc trong ' . \App\Services\LearningReminderService::COOLDOWN_HOURS . ' giờ sẽ được bỏ qua.' }}"
                         data-confirm-title="Gửi nhắc hàng loạt" data-confirm-ok="Gửi nhắc">
                     Gửi nhắc hàng loạt
                     @if ($selected !== [])
@@ -254,9 +254,13 @@
                     @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
                 </span>
                 <label for="lp-search" class="sr-only">Lọc trong bảng</label>
-                <input id="lp-search" type="search" wire:model.live.debounce.400ms="search" class="admin-input pl-10"
+                <input id="lp-search" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input pl-10"
                        placeholder="Lọc theo mã NV, họ tên, đơn vị, khóa học…">
             </div>
+            <button type="button" wire:click="applySearch" class="admin-btn">
+                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                Tìm kiếm
+            </button>
             <span class="flex-1 text-xs text-brand-muted">{{ $num($rows->total()) }} / {{ $num($kpis['total']) }} dòng khớp bộ lọc</span>
 
             <div class="flex flex-wrap items-center gap-3">
@@ -394,7 +398,18 @@
                                             @endif
                                             @break
                                         @case('reminded')
-                                            @if ($row->last_reminded_at)
+                                            @php
+                                                $nextRemind = $row->last_reminded_at
+                                                    ? \App\Services\LearningReminderService::nextRemindAt($row->last_reminded_at)
+                                                    : null;
+                                            @endphp
+                                            @if ($nextRemind && $nextRemind->isFuture())
+                                                {{-- Trong thời gian chờ: gửi nhắc hàng loạt sẽ bỏ qua dòng này --}}
+                                                <span class="whitespace-nowrap text-brand-muted" title="Mỗi lượt chỉ nhắc lại sau {{ \App\Services\LearningReminderService::COOLDOWN_HOURS }} giờ">
+                                                    Đã nhắc {{ ReportPeriod::local($row->last_reminded_at)->format('H:i') }}
+                                                    · nhắc lại sau {{ ReportPeriod::local($nextRemind)->format('H:i') }}
+                                                </span>
+                                            @elseif ($row->last_reminded_at)
                                                 {{ ReportPeriod::local($row->last_reminded_at)->format('d/m/Y H:i') }}
                                             @else
                                                 <span class="text-brand-muted">Chưa nhắc</span>

@@ -16,7 +16,7 @@ use Livewire\Component;
  * Trang chi tiết một nhân viên (kiểu hồ sơ bản ghi của CRM).
  *
  * Gom mọi thứ liên quan đến một người vào một chỗ: hồ sơ, khoá học được giao,
- * kết quả kiểm tra, hợp đồng, dòng thời gian hoạt động — thay vì bắt người dùng
+ * kết quả kiểm tra, dòng thời gian hoạt động — thay vì bắt người dùng
  * mở năm màn hình rồi tự ghép lại.
  */
 class EmployeeDetail extends Component
@@ -35,8 +35,6 @@ class EmployeeDetail extends Component
 
     public function mount(Employee $employee): void
     {
-        // Tab hợp đồng hiện đúng trạng thái theo ngày hiện tại
-        \App\Models\Contract::syncStatuses();
 
         $this->employee = $employee->load([
             'department', 'jobTitle', 'jobGrade', 'manager', 'user',
@@ -49,7 +47,6 @@ class EmployeeDetail extends Component
             'stats' => $this->stats(),
             'enrollments' => $this->enrollments(),
             'quizAttempts' => $this->quizAttempts(),
-            'contracts' => $this->contracts(),
             'certificates' => $this->certificates(),
             'timeline' => app(EmployeeTimelineService::class)->build($this->employee),
             'lessonProgress' => $this->lessonProgress(),
@@ -60,7 +57,7 @@ class EmployeeDetail extends Component
 
     public function setTab(string $tab): void
     {
-        if (in_array($tab, ['overview', 'courses', 'lessons', 'quizzes', 'contracts', 'activity'], true)) {
+        if (in_array($tab, ['overview', 'courses', 'lessons', 'quizzes', 'activity'], true)) {
             $this->tab = $tab;
         }
     }
@@ -154,13 +151,6 @@ class EmployeeDetail extends Component
             ->get();
     }
 
-    private function contracts()
-    {
-        return $this->employee->contracts()
-            ->with('contractType')
-            ->orderByDesc('effective_from')
-            ->get();
-    }
 
     private function certificates()
     {

@@ -180,6 +180,8 @@ class ReportFoundationTest extends TestCase
         $this->assertStringContainsString('An toàn thông tin', $notice->title);
         $this->assertStringContainsString('quá hạn', $notice->content);
         $this->assertNotNull($notice->published_at);
+        // Gắn khóa để chuông thông báo dẫn thẳng tới khóa đó
+        $this->assertSame($course->id, $notice->course_id);
         $this->assertNotNull($enrollment->fresh()->last_reminded_at);
 
         // Nhắc lại ngay → bỏ qua (chống spam)

@@ -357,7 +357,9 @@ class DashboardMetricsTest extends TestCase
             ->assertSee('Gửi nhắc')
             ->call('remind', $e->id)
             ->assertSet('notice', 'Đã gửi nhắc 1 lượt.')
-            ->assertSee('Đã nhắc 12:00');
+            ->assertSee('Đã nhắc 12:00')
+            // Thời gian chờ cố định 2 giờ
+            ->assertSee('nhắc lại sau 14:00');
 
         $this->assertNotNull($e->fresh()->last_reminded_at);
         $this->assertSame(1, Announcement::where('employee_id', $e->employee_id)->count());
@@ -377,6 +379,15 @@ class DashboardMetricsTest extends TestCase
 
         $this->assertSame(1, Announcement::count());
         $this->assertNull($c->fresh()->last_reminded_at);
+
+        // Qua 2 giờ thì nhắc lại được
+        $this->travel(2)->hours();
+        $this->travel(1)->minutes();
+        Livewire::test(Dashboard::class)
+            ->set('selected', [(string) $b->id])
+            ->call('remindSelected')
+            ->assertSet('notice', fn ($n) => str_starts_with($n, 'Đã gửi nhắc 1 lượt'));
+        $this->assertSame(2, Announcement::count());
     }
 
     public function test_chon_ca_trang(): void

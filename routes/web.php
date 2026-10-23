@@ -6,7 +6,6 @@ use App\Http\Controllers\UserGuideController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\AccountManager;
 use App\Livewire\Admin\AnnouncementManager;
-use App\Livewire\Admin\ContractManager;
 use App\Livewire\Admin\CourseBuilder;
 use App\Livewire\Admin\Dashboard as AdminDashboard;
 use App\Livewire\Admin\DocumentAccessManager;
@@ -81,8 +80,6 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
             ->middleware('can:employees.view')->name('employees');
         Route::get('/nhan-su/{employee}', EmployeeDetail::class)
             ->middleware('can:employees.view')->name('employees.show');
-        Route::get('/hop-dong', ContractManager::class)
-            ->middleware('can:contracts.view')->name('contracts');
         Route::get('/phan-quyen', PermissionMatrix::class)
             ->middleware('can:roles.view')->name('roles');
         Route::get('/cau-hinh', SettingsManager::class)

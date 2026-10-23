@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Department;
+use App\Models\CourseAssignmentRule;
 use App\Models\Document;
 use App\Models\Employee;
 use App\Models\SecurityAlert;
@@ -683,14 +683,12 @@ class DemoReportActivitySeeder extends Seeder
     {
         $rules = [];
 
-        foreach (DB::table('course_assignment_rules')->where('is_active', true)->orderBy('id')->get() as $rule) {
-            $departments = null;
-            if ($rule->department_id) {
-                $dept = Department::find($rule->department_id);
-                $departments = $rule->include_sub_departments && $dept
-                    ? array_merge([$dept->id], $dept->descendantIds())
-                    : [$rule->department_id];
-            }
+        // Phòng ban của điều kiện ở bảng nối (nhiều phòng); cùng cách tính với
+        // CourseAssignmentRule::allowedDepartmentIds() — NULL = mọi phòng ban.
+        $rows = CourseAssignmentRule::query()->active()->with(['departments', 'department'])->orderBy('id')->get();
+
+        foreach ($rows as $rule) {
+            $departments = $rule->allowedDepartmentIds();
 
             $rules[$rule->course_id][] = (object) [
                 'id' => $rule->id,
@@ -1062,7 +1060,7 @@ class DemoReportActivitySeeder extends Seeder
                 ],
                 'resolution' => 'Đã kiểm tra và cập nhật nội dung bài giảng, thông báo lại cho nhân viên.',
             ],
-            'Hợp đồng & hồ sơ' => [
+            'Hồ sơ & chế độ' => [
                 'weight' => 14, 'speed' => 1.1, 'on_time' => 0.93,
                 'samples' => [
                     ['Hỏi về thời hạn hợp đồng', 'Tôi muốn biết hợp đồng của mình còn hạn đến khi nào.'],
@@ -1148,7 +1146,7 @@ class DemoReportActivitySeeder extends Seeder
                     default => SupportRequest::STATUS_IN_PROGRESS,
                 };
 
-                $assignee = $topic === 'Hợp đồng & hồ sơ' ? 'hr@techcombank.local'
+                $assignee = $topic === 'Hồ sơ & chế độ' ? 'hr@techcombank.local'
                     : ($this->chance(0.7) ? 'admin@techcombank.local' : 'hr@techcombank.local');
 
                 $tickets[] = [

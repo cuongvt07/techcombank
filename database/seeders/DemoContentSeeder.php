@@ -99,23 +99,25 @@ class DemoContentSeeder extends Seeder
             return;
         }
 
-        foreach ((array) $def['restrict_to'] as $deptCode) {
-            $dept = $departments->get($deptCode);
+        // Một quy tắc cho tất cả phòng ban được mở (phòng ban lưu ở bảng nối)
+        $departmentIds = collect((array) $def['restrict_to'])
+            ->map(fn ($deptCode) => $departments->get($deptCode)?->id)
+            ->filter()
+            ->values()
+            ->all();
 
-            if (! $dept) {
-                continue;
-            }
-
-            DocumentAccessRule::create([
-                'document_id' => $document->id,
-                'department_id' => $dept->id,
-                'effect' => DocumentAccessRule::EFFECT_ALLOW,
-                'can_view' => true,
-                'can_download' => $def['allow_download'],
-                'can_print' => false,
-                'is_active' => true,
-            ]);
+        if ($departmentIds === []) {
+            return;
         }
+
+        DocumentAccessRule::create([
+            'document_id' => $document->id,
+            'effect' => DocumentAccessRule::EFFECT_ALLOW,
+            'can_view' => true,
+            'can_download' => $def['allow_download'],
+            'can_print' => false,
+            'is_active' => true,
+        ])->departments()->sync($departmentIds);
     }
 
     private function createAnnouncements(?int $adminId): void

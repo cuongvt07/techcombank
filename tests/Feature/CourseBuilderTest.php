@@ -80,18 +80,79 @@ class CourseBuilderTest extends TestCase
         $this->assertSame('KH-0042', $course->fresh()->code);
     }
 
-    public function test_loc_khoa_hoc_theo_phong_ban_gom_phong_con(): void
+    public function test_loc_khoa_hoc_theo_phong_ban_duoc_giao_gom_phong_con(): void
     {
         $parent = Department::factory()->create();
         $child = Department::factory()->create(['parent_id' => $parent->id]);
+        $other = Department::factory()->create();
 
-        Course::factory()->create(['title' => 'Khóa Của Phòng Con', 'owner_department_id' => $child->id]);
-        Course::factory()->create(['title' => 'Khóa Phòng Khác']);
+        $childCourse = Course::factory()->create(['title' => 'Khóa Của Phòng Con']);
+        $this->makeRule($childCourse, [$child->id]);
+
+        $allCourse = Course::factory()->create(['title' => 'Khóa Toàn Hàng']);
+        $this->makeRule($allCourse, []);
+
+        $otherCourse = Course::factory()->create(['title' => 'Khóa Phòng Khác']);
+        $this->makeRule($otherCourse, [$other->id]);
+
+        // Điều kiện đã tắt không tính
+        $inactiveCourse = Course::factory()->create(['title' => 'Khóa Điều Kiện Tắt']);
+        $this->makeRule($inactiveCourse, [$parent->id], ['is_active' => false]);
+
+        // Khoá cũ chỉ có phòng ban ban hành, không có điều kiện giao: không còn lọc theo cột đó
+        Course::factory()->create(['title' => 'Khóa Ban Hành Cũ', 'owner_department_id' => $parent->id]);
 
         Livewire::test(CourseBuilder::class)
             ->set('departmentFilter', (string) $parent->id)
             ->assertSee('Khóa Của Phòng Con')
-            ->assertDontSee('Khóa Phòng Khác');
+            ->assertSee('Khóa Toàn Hàng')
+            ->assertDontSee('Khóa Phòng Khác')
+            ->assertDontSee('Khóa Điều Kiện Tắt')
+            ->assertDontSee('Khóa Ban Hành Cũ');
+    }
+
+    public function test_loc_phong_con_thay_khoa_giao_phong_cha_gom_phong_con(): void
+    {
+        $parent = Department::factory()->create();
+        $child = Department::factory()->create(['parent_id' => $parent->id]);
+
+        $withSub = Course::factory()->create(['title' => 'Khóa Cả Khối']);
+        $this->makeRule($withSub, [$parent->id], ['include_sub_departments' => true]);
+
+        $onlyParent = Course::factory()->create(['title' => 'Khóa Riêng Phòng Cha']);
+        $this->makeRule($onlyParent, [$parent->id], ['include_sub_departments' => false]);
+
+        Livewire::test(CourseBuilder::class)
+            ->set('departmentFilter', (string) $child->id)
+            ->assertSee('Khóa Cả Khối')
+            ->assertDontSee('Khóa Riêng Phòng Cha');
+    }
+
+    public function test_cot_phong_ban_hien_phong_ban_duoc_giao(): void
+    {
+        $a = Department::factory()->create(['name' => 'Phòng Alpha']);
+        $b = Department::factory()->create(['name' => 'Phòng Beta']);
+
+        $multi = Course::factory()->create(['title' => 'Khóa Hai Phòng']);
+        $this->makeRule($multi, [$a->id]);
+        $this->makeRule($multi, [$a->id, $b->id]);
+
+        $all = Course::factory()->create(['title' => 'Khóa Cho Tất Cả']);
+        $this->makeRule($all, [$a->id]);
+        $this->makeRule($all, []);
+
+        $none = Course::factory()->create(['title' => 'Khóa Chưa Giao']);
+
+        $courses = Course::with(['assignmentRules.departments', 'assignmentRules.department'])
+            ->get()->keyBy('id');
+
+        $this->assertSame(['Phòng Alpha', 'Phòng Beta'], $courses[$multi->id]->assignedDepartmentNames());
+        $this->assertSame(['*'], $courses[$all->id]->assignedDepartmentNames());
+        $this->assertNull($courses[$none->id]->assignedDepartmentNames());
+
+        Livewire::test(CourseBuilder::class)
+            ->assertSee('Phòng Alpha, Phòng Beta')
+            ->assertSee('Tất cả');
     }
 
     public function test_loc_khoa_hoc_theo_kieu_hoc(): void
@@ -390,7 +451,7 @@ class CourseBuilderTest extends TestCase
         Livewire::test(CourseBuilder::class)
             ->set('editingCourseId', $course->id)
             ->call('createRule')
-            ->set('ruleDepartmentId', $department->id)
+            ->set('ruleDepartmentIds', [$department->id])
             ->set('ruleDueDays', 30)
             ->call('saveRule')
             ->assertHasNoErrors();
@@ -398,18 +459,75 @@ class CourseBuilderTest extends TestCase
         $this->assertSame(3, Enrollment::where('course_id', $course->id)->count());
     }
 
-    public function test_chan_dieu_kien_trong_de_khong_gan_cho_toan_cong_ty(): void
+    public function test_dieu_kien_luu_nhieu_phong_ban_va_giao_dung_nguoi(): void
+    {
+        $course = Course::factory()->create();
+        $a = Department::factory()->create();
+        $b = Department::factory()->create();
+        $c = Department::factory()->create();
+        Employee::factory()->count(2)->create(['department_id' => $a->id]);
+        Employee::factory()->count(3)->create(['department_id' => $b->id]);
+        Employee::factory()->count(4)->create(['department_id' => $c->id]);
+
+        Livewire::test(CourseBuilder::class)
+            ->set('editingCourseId', $course->id)
+            ->call('createRule')
+            ->set('ruleDepartmentIds', [(string) $a->id, (string) $b->id])
+            ->call('saveRule')
+            ->assertHasNoErrors();
+
+        $rule = CourseAssignmentRule::where('course_id', $course->id)->sole();
+        $this->assertNull($rule->department_id);
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], $rule->departments->pluck('id')->all());
+        $this->assertSame(5, Enrollment::where('course_id', $course->id)->count());
+
+        // Danh sách điều kiện hiện tên các phòng ban
+        Livewire::test(CourseBuilder::class)
+            ->set('editingCourseId', $course->id)
+            ->assertSee($a->name)
+            ->assertSee($b->name);
+    }
+
+    public function test_dieu_kien_khong_chon_phong_ban_giao_moi_nhan_vien(): void
     {
         $course = Course::factory()->create();
         Employee::factory()->count(5)->create();
+        $activeCount = Employee::active()->count();
 
         Livewire::test(CourseBuilder::class)
             ->set('editingCourseId', $course->id)
             ->call('createRule')
             ->call('saveRule')
-            ->assertHasErrors('ruleDepartmentId');
+            ->assertHasNoErrors();
 
-        $this->assertSame(0, Enrollment::where('course_id', $course->id)->count());
+        $this->assertSame($activeCount, Enrollment::where('course_id', $course->id)->count());
+
+        Livewire::test(CourseBuilder::class)
+            ->set('editingCourseId', $course->id)
+            ->assertSee('Mọi phòng ban');
+    }
+
+    public function test_dieu_kien_tu_choi_phong_ban_khong_ton_tai(): void
+    {
+        $course = Course::factory()->create();
+
+        Livewire::test(CourseBuilder::class)
+            ->set('editingCourseId', $course->id)
+            ->call('createRule')
+            ->set('ruleDepartmentIds', [999999])
+            ->call('saveRule')
+            ->assertHasErrors('ruleDepartmentIds.0');
+
+        $this->assertSame(0, CourseAssignmentRule::count());
+    }
+
+    public function test_form_cau_hinh_khoa_hoc_khong_con_phong_ban_ban_hanh(): void
+    {
+        $course = Course::factory()->create();
+
+        Livewire::test(CourseBuilder::class)
+            ->call('editCourse', $course->id)
+            ->assertDontSee('Phòng ban ban hành');
     }
 
     public function test_xoa_dieu_kien_gan_khong_thu_hoi_khoa_da_giao(): void
@@ -433,6 +551,14 @@ class CourseBuilderTest extends TestCase
 
         // Lịch sử học tập phải được giữ lại (spec 3.2.4)
         $this->assertSame(1, Enrollment::where('course_id', $course->id)->count());
+    }
+
+    private function makeRule(Course $course, array $departmentIds, array $attributes = []): CourseAssignmentRule
+    {
+        $rule = CourseAssignmentRule::create(array_merge(['course_id' => $course->id], $attributes));
+        $rule->departments()->sync($departmentIds);
+
+        return $rule;
     }
 
     // ---- Phân quyền ---------------------------------------------------------

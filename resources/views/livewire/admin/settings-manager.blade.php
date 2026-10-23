@@ -115,13 +115,6 @@
                 </div>
 
                 <div>
-                    <label for="s_alert" class="admin-label">Cảnh báo hợp đồng trước (ngày)</label>
-                    <input id="s_alert" type="number" wire:model="settings.contract_alert_days" class="admin-input">
-                    <p class="mt-1 text-xs text-brand-muted">Áp dụng cho hợp đồng không đặt ngưỡng riêng.</p>
-                    @error('settings.contract_alert_days') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
                     <label for="s_dev" class="admin-label">Số thiết bị đăng nhập đồng thời</label>
                     <input id="s_dev" type="number" wire:model="settings.max_devices" class="admin-input">
                     @error('settings.max_devices') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror

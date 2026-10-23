@@ -51,6 +51,74 @@ class DocumentAccessRule extends Model
         return $this->belongsTo(Department::class);
     }
 
+    /**
+     * Các phòng ban quy tắc áp dụng. Rỗng = toàn công ty.
+     */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'document_access_rule_department')->orderBy('name');
+    }
+
+    /**
+     * Id phòng ban quy tắc chọn: bảng nối, cộng cột department_id cũ phòng khi
+     * dữ liệu còn sót trước lúc chuyển sang bảng nối.
+     *
+     * @return array<int, int>
+     */
+    public function departmentIds(): array
+    {
+        $ids = $this->relationLoaded('departments')
+            ? $this->departments->pluck('id')->all()
+            : $this->departments()->pluck('departments.id')->all();
+
+        if ($this->department_id) {
+            $ids[] = $this->department_id;
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    /**
+     * Phòng ban mà nhân viên thuộc vào thì khớp quy tắc: các phòng đã chọn,
+     * cộng toàn bộ phòng con khi bật include_sub_departments.
+     * Null = quy tắc không ràng buộc phòng ban (toàn công ty).
+     *
+     * @return array<int, int>|null
+     */
+    public function allowedDepartmentIds(): ?array
+    {
+        $ids = $this->departmentIds();
+
+        if ($ids === []) {
+            return null;
+        }
+
+        if (! $this->include_sub_departments) {
+            return $ids;
+        }
+
+        $allowed = [];
+        foreach (Department::query()->whereIn('id', $ids)->get() as $department) {
+            $allowed = array_merge($allowed, $department->descendantIds());
+        }
+
+        return array_values(array_unique(array_map('intval', array_merge($ids, $allowed))));
+    }
+
+    /** Tên các phòng ban áp dụng, "Toàn công ty" khi không chọn phòng nào. */
+    public function departmentLabel(): string
+    {
+        $names = $this->departments->pluck('name');
+
+        if ($this->department_id && ! $this->departments->contains('id', $this->department_id)) {
+            $names->push($this->department?->name);
+        }
+
+        $names = $names->filter()->unique();
+
+        return $names->isEmpty() ? 'Toàn công ty' : $names->implode(', ');
+    }
+
     public function jobTitle(): BelongsTo
     {
         return $this->belongsTo(JobTitle::class);
@@ -100,23 +168,20 @@ class DocumentAccessRule extends Model
 
     /**
      * Nhân viên có khớp toàn bộ điều kiện của rule không.
-     * Điều kiện NULL = không ràng buộc chiều đó, nên rule trống khớp mọi nhân viên.
-     */
-    /**
+     * Điều kiện NULL/rỗng = không ràng buộc chiều đó, nên rule trống khớp mọi nhân viên.
+     *
      * @param  array<int, int>|null  $allowedDepartmentIds  Phòng ban hợp lệ đã tính sẵn (gồm phòng con nếu có
      *                                                     include_sub_departments) — truyền vào khi kiểm hàng loạt
-     *                                                     để khỏi truy vấn cây phòng ban mỗi lần.
+     *                                                     để khỏi truy vấn cây phòng ban mỗi lần. Null = tự tính.
      */
     public function matches(Employee $employee, ?array $allowedDepartmentIds = null): bool
     {
-        if ($this->department_id) {
-            $allowedDepartmentIds ??= $this->include_sub_departments && $this->department
-                ? $this->department->descendantIds()
-                : [$this->department_id];
+        $allowedDepartmentIds ??= $this->allowedDepartmentIds();
 
-            if (! in_array($employee->department_id, $allowedDepartmentIds, true)) {
-                return false;
-            }
+        // Nhiều phòng ban: nhân viên chỉ cần thuộc một trong số đó
+        if ($allowedDepartmentIds !== null
+            && ! in_array((int) $employee->department_id, array_map('intval', $allowedDepartmentIds), true)) {
+            return false;
         }
 
         if ($this->job_title_id && $employee->job_title_id !== $this->job_title_id) {

@@ -90,6 +90,35 @@ class Course extends Model
         return $this->hasMany(CourseAssignmentRule::class);
     }
 
+    /**
+     * Phạm vi phòng ban được giao, gộp từ các điều kiện giao đang bật:
+     * NULL = chưa có điều kiện, ['*'] = có điều kiện không giới hạn phòng ban,
+     * còn lại là tên các phòng ban (bỏ trùng).
+     *
+     * Dùng quan hệ assignmentRules đã eager load (kèm departments) nếu có.
+     */
+    public function assignedDepartmentNames(): ?array
+    {
+        $rules = $this->assignmentRules->where('is_active', true);
+
+        if ($rules->isEmpty()) {
+            return null;
+        }
+
+        $names = [];
+        foreach ($rules as $rule) {
+            $departments = $rule->targetDepartments();
+            if ($departments->isEmpty()) {
+                return ['*'];
+            }
+            foreach ($departments as $department) {
+                $names[$department->id] = $department->name;
+            }
+        }
+
+        return array_values($names);
+    }
+
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);

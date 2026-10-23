@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Department;
 use App\Models\Document;
@@ -26,6 +27,8 @@ use Livewire\WithPagination;
  */
 class DocumentAccessManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;
@@ -45,7 +48,8 @@ class DocumentAccessManager extends Component
     public ?int $categoryId = null;
 
     // Điều kiện
-    public ?int $departmentId = null;
+    /** Chọn nhiều phòng ban. Rỗng = toàn công ty. */
+    public array $departmentIds = [];
     public ?int $jobTitleId = null;
     /** Phân quyền tài liệu là nơi duy nhất cho chọn nhiều cấp bậc. Rỗng = mọi cấp bậc. */
     public array $jobGradeIds = [];
@@ -104,7 +108,7 @@ class DocumentAccessManager extends Component
         $this->scope = $rule->document_id ? 'document' : 'category';
         $this->documentId = $rule->document_id;
         $this->categoryId = $rule->document_category_id;
-        $this->departmentId = $rule->department_id;
+        $this->departmentIds = $rule->departmentIds();
         $this->jobTitleId = $rule->job_title_id;
         $this->jobGradeIds = $rule->gradeIds();
         $this->minGradeLevel = $rule->min_grade_level;
@@ -126,7 +130,8 @@ class DocumentAccessManager extends Component
         $this->validate([
             'documentId' => [Rule::requiredIf($this->scope === 'document'), 'nullable', Rule::exists('documents', 'id')],
             'categoryId' => [Rule::requiredIf($this->scope === 'category'), 'nullable', Rule::exists('document_categories', 'id')],
-            'departmentId' => ['nullable', Rule::exists('departments', 'id')],
+            'departmentIds' => ['array'],
+            'departmentIds.*' => ['integer', 'distinct', Rule::exists('departments', 'id')],
             'jobTitleId' => ['nullable', Rule::exists('job_titles', 'id')],
             'jobGradeIds' => ['array'],
             'jobGradeIds.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
@@ -140,7 +145,8 @@ class DocumentAccessManager extends Component
         $payload = [
             'document_id' => $this->scope === 'document' ? $this->documentId : null,
             'document_category_id' => $this->scope === 'category' ? $this->categoryId : null,
-            'department_id' => $this->departmentId,
+            // Phòng ban lưu ở bảng nối, cột cũ để trống
+            'department_id' => null,
             'job_title_id' => $this->jobTitleId,
             // Cấp bậc lưu ở bảng nối, cột cũ để trống
             'job_grade_id' => null,
@@ -157,14 +163,18 @@ class DocumentAccessManager extends Component
         ];
 
         $gradeIds = array_values(array_unique(array_map('intval', $this->jobGradeIds)));
+        $departmentIds = array_values(array_unique(array_map('intval', $this->departmentIds)));
 
         if ($this->editingId) {
             $rule = DocumentAccessRule::findOrFail($this->editingId);
             $rule->update($payload);
             $rule->jobGrades()->sync($gradeIds);
+            $rule->departments()->sync($departmentIds);
             session()->flash('status', 'Đã cập nhật quy tắc phân quyền.');
         } else {
-            DocumentAccessRule::create($payload)->jobGrades()->sync($gradeIds);
+            $rule = DocumentAccessRule::create($payload);
+            $rule->jobGrades()->sync($gradeIds);
+            $rule->departments()->sync($departmentIds);
             session()->flash('status', 'Đã tạo quy tắc phân quyền.');
         }
 
@@ -229,7 +239,7 @@ class DocumentAccessManager extends Component
     private function rules()
     {
         return DocumentAccessRule::query()
-            ->with(['document', 'category', 'department', 'jobTitle', 'jobGrade', 'jobGrades'])
+            ->with(['document', 'category', 'department', 'departments', 'jobTitle', 'jobGrade', 'jobGrades'])
             ->when($this->search, function ($query) {
                 $term = '%' . $this->search . '%';
                 $query->whereHas('document', fn ($d) => $d->where('title', 'like', $term))
@@ -246,7 +256,7 @@ class DocumentAccessManager extends Component
     private function resetForm(): void
     {
         $this->reset([
-            'editingId', 'documentId', 'categoryId', 'departmentId',
+            'editingId', 'documentId', 'categoryId', 'departmentIds',
             'jobTitleId', 'jobGradeIds', 'minGradeLevel', 'employmentStatus',
         ]);
         $this->scope = 'document';

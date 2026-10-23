@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\FileFolder;
 use App\Models\StoredFile;
@@ -23,6 +24,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class FileManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination, WithFileUploads;

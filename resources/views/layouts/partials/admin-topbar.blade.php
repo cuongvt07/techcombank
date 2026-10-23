@@ -14,6 +14,9 @@
             </a>
         @endif
 
+        {{-- Chuông thông báo tài khoản: phiếu hỗ trợ được giao cho mình... --}}
+        @livewire('user.notification-bell', ['site' => 'admin'])
+
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" class="admin-btn-secondary">Đăng xuất</button>

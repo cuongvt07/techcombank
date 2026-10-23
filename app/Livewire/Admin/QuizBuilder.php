@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\Question;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class QuizBuilder extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination, WithFileUploads;

@@ -29,5 +29,12 @@
         @hasSection('header-meta')
             <div class="shrink-0">@yield('header-meta')</div>
         @endif
+
+        {{-- Chuông thông báo: header dùng chung desktop + mobile nên chỉ gắn một chỗ --}}
+        @auth
+            <div class="shrink-0" style="margin-right: -8px;">
+                @livewire('user.notification-bell')
+            </div>
+        @endauth
     </div>
 </header>

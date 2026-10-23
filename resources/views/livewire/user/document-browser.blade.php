@@ -5,11 +5,14 @@
         </div>
     @endif
 
-    <div class="mb-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-        <label for="f-document-browser-search-0" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Tìm kiếm</label>
-        <input id="f-document-browser-search-0" type="search" wire:model.live.debounce.400ms="search"
-               class="h-11 w-full rounded-user-md border border-brand-line bg-white px-4 text-sm placeholder:text-brand-muted focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-               placeholder="Tìm tài liệu...">
+    {{-- Nhãn + ô nhập bọc chung một khối: trước đây nằm rời nên lưới xếp chúng thành hai ô riêng --}}
+    <div class="mb-4 flex flex-wrap items-end gap-2.5">
+        <div class="min-w-[220px] flex-1">
+            <label for="f-document-browser-search-0" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Tìm kiếm</label>
+            <input id="f-document-browser-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch"
+                   class="h-11 w-full rounded-user-md border border-brand-line bg-white px-4 text-sm placeholder:text-brand-muted focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+                   placeholder="Tìm tài liệu...">
+        </div>
 
         <div>
             <label for="f-document-browser-categoryFilter-1" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Danh mục</label>
@@ -30,6 +33,14 @@
                 <option value="file">Tài liệu</option>
                 <option value="video">Video</option>
             </select>
+        </div>
+
+        <div class="flex gap-2">
+            <button type="button" wire:click="applySearch" class="user-btn h-11">
+                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                Tìm kiếm
+            </button>
+            <button type="button" wire:click="resetFilters" class="user-btn-secondary h-11">Đặt lại</button>
         </div>
     </div>
 

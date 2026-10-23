@@ -3,7 +3,6 @@
 namespace App\Livewire\Admin;
 
 use App\Livewire\Concerns\ChecksPermissions;
-use App\Models\ContractType;
 use App\Models\Department;
 use App\Models\DocumentCategory;
 use App\Models\JobGrade;
@@ -41,11 +40,6 @@ class SettingsManager extends Component
             'model' => JobGrade::class,
             'label' => 'Cấp bậc',
             'has_level' => true,
-        ],
-        'contract_types' => [
-            'model' => ContractType::class,
-            'label' => 'Loại hợp đồng',
-            'has_duration' => true,
         ],
         'document_categories' => [
             'model' => DocumentCategory::class,
@@ -174,7 +168,6 @@ class SettingsManager extends Component
         $this->requirePermission('settings.update');
 
         $this->validate([
-            'settings.contract_alert_days' => ['required', 'integer', 'min:1', 'max:365'],
             'settings.max_devices' => ['required', 'integer', 'min:1', 'max:10'],
             'settings.display_name' => ['required', 'string', 'max:100'],
             'settings.company_name' => ['required', 'string', 'max:150'],
@@ -183,7 +176,6 @@ class SettingsManager extends Component
             'settings.onboarding_process' => ['nullable', 'string', 'max:3000'],
             'settings.guide_note' => ['nullable', 'string', 'max:500'],
         ], [], [
-            'settings.contract_alert_days' => 'số ngày cảnh báo hợp đồng',
             'settings.max_devices' => 'số thiết bị tối đa',
             'settings.display_name' => 'tên hiển thị',
             'settings.company_name' => 'tên công ty',
@@ -193,7 +185,6 @@ class SettingsManager extends Component
         ]);
 
         Setting::set('app.display_name', $this->settings['display_name'], 'string', 'general');
-        Setting::set('contract.alert_before_days', $this->settings['contract_alert_days'], 'integer', 'contract');
         Setting::set('security.max_concurrent_devices', $this->settings['max_devices'], 'integer', 'security');
         Setting::set('security.watermark_enabled', $this->settings['watermark'] ? '1' : '0', 'boolean', 'security');
 
@@ -215,7 +206,6 @@ class SettingsManager extends Component
     {
         $this->settings = [
             'display_name' => Setting::get('app.display_name', config('app.name')),
-            'contract_alert_days' => Setting::get('contract.alert_before_days', 30),
             'max_devices' => Setting::get('security.max_concurrent_devices', 2),
             'watermark' => (bool) Setting::get('security.watermark_enabled', true),
 

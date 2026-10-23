@@ -198,7 +198,7 @@ class DocumentAccessService
 
         $rules = DocumentAccessRule::query()
             ->active()
-            ->with('jobGrades')
+            ->with(['jobGrades', 'departments'])
             ->where(fn (Builder $q) => $q->whereIn('document_id', $documents->pluck('id'))
                 ->orWhereIn('document_category_id', $chains->flatten()->unique()->values()))
             ->get();
@@ -213,11 +213,20 @@ class DocumentAccessService
 
             return $ids;
         };
-        $allowedDepartments = $rules->mapWithKeys(fn (DocumentAccessRule $r) => [
-            $r->id => $r->department_id
-                ? ($r->include_sub_departments ? $descendants($r->department_id) : [$r->department_id])
-                : null,
-        ]);
+        // Nhiều phòng ban: gộp phòng con của từng phòng đã chọn. Null = toàn công ty
+        $allowedDepartments = $rules->mapWithKeys(function (DocumentAccessRule $r) use ($descendants) {
+            $ids = $r->departmentIds();
+
+            if ($ids === []) {
+                return [$r->id => null];
+            }
+
+            if ($r->include_sub_departments) {
+                $ids = array_merge(...array_map($descendants, $ids));
+            }
+
+            return [$r->id => array_values(array_unique($ids))];
+        });
 
         $counts = [];
 
@@ -265,7 +274,7 @@ class DocumentAccessService
 
         return DocumentAccessRule::query()
             ->active()
-            ->with(['department'])
+            ->with(['department', 'departments', 'jobGrades'])
             ->where(function (Builder $q) use ($document, $categoryIds) {
                 $q->where('document_id', $document->id);
 
@@ -279,16 +288,27 @@ class DocumentAccessService
     /** Ràng buộc query rule theo hồ sơ nhân viên, dùng chung cho các whereHas ở trên. */
     private function constrainRuleQuery(Builder $query, Employee $employee): Builder
     {
-        $departmentIds = [$employee->department_id];
+        $ownDepartmentId = (int) $employee->department_id;
+        $ancestorIds = [];
 
         if ($employee->department) {
-            // Rule của phòng ban cha có include_sub_departments vẫn phải khớp
+            // Quy tắc chọn phòng ban cha có include_sub_departments vẫn phải khớp
             $node = $employee->department;
 
-            while ($node = $node->parent) {
-                $departmentIds[] = $node->id;
+            while (($node = $node->parent) && ! in_array($node->id, $ancestorIds, true)) {
+                $ancestorIds[] = $node->id;
             }
         }
+
+        // Phòng ban khớp: chính phòng của nhân viên, hoặc phòng cha khi quy tắc gồm cả phòng con
+        $departmentMatch = function (Builder $q, string $column) use ($ownDepartmentId, $ancestorIds): void {
+            $q->where($column, $ownDepartmentId);
+
+            if ($ancestorIds) {
+                $q->orWhere(fn (Builder $a) => $a->whereIn($column, $ancestorIds)
+                    ->where('document_access_rules.include_sub_departments', true));
+            }
+        };
 
         $gradeIds = $employee->jobGrades()->pluck('job_grades.id')->all();
         if ($employee->job_grade_id) {
@@ -297,8 +317,12 @@ class DocumentAccessService
         $gradeIds = array_values(array_unique(array_map('intval', $gradeIds)));
 
         return $query->where('is_active', true)
-            ->where(function (Builder $q) use ($employee, $departmentIds) {
-                $q->whereNull('department_id')->orWhereIn('department_id', array_filter($departmentIds));
+            // Quy tắc không chọn phòng ban (toàn công ty), hoặc có phòng ban khớp nhân viên.
+            // Cột department_id cũ vẫn xét để không lệch với matches() khi còn dữ liệu sót.
+            ->where(function (Builder $q) use ($departmentMatch) {
+                $q->where(fn (Builder $none) => $none->whereNull('document_access_rules.department_id')->whereDoesntHave('departments'))
+                    ->orWhere(fn (Builder $legacy) => $departmentMatch($legacy, 'document_access_rules.department_id'))
+                    ->orWhereHas('departments', fn (Builder $d) => $d->where(fn (Builder $g) => $departmentMatch($g, 'departments.id')));
             })
             ->where(function (Builder $q) use ($employee) {
                 $q->whereNull('job_title_id')->orWhere('job_title_id', $employee->job_title_id);

@@ -40,7 +40,7 @@ class SupportRequestForm extends Component
         }
 
         $data = $this->validate([
-            'topic' => ['required', 'string', 'max:255'],
+            'topic' => ['required', \Illuminate\Validation\Rule::in(SupportRequest::TOPICS)],
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string', 'max:5000'],
             'priority' => ['required', 'in:low,normal,high'],

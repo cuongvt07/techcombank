@@ -29,6 +29,28 @@ final class PermissionCatalog
     private const CRUD = [self::VIEW, self::CREATE, self::UPDATE, self::DELETE];
 
     /**
+     * Màn Phân quyền chỉ có hai cột: Xem và Thao tác. "Thao tác" gom mọi quyền
+     * Thêm / Sửa / Xóa có ở màn đó — tick là được làm tất cả, không chia lẻ.
+     * Quyền chi tiết vẫn giữ bên dưới để từng thao tác tự kiểm (requirePermission).
+     */
+    public const MANAGE = 'manage';
+
+    public const COLUMNS = [
+        self::VIEW => 'Xem',
+        self::MANAGE => 'Thao tác',
+    ];
+
+    /**
+     * Các quyền chi tiết mà cột "Thao tác" của một màn bao gồm.
+     *
+     * @return array<int, string>
+     */
+    public static function manageActions(string $module): array
+    {
+        return array_values(array_filter(self::actionsOf($module), fn ($a) => $a !== self::VIEW));
+    }
+
+    /**
      * Nhóm => [module => [nhãn, các thao tác có]].
      *
      * @var array<string, array<string, array{0: string, 1: array<int, string>}>>
@@ -38,7 +60,6 @@ final class PermissionCatalog
             'dashboard' => ['Tổng quan', [self::VIEW]],
             'accounts' => ['Tài khoản', self::CRUD],
             'employees' => ['Hồ sơ nhân sự', [self::VIEW, self::CREATE, self::UPDATE]],
-            'contracts' => ['Hợp đồng', [self::VIEW, self::CREATE, self::UPDATE]],
             'roles' => ['Phân quyền', [self::VIEW, self::UPDATE]],
         ],
         'Tài liệu nội bộ' => [
@@ -110,7 +131,6 @@ final class PermissionCatalog
         'admin.accounts' => 'accounts',
         'admin.employees' => 'employees',
         'admin.employees.show' => 'employees',
-        'admin.contracts' => 'contracts',
         'admin.roles' => 'roles',
         'admin.files' => 'files',
         'admin.documents' => 'documents',

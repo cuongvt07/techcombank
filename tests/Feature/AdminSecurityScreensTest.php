@@ -49,17 +49,18 @@ class AdminSecurityScreensTest extends TestCase
             ->call('create')
             ->set('scope', 'document')
             ->set('documentId', $document->id)
-            ->set('departmentId', $department->id)
+            ->set('departmentIds', [$department->id])
             ->set('canView', true)
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('document_access_rules', [
             'document_id' => $document->id,
-            'department_id' => $department->id,
             'can_view' => true,
             'effect' => DocumentAccessRule::EFFECT_ALLOW,
         ]);
+        $rule = DocumentAccessRule::where('document_id', $document->id)->sole();
+        $this->assertSame([$department->id], $rule->departmentIds());
     }
 
     public function test_tao_quy_tac_cho_ca_danh_muc(): void

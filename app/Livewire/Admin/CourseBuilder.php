@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\CourseAssignmentRule;
@@ -26,9 +27,15 @@ use Livewire\WithPagination;
  * Một khoá học chứa nhiều bài học xếp theo trình tự. Màn hình có hai mức:
  * danh sách khoá → vào một khoá thì thấy danh sách bài học của khoá đó,
  * kèm điều kiện gán tự động theo phòng ban/vị trí.
+ *
+ * Khoá không thuộc riêng phòng ban nào: phạm vi phòng ban do điều kiện giao
+ * quyết định (một điều kiện chọn được nhiều phòng, không chọn = mọi phòng).
+ * Cột owner_department_id cũ vẫn còn trong DB nhưng màn này thôi nhập/hiển thị.
  */
 class CourseBuilder extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;
@@ -39,6 +46,7 @@ class CourseBuilder extends Component
     #[Url]
     public string $statusFilter = '';
 
+    /** Lọc khoá có điều kiện giao áp cho phòng ban này (gồm phòng con) hoặc mọi phòng ban. */
     #[Url]
     public string $departmentFilter = '';
 
@@ -69,7 +77,6 @@ class CourseBuilder extends Component
     public string $code = '';
     public string $title = '';
     public string $description = '';
-    public ?int $owner_department_id = null;
     public bool $sequential = true;
     public bool $is_onboarding = false;
     public bool $issue_certificate = false;
@@ -92,7 +99,8 @@ class CourseBuilder extends Component
     // --- Form điều kiện gán ---
     public bool $showRuleModal = false;
     public ?int $ruleId = null;
-    public ?int $ruleDepartmentId = null;
+    /** Không chọn phòng nào = giao cho mọi phòng ban. @var array<int, int|string> */
+    public array $ruleDepartmentIds = [];
     public ?int $ruleJobTitleId = null;
     public ?int $ruleJobGradeId = null;
     public string $ruleEmploymentStatus = '';
@@ -145,7 +153,6 @@ class CourseBuilder extends Component
         $this->code = $course->code;
         $this->title = $course->title;
         $this->description = (string) $course->description;
-        $this->owner_department_id = $course->owner_department_id;
         $this->sequential = (bool) $course->sequential;
         $this->is_onboarding = (bool) $course->is_onboarding;
         $this->issue_certificate = (bool) $course->issue_certificate;
@@ -162,7 +169,6 @@ class CourseBuilder extends Component
         $data = $this->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'owner_department_id' => ['nullable', Rule::exists('departments', 'id')],
             'duration_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'pass_score' => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
@@ -353,22 +359,20 @@ class CourseBuilder extends Component
         $this->requirePermission('courses.update');
 
         $this->validate([
-            'ruleDepartmentId' => ['nullable', Rule::exists('departments', 'id')],
+            'ruleDepartmentIds' => ['array'],
+            'ruleDepartmentIds.*' => ['integer', Rule::exists('departments', 'id')],
             'ruleJobTitleId' => ['nullable', Rule::exists('job_titles', 'id')],
             'ruleJobGradeId' => ['nullable', Rule::exists('job_grades', 'id')],
             'ruleDueDays' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
-        // Rule trống mọi điều kiện sẽ gán khoá cho toàn bộ nhân viên — thường là nhầm
-        if (! $this->ruleDepartmentId && ! $this->ruleJobTitleId && ! $this->ruleJobGradeId && ! $this->ruleEmploymentStatus) {
-            $this->addError('ruleDepartmentId', 'Chọn ít nhất một điều kiện, nếu không khóa học sẽ gán cho toàn bộ nhân viên.');
-
-            return;
-        }
+        // Không chọn phòng ban (và không ràng buộc gì khác) là chủ đích: khoá cấp
+        // cho toàn bộ nhân viên — modal đã nói rõ điều này nên không chặn nữa.
+        $departmentIds = collect($this->ruleDepartmentIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
 
         $rule = CourseAssignmentRule::create([
             'course_id' => $this->editingCourseId,
-            'department_id' => $this->ruleDepartmentId,
+            'department_id' => null,
             'job_title_id' => $this->ruleJobTitleId,
             'job_grade_id' => $this->ruleJobGradeId,
             'employment_status' => $this->ruleEmploymentStatus ?: null,
@@ -377,6 +381,7 @@ class CourseBuilder extends Component
             'due_days' => $this->ruleDueDays,
             'is_active' => true,
         ]);
+        $rule->departments()->sync($departmentIds);
 
         $assigned = $service->applyRule($rule);
 
@@ -399,7 +404,8 @@ class CourseBuilder extends Component
     private function courses()
     {
         return Course::query()
-            ->with('ownerDepartment')
+            // Cột "Phòng ban" gộp từ các điều kiện giao đang bật
+            ->with(['assignmentRules' => fn ($q) => $q->active()->with(['departments', 'department'])])
             ->withCount('lessons')
             // Gom điều kiện tìm kiếm trong ngoặc, nếu không orWhere sẽ phá các bộ lọc phía sau
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
@@ -407,10 +413,12 @@ class CourseBuilder extends Component
                 ->orWhere('code', 'like', '%' . $this->search . '%')))
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->departmentFilter, function ($q) {
-                // Gồm cả khóa của phòng con
-                $department = Department::find((int) $this->departmentFilter);
+                // Khoá được giao cho phòng này/phòng con, hoặc giao cho mọi phòng ban
+                $departmentId = (int) $this->departmentFilter;
 
-                $q->whereIn('owner_department_id', $department ? $department->descendantIds() : [(int) $this->departmentFilter]);
+                $q->whereHas('assignmentRules', fn ($r) => $r->active()->where(fn ($w) => $w
+                    ->forAllDepartments()
+                    ->orWhere(fn ($t) => $t->targetingDepartment($departmentId))));
             })
             ->when($this->learningTypeFilter, fn ($q) => match ($this->learningTypeFilter) {
                 'sequential' => $q->where('sequential', true),
@@ -446,7 +454,7 @@ class CourseBuilder extends Component
             return collect();
         }
 
-        return CourseAssignmentRule::with(['department', 'jobTitle', 'jobGrade'])
+        return CourseAssignmentRule::with(['department', 'departments', 'jobTitle', 'jobGrade'])
             ->where('course_id', $this->editingCourseId)
             ->get();
     }
@@ -468,7 +476,7 @@ class CourseBuilder extends Component
     {
         $this->reset([
             'courseFormId', 'code', 'title', 'description',
-            'owner_department_id', 'duration_days', 'pass_score',
+            'duration_days', 'pass_score',
         ]);
         $this->sequential = true;
         $this->is_onboarding = false;
@@ -490,7 +498,7 @@ class CourseBuilder extends Component
     private function resetRuleForm(): void
     {
         $this->reset([
-            'ruleId', 'ruleDepartmentId', 'ruleJobTitleId',
+            'ruleId', 'ruleDepartmentIds', 'ruleJobTitleId',
             'ruleJobGradeId', 'ruleEmploymentStatus', 'ruleDueDays',
         ]);
         $this->ruleIncludeSub = true;

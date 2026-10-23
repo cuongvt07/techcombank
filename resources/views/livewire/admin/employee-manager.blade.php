@@ -47,8 +47,8 @@
         <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
             <div class="min-w-[240px] flex-1">
                 <label for="f-employee-manager-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-employee-manager-search-0" type="search" wire:model.live.debounce.400ms="search" class="admin-input"
-                       placeholder="Tìm theo tên, mã nhân viên hoặc email...">
+                <input id="f-employee-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
+                       placeholder="Tìm theo tên hoặc mã nhân viên...">
             </div>
 
             <div>
@@ -100,6 +100,13 @@
                         <option value="{{ $year }}">{{ $year }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="ml-auto flex items-end gap-2">
+                <button type="button" wire:click="applySearch" class="admin-btn">
+                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
+                    Tìm kiếm
+                </button>
+                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
             </div>
         </div>
 
@@ -200,18 +207,12 @@
         <x-admin.modal :title="$editingId ? 'Sửa hồ sơ nhân sự' : 'Thêm hồ sơ nhân sự'" maxWidth="max-w-3xl">
             <form wire:submit="save" id="employee-form" class="grid gap-4 sm:grid-cols-2">
                 <div>
-                    <label for="e_full_name" class="admin-label">Họ và tên</label>
+                    <label for="e_full_name" class="admin-label">Họ và tên <span class="text-brand-red" aria-hidden="true">*</span></label>
                     <input id="e_full_name" type="text" wire:model="full_name" class="admin-input">
                     @error('full_name') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                 </div>
 
                 <x-admin.auto-code id="e_code" label="Mã nhân viên" :value="$employee_code" />
-
-                <div>
-                    <label for="e_email" class="admin-label">Email</label>
-                    <input id="e_email" type="email" wire:model="email" class="admin-input">
-                    @error('email') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                </div>
 
                 <div>
                     <label for="e_phone" class="admin-label">Điện thoại</label>
@@ -274,7 +275,7 @@
                 </div>
 
                 <div>
-                    <label for="e_status" class="admin-label">Trạng thái làm việc</label>
+                    <label for="e_status" class="admin-label">Trạng thái làm việc <span class="text-brand-red" aria-hidden="true">*</span></label>
                     <select id="e_status" wire:model="employment_status" class="admin-input">
                         <option value="probation">Thử việc</option>
                         <option value="official">Chính thức</option>
@@ -295,6 +296,7 @@
                                placeholder="VD: Điều chuyển nội bộ, thăng chức...">
                     </div>
                 @endif
+                <p class="text-xs text-brand-muted sm:col-span-2"><span class="text-brand-red">*</span> Trường bắt buộc</p>
             </form>
 
             <x-slot:footer>

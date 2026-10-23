@@ -2,10 +2,12 @@
 
 namespace App\Livewire\Admin\Reports;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Livewire\Concerns\HasReportPeriod;
 use App\Models\Department;
 use App\Models\Question;
+use App\Services\LearningReminderService;
 use App\Services\Reports\QuizResultReportService;
 use App\Support\Reports\ReportExport;
 use App\Support\Reports\ReportPeriod;
@@ -22,6 +24,8 @@ use Livewire\WithPagination;
  */
 class QuizResultReport extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
     use HasReportPeriod;
     use WithPagination;
@@ -300,6 +304,10 @@ class QuizResultReport extends Component
             $data['pairKpi'] = $service->pairKpis($filters, $period);
             $data['departmentRates'] = $service->passRateByDepartment($filters, $period);
             $data['rows'] = $service->employeeTable($filters, $period, $this->sort, $this->dir)->paginate($this->perPage);
+            // Dòng vừa được nhắc làm lại (trong thời gian chờ) hiện "Đã nhắc HH:mm · nhắc lại sau HH:mm"
+            $data['retakeReminded'] = app(LearningReminderService::class)->recentRetakeReminders(
+                $data['rows']->getCollection()->map(fn ($r) => [(int) $r->employee_id, (int) $r->quiz_id])
+            );
             $data['selection'] = $service->selectionSummary($this->selectedPairs(), $filters, $period);
             $data['retryCount'] = $data['pairKpi']['retry'];
         }
@@ -359,8 +367,8 @@ class QuizResultReport extends Component
     {
         $this->notice = $res['sent'] > 0
             ? "Đã gửi nhắc làm lại cho {$res['sent']} nhân viên."
-                . ($res['skipped'] ? " Bỏ qua {$res['skipped']} dòng đã đạt hoặc đã hết lượt." : '')
-            : 'Không có ai cần nhắc — chỉ nhắc người chưa đạt và còn lượt làm.';
+                . ($res['skipped'] ? " Bỏ qua {$res['skipped']} dòng đã đạt, đã hết lượt hoặc vừa được nhắc trong " . LearningReminderService::COOLDOWN_HOURS . ' giờ.' : '')
+            : 'Không có ai cần nhắc — chỉ nhắc người chưa đạt, còn lượt làm và chưa được nhắc trong ' . LearningReminderService::COOLDOWN_HOURS . ' giờ qua.';
     }
 
     private function service(): QuizResultReportService

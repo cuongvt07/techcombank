@@ -489,7 +489,7 @@ class DemoDataSeeder extends Seeder
     private function createSupportContacts(array $departments): void
     {
         SupportContact::create([
-            'topic' => 'Hợp đồng & chế độ',
+            'topic' => 'Hồ sơ & chế độ',
             'department_id' => null,
             'contact_name' => 'Phòng Nhân sự',
             'email' => 'hr@techcombank.local',
@@ -505,7 +505,7 @@ class DemoDataSeeder extends Seeder
         ]);
 
         SupportContact::create([
-            'topic' => 'Sự cố kỹ thuật',
+            'topic' => 'Kỹ thuật, trình duyệt',
             'department_id' => $departments['it']->id,
             'contact_name' => 'Khối Công nghệ',
             'email' => 'it@techcombank.local',

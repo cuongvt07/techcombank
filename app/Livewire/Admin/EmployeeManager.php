@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
 use App\Models\Department;
@@ -22,6 +23,8 @@ use Livewire\WithPagination;
  */
 class EmployeeManager extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
 
     use WithPagination;
@@ -60,7 +63,6 @@ class EmployeeManager extends Component
     // Trường form
     public string $full_name = '';
     public string $employee_code = '';
-    public string $email = '';
     public string $phone = '';
     public ?string $date_of_birth = null;
     public string $gender = '';
@@ -118,7 +120,6 @@ class EmployeeManager extends Component
         $this->editingId = $employee->id;
         $this->full_name = $employee->full_name;
         $this->employee_code = $employee->employee_code;
-        $this->email = (string) $employee->email;
         $this->phone = (string) $employee->phone;
         $this->date_of_birth = $employee->date_of_birth?->toDateString();
         $this->gender = (string) $employee->gender;
@@ -151,7 +152,6 @@ class EmployeeManager extends Component
             // đi qua service để ghi audit trail và gán lại khoá học (spec 3.1.2 + 3.3.1).
             $employee->update([
                 'full_name' => $data['full_name'],
-                'email' => $data['email'] ?: null,
                 'phone' => $data['phone'] ?: null,
                 'date_of_birth' => $data['date_of_birth'] ?: null,
                 'gender' => $data['gender'] ?: null,
@@ -178,7 +178,6 @@ class EmployeeManager extends Component
         } else {
             $employee = Employee::create([
                 'full_name' => $data['full_name'],
-                'email' => $data['email'] ?: null,
                 'phone' => $data['phone'] ?: null,
                 'date_of_birth' => $data['date_of_birth'] ?: null,
                 'gender' => $data['gender'] ?: null,
@@ -343,7 +342,6 @@ class EmployeeManager extends Component
     {
         return [
             'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
@@ -365,7 +363,7 @@ class EmployeeManager extends Component
     private function resetForm(): void
     {
         $this->reset([
-            'editingId', 'full_name', 'employee_code', 'email', 'phone',
+            'editingId', 'full_name', 'employee_code', 'phone',
             'date_of_birth', 'gender', 'department_id', 'job_title_id',
             'job_grade_id', 'manager_id', 'joined_at', 'change_reason',
         ]);

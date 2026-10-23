@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Sự kiện / thông báo gửi tới nhân viên (spec 3.1.5).
@@ -30,7 +32,7 @@ class Announcement extends Model
     ];
 
     protected $fillable = [
-        'title', 'content', 'type', 'department_id', 'employee_id',
+        'title', 'content', 'type', 'department_id', 'employee_id', 'course_id', 'quiz_id',
         'starts_at', 'ends_at', 'location',
         'published_at', 'expires_at', 'created_by',
     ];
@@ -53,6 +55,17 @@ class Announcement extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /** Khóa học mà lời nhắc học / nhắc làm lại trỏ tới (chuông bấm vào đi thẳng tới đó). */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function reads(): HasMany
+    {
+        return $this->hasMany(AnnouncementRead::class);
     }
 
     public function createdBy(): BelongsTo
@@ -122,6 +135,103 @@ class Announcement extends Model
             // Trong nhóm sắp diễn ra: gần nhất lên trước
             ->orderByRaw('CASE WHEN starts_at > ? THEN starts_at END', [$now])
             ->orderByDesc('published_at');
+    }
+
+    // ---- Chuông thông báo -------------------------------------------------------
+
+    /**
+     * Thông báo được tính vào chuông của nhân viên: đang hiển thị + áp cho họ.
+     *
+     * Quy tắc "người mới": thông báo toàn công ty phát hành TRƯỚC khi nhân viên có
+     * tài khoản thì không tính — người mới vào không phải nhận cả trăm thông báo
+     * cũ chưa đọc. Thông báo riêng luôn tính (gửi đích danh thì cần thấy).
+     * Mốc lấy theo users.created_at; nhân viên chưa có tài khoản dùng
+     * employees.created_at.
+     */
+    public function scopeNotifiableFor(Builder $query, Employee $employee): Builder
+    {
+        $since = self::notifySince($employee);
+
+        return $query->visible()
+            ->forEmployee($employee)
+            ->where(function ($q) use ($since) {
+                $q->whereNotNull('employee_id');
+
+                if ($since) {
+                    $q->orWhere('published_at', '>=', $since);
+                } else {
+                    $q->orWhereNull('employee_id');
+                }
+            });
+    }
+
+    /** Thông báo của nhân viên mà họ chưa xem. */
+    public function scopeUnreadFor(Builder $query, Employee $employee): Builder
+    {
+        return $query->notifiableFor($employee)
+            ->whereDoesntHave('reads', fn ($q) => $q->where('employee_id', $employee->id));
+    }
+
+    /** Gắn cờ is_read (withExists) để view hiện chấm đỏ mà không N+1. */
+    public function scopeWithReadFlag(Builder $query, Employee $employee): Builder
+    {
+        return $query->withExists([
+            'reads as is_read' => fn ($q) => $q->where('employee_id', $employee->id),
+        ]);
+    }
+
+    public static function unreadCountFor(Employee $employee): int
+    {
+        return self::query()->unreadFor($employee)->count();
+    }
+
+    /** Đánh dấu đã xem — gọi lại nhiều lần không sao (unique + insertOrIgnore). */
+    public function markReadBy(Employee $employee): void
+    {
+        AnnouncementRead::insertOrIgnore([
+            'announcement_id' => $this->id,
+            'employee_id' => $employee->id,
+            'read_at' => now(),
+        ]);
+    }
+
+    /** @return int số thông báo vừa được đánh dấu */
+    public static function markAllReadFor(Employee $employee): int
+    {
+        $now = now();
+        $rows = self::query()->unreadFor($employee)->pluck('id')
+            ->map(fn ($id) => ['announcement_id' => $id, 'employee_id' => $employee->id, 'read_at' => $now])
+            ->all();
+
+        return $rows ? AnnouncementRead::insertOrIgnore($rows) : 0;
+    }
+
+    /** Lời nhắc học / nhắc làm lại bài kiểm tra (gửi từ báo cáo). */
+    public function isLearningReminder(): bool
+    {
+        return $this->type === self::TYPE_COURSE && $this->employee_id !== null;
+    }
+
+    /**
+     * Trang mở ra khi bấm thông báo ở chuông: lời nhắc khóa học → khóa đó (hoặc
+     * Khóa học của tôi nếu không rõ khóa); còn lại → đúng sự kiện trên trang Sự kiện.
+     */
+    public function targetUrl(): string
+    {
+        if ($this->type === self::TYPE_COURSE) {
+            return $this->course?->slug
+                ? route('learn.course', $this->course)
+                : route('learn.courses');
+        }
+
+        return route('learn.events', ['su-kien' => $this->id]);
+    }
+
+    private static function notifySince(Employee $employee): ?Carbon
+    {
+        $user = $employee->relationLoaded('user') ? $employee->user : $employee->user()->first(['id', 'created_at']);
+
+        return $user?->created_at ?? $employee->created_at;
     }
 
     public function isPersonal(): bool

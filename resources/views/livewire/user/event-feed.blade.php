@@ -56,10 +56,18 @@
                 $personal = $event->isPersonal();
                 $now = $event->isHappeningNow();
                 $ended = $event->hasEnded();
+                $unread = $unreadIds->has($event->id);
+                $focused = $focus === $event->id;
             @endphp
 
+            {{-- Bấm vào sự kiện chưa đọc = đã xem (chuông giảm số). Mở từ chuông thì cuộn tới + tô viền. --}}
             <article wire:key="ev-{{ $event->id }}"
+                     id="su-kien-{{ $event->id }}"
+                     @if ($unread) wire:click="markRead({{ $event->id }})" @endif
+                     @if ($focused) x-data x-init="$nextTick(() => $el.scrollIntoView({ block: 'center', behavior: 'smooth' }))" @endif
                      @class([
+                         'cursor-pointer' => $unread,
+                         'ring-2 ring-brand-red' => $focused,
                          'group relative overflow-hidden rounded-user-md border bg-white p-4 shadow-user-sm',
                          'transition-all duration-300 hover:-translate-y-0.5 hover:shadow-user',
                          // Sự kiện riêng có viền đỏ + dải màu bên trái để nhận ra ngay
@@ -74,6 +82,13 @@
 
                 <div class="{{ $personal ? 'pl-3' : '' }}">
                     <div class="mb-2 flex flex-wrap items-center gap-1.5">
+                        @if ($unread)
+                            <span class="inline-flex items-center gap-1 rounded-user-pill bg-brand-red-tint px-2.5 py-1 text-[11px] font-bold text-brand-red">
+                                <span class="h-1.5 w-1.5 rounded-full bg-brand-red"></span>
+                                Mới
+                            </span>
+                        @endif
+
                         @if ($personal)
                             <span class="inline-flex items-center gap-1 rounded-user-pill bg-brand-red px-2.5 py-1 text-[11px] font-semibold text-white">
                                 @svg('heroicon-s-user', 'h-3 w-3')
@@ -112,6 +127,16 @@
                     <p class="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-brand-muted">
                         {{ $event->content }}
                     </p>
+
+                    {{-- Lời nhắc học gắn khóa: đi thẳng tới khóa thay vì bắt tự tìm --}}
+                    @if ($event->type === \App\Models\Announcement::TYPE_COURSE && $event->course?->slug)
+                        <a href="{{ route('learn.course', $event->course) }}"
+                           wire:navigate
+                           class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand-red hover:underline">
+                            Vào khóa học
+                            @svg('heroicon-o-arrow-right', 'h-4 w-4')
+                        </a>
+                    @endif
 
                     @if ($event->starts_at || $event->location)
                         <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-brand-line pt-3 text-xs text-brand-muted">

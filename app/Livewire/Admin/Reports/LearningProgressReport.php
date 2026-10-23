@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\Reports;
 
+use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Livewire\Concerns\HasReportPeriod;
 use App\Models\Enrollment;
@@ -21,6 +22,8 @@ use Livewire\WithPagination;
  */
 class LearningProgressReport extends Component
 {
+    use HasSearchFilters;
+
     use ChecksPermissions;
     use HasReportPeriod;
     use WithPagination;
