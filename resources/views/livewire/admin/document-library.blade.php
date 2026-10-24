@@ -313,12 +313,11 @@
                 </div>
                 @else
                     <div class="sm:col-span-2 rounded-admin border border-brand-line bg-brand-soft p-3 text-sm">
-                        Thiết lập nhóm nhân viên được xem tài liệu. Để trống cả hai điều kiện nếu áp dụng cho toàn công ty.
+                        Mỗi tài liệu có một bộ phân quyền gồm các quy tắc. Chọn nhóm quyền chung tại đây; có thể thêm các quy tắc riêng theo chức danh hoặc điều kiện khác trong màn Phân quyền tài liệu.
                         @if ($editingId && ($otherRules = $this->otherRuleCount()) > 0)
                             <span class="mt-1 block text-xs text-brand-muted">
-                                Tài liệu còn {{ $otherRules }} quy tắc khác (theo chức danh, trạng thái...) —
-                                xem và sửa ở màn
-                                <a href="{{ route('admin.access-rules') }}" wire:navigate class="font-semibold text-brand-red hover:underline">Phân quyền tài liệu</a>.
+                                Bộ phân quyền hiện có {{ $otherRules }} quy tắc khác.
+                                <a href="{{ route('admin.access-rules') }}" wire:navigate class="font-semibold text-brand-red hover:underline">Mở danh sách tài liệu và quy tắc</a>.
                             </span>
                         @endif
                     </div>

@@ -222,8 +222,8 @@ class DocumentLibrary extends Component
 
     /**
      * Quy tắc chính = quy tắc cho phép đầu tiên chỉ lọc theo phòng ban / cấp bậc,
-     * chính là quy tắc tạo ở bước 2 khi thêm tài liệu. Các quy tắc phức tạp hơn
-     * (theo chức danh, trạng thái, mức cấp bậc tối thiểu) để màn Phân quyền tài liệu lo.
+     * chính là quy tắc tạo ở bước 2 khi thêm tài liệu. Các quy tắc khác vẫn thuộc
+     * cùng bộ phân quyền và được quản lý ở màn Phân quyền tài liệu.
      */
     private function primaryRule(Document $document): ?DocumentAccessRule
     {
@@ -278,7 +278,7 @@ class DocumentLibrary extends Component
         $rule->jobGrades()->sync(array_values(array_unique(array_map('intval', $accessData['accessJobGradeIds'] ?? []))));
     }
 
-    /** Số quy tắc khác ngoài quy tắc chính — để báo người sửa biết còn quy tắc ở màn riêng. */
+    /** Số quy tắc khác ngoài quy tắc chính trong cùng bộ phân quyền. */
     public function otherRuleCount(): int
     {
         if (! $this->editingId) {
@@ -286,7 +286,7 @@ class DocumentLibrary extends Component
         }
 
         return DocumentAccessRule::where('document_id', $this->editingId)
-            ->when($this->accessRuleId, fn ($q) => $q->whereKeyNot($this->accessRuleId))
+            ->when($this->accessRuleId, fn ($query) => $query->whereKeyNot($this->accessRuleId))
             ->count();
     }
 

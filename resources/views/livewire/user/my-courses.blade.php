@@ -74,13 +74,12 @@
 
     </section>
 
-    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Tổng quan tiến độ khóa học">
+    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Tổng quan tiến độ khóa học">
         @foreach ([
             'all' => ['Tổng khóa', $summary['total'], ''],
             'completed' => ['Đã hoàn thành', $summary['completed'], 'text-state-success'],
             'unfinished' => ['Cần hoàn thành', $summary['needs_completion'], 'text-state-warning'],
             'overdue' => ['Quá hạn', $summary['overdue'], 'text-brand-red'],
-            'progress' => ['% hoàn thành', $summary['overall_percent'] . '%', 'text-brand-red'],
         ] as $key => [$label, $value, $tone])
             <button type="button"
                     wire:click="setFilter('{{ $key }}')"

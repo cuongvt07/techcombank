@@ -7,11 +7,11 @@ use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentAccessRule;
-use App\Models\DocumentCategory;
 use App\Models\Employee;
 use App\Models\JobGrade;
 use App\Models\JobTitle;
 use App\Services\DocumentAccessService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -74,14 +74,15 @@ class DocumentAccessManager extends Component
     public function render(): View
     {
         return view('livewire.admin.document-access-manager', [
-            'rules' => $this->rules(),
-            'documents' => Document::orderBy('title')->get(),
+            'documents' => $this->documents(),
+            'selectedRules' => $this->selectedRules(),
+            'selectedDocument' => $this->documentId
+                ? Document::with(['currentVersion.storedFile', 'ownerDepartment'])->find($this->documentId)
+                : null,
             'documentCount' => Document::count(),
-            'categories' => DocumentCategory::active()->orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
             'jobTitles' => JobTitle::active()->orderBy('name')->get(),
             'jobGrades' => JobGrade::active()->orderBy('level')->get(),
-            'employees' => Employee::active()->orderBy('full_name')->limit(300)->get(),
         ])->layout('layouts.admin', ['title' => 'Phân quyền tài liệu']);
     }
 
@@ -98,6 +99,36 @@ class DocumentAccessManager extends Component
 
         $this->resetForm();
         $this->showModal = true;
+    }
+
+    /** Mở một bộ phân quyền của tài liệu; bộ này có thể chứa nhiều quy tắc. */
+    public function manageDocument(int $documentId): void
+    {
+        $document = Document::findOrFail($documentId);
+        $existingRules = DocumentAccessRule::query()
+            ->with(['departments', 'jobGrades', 'jobTitle'])
+            ->where('document_id', $document->id)
+            ->orderBy('id')
+            ->get();
+
+        $this->requirePermission($existingRules->isNotEmpty()
+            ? 'document_access.update'
+            : 'document_access.create');
+
+        $this->resetForm();
+        $this->scope = 'document';
+        $this->documentId = $document->id;
+        $this->showModal = true;
+    }
+
+    /** Xóa cấu hình quyền của tài liệu, giữ nguyên tài liệu và file. */
+    public function deleteDocumentPermission(int $documentId): void
+    {
+        $this->requirePermission('document_access.delete');
+        Document::findOrFail($documentId);
+
+        DocumentAccessRule::query()->where('document_id', $documentId)->delete();
+        session()->flash('status', 'Đã xóa phân quyền của tài liệu. Tài liệu và file vẫn được giữ nguyên.');
     }
 
     public function edit(int $id): void
@@ -176,19 +207,23 @@ class DocumentAccessManager extends Component
 
         if ($this->editingId) {
             $rule = DocumentAccessRule::findOrFail($this->editingId);
-            $rule->update($payload);
-            $rule->jobGrades()->sync($gradeIds);
-            $rule->departments()->sync($departmentIds);
-            session()->flash('status', 'Đã cập nhật quy tắc phân quyền.');
+            abort_unless($rule->document_id === $this->documentId, 403);
+
+            DB::transaction(function () use ($rule, $payload, $gradeIds, $departmentIds): void {
+                $rule->update($payload);
+                $rule->jobGrades()->sync($gradeIds);
+                $rule->departments()->sync($departmentIds);
+            });
+
+            session()->flash('status', 'Đã cập nhật phân quyền tài liệu.');
+            $this->resetRuleFields();
         } else {
             $rule = DocumentAccessRule::create($payload);
             $rule->jobGrades()->sync($gradeIds);
             $rule->departments()->sync($departmentIds);
-            session()->flash('status', 'Đã tạo quy tắc phân quyền.');
+            session()->flash('status', 'Đã thêm quy tắc vào bộ phân quyền tài liệu.');
+            $this->resetRuleFields();
         }
-
-        $this->showModal = false;
-        $this->resetForm();
     }
 
     /** Chặn lưu trùng cùng phạm vi, điều kiện và hiệu lực; bỏ qua chính rule đang sửa. */
@@ -279,21 +314,50 @@ class DocumentAccessManager extends Component
         ];
     }
 
-    private function rules()
+    private function documents()
     {
+        return Document::query()
+            ->with([
+                'currentVersion.storedFile',
+                'ownerDepartment',
+                'accessRules.departments',
+                'accessRules.jobGrades',
+                'accessRules.jobTitle',
+            ])
+            ->when(trim($this->search) !== '', fn ($query) => $query->where('title', 'like', '%' . trim($this->search) . '%'))
+            ->orderBy('title')
+            ->paginate(15);
+    }
+
+    /** Các quy tắc thuộc bộ phân quyền của tài liệu đang chọn. */
+    private function selectedRules()
+    {
+        if ($this->scope !== 'document' || ! $this->documentId) {
+            return collect();
+        }
+
         return DocumentAccessRule::query()
-            ->with(['document', 'category', 'department', 'departments', 'jobTitle', 'jobGrade', 'jobGrades'])
-            ->when($this->search, function ($query) {
-                $term = '%' . $this->search . '%';
-                $query->whereHas('document', fn ($d) => $d->where('title', 'like', $term))
-                    ->orWhereHas('category', fn ($c) => $c->where('name', 'like', $term));
-            })
-            ->when($this->scopeFilter === 'document', fn ($q) => $q->whereNotNull('document_id'))
-            ->when($this->scopeFilter === 'category', fn ($q) => $q->whereNotNull('document_category_id'))
-            ->when($this->scopeFilter === 'deny', fn ($q) => $q->where('effect', DocumentAccessRule::EFFECT_DENY))
+            ->with(['departments', 'department', 'jobGrades', 'jobGrade', 'jobTitle'])
+            ->where('document_id', $this->documentId)
             ->orderByDesc('priority')
             ->orderByDesc('id')
-            ->paginate(15);
+            ->get();
+    }
+
+    /** Reset điều kiện và quyền sau mỗi lần lưu, giữ nguyên bộ tài liệu đang mở. */
+    private function resetRuleFields(): void
+    {
+        $this->reset([
+            'editingId', 'departmentIds', 'jobTitleId', 'jobGradeIds',
+            'minGradeLevel', 'employmentStatus', 'duplicateError',
+        ]);
+        $this->includeSubDepartments = true;
+        $this->canView = true;
+        $this->canDownload = false;
+        $this->canPrint = false;
+        $this->effect = DocumentAccessRule::EFFECT_ALLOW;
+        $this->priority = 0;
+        $this->resetValidation();
     }
 
     private function resetForm(): void
