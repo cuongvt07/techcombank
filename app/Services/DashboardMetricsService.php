@@ -463,6 +463,7 @@ class DashboardMetricsService
     public function departmentProgress(DashboardFilter $f): array
     {
         $rows = $this->applyOpenDuring($this->enrollmentScope($f), $f->period)
+            ->whereNotNull('e.department_id')
             ->selectRaw('e.department_id, ' . self::statusSql() . ' as st, COUNT(*) as n', [DashboardFilter::today()])
             ->groupBy('e.department_id', 'st')
             ->get();

@@ -30,7 +30,9 @@ class MyCourses extends Component
 
     public function setFilter(string $filter): void
     {
-        $this->filter = $filter;
+        $this->filter = in_array($filter, ['all', 'completed', 'unfinished', 'overdue', 'progress'], true)
+            ? $filter
+            : 'all';
     }
 
     private function enrollments()
@@ -45,9 +47,9 @@ class MyCourses extends Component
             ->with('course')
             ->where('employee_id', $employee->id)
             ->where('status', '!=', Enrollment::STATUS_CANCELLED)
-            ->when($this->filter === 'mandatory', fn ($q) => $q->where('is_mandatory', true))
-            ->when($this->filter === 'in_progress', fn ($q) => $q->unfinished())
             ->when($this->filter === 'completed', fn ($q) => $q->where('status', Enrollment::STATUS_COMPLETED))
+            ->when($this->filter === 'unfinished', fn ($q) => $q->where('status', '!=', Enrollment::STATUS_COMPLETED))
+            ->when($this->filter === 'overdue', fn ($q) => $q->where('status', Enrollment::STATUS_OVERDUE))
             // Khoá quá hạn lên đầu, rồi đến khoá có hạn gần nhất
             ->orderByRaw("FIELD(status, 'overdue', 'in_progress', 'not_started', 'completed')")
             ->orderByRaw('due_date IS NULL, due_date')
@@ -105,7 +107,7 @@ class MyCourses extends Component
         if (! $employee) {
             return [
                 'total' => 0, 'completed' => 0, 'overdue' => 0, 'in_progress' => 0,
-                'overall_percent' => 0, 'certificates' => 0, 'streak' => 0,
+                'overall_percent' => 0, 'needs_completion' => 0, 'streak' => 0,
             ];
         }
 
@@ -118,6 +120,7 @@ class MyCourses extends Component
         return [
             'total' => $total,
             'completed' => $completed,
+            'needs_completion' => $total - $completed,
             'overdue' => (clone $base)->where('status', Enrollment::STATUS_OVERDUE)->count(),
             'in_progress' => (clone $base)->where('status', Enrollment::STATUS_IN_PROGRESS)->count(),
 
@@ -128,8 +131,6 @@ class MyCourses extends Component
             'overall_percent' => $total > 0
                 ? (int) round((clone $base)->avg('progress_percent') ?? 0)
                 : 0,
-
-            'certificates' => $employee->certificates()->count(),
 
             // Chuỗi ngày học liên tiếp: động lực duy trì thói quen
             'streak' => $this->learningStreak($employee),

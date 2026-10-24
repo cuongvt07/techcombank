@@ -32,6 +32,7 @@
             ['route' => 'admin.security', 'label' => 'Trung tâm bảo mật', 'icon' => 'exclamation-triangle', 'permission' => 'security.view'],
             ['route' => 'admin.support', 'label' => 'Phiếu hỗ trợ', 'icon' => 'lifebuoy', 'permission' => 'support.view'],
             ['route' => 'admin.settings', 'label' => 'Cấu hình chung', 'icon' => 'cog-6-tooth', 'permission' => 'settings.view'],
+            ['route' => 'admin.profile', 'label' => 'Thông tin cá nhân', 'icon' => 'user-circle', 'permission' => null],
         ],
     ];
 @endphp

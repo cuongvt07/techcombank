@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\DocumentAccessLog;
 use App\Models\DocumentAccessRule;
+use App\Models\Enrollment;
 use App\Models\Employee;
+use App\Models\Lesson;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
@@ -75,6 +77,46 @@ class DocumentAccessService
             'can_view' => (bool) $winner->can_view,
             'can_download' => (bool) $winner->can_download,
             'can_print' => (bool) $winner->can_print,
+            'reason' => '',
+        ];
+    }
+
+    /**
+     * Resolve file access from a course context. An active enrollment that includes
+     * this document grants viewing inside that course only; the regular document
+     * library continues to use resolve() and therefore still requires a document rule.
+     *
+     * @return array{can_view: bool, can_download: bool, can_print: bool, reason: string}
+     */
+    public function resolveForCourse(Employee $employee, Document $document, ?int $courseId): array
+    {
+        $permission = $this->resolve($employee, $document);
+
+        if ($permission['can_view'] || ! $courseId || ! $employee->isActive()
+            || $document->status !== Document::STATUS_PUBLISHED) {
+            return $permission;
+        }
+
+        $enrolled = Enrollment::query()
+            ->where('employee_id', $employee->id)
+            ->where('course_id', $courseId)
+            ->where('status', '!=', Enrollment::STATUS_CANCELLED)
+            ->exists();
+
+        $attachedToCourse = Lesson::query()
+            ->where('course_id', $courseId)
+            ->where('document_id', $document->id)
+            ->exists();
+
+        if (! $enrolled || ! $attachedToCourse) {
+            return $permission;
+        }
+
+        return [
+            'can_view' => true,
+            // Giao khóa học chỉ cấp quyền xem nội dung; tải và in vẫn theo rule tài liệu.
+            'can_download' => false,
+            'can_print' => false,
             'reason' => '',
         ];
     }

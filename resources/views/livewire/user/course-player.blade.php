@@ -263,7 +263,7 @@
                                     --}}
                                     @if ($doc->isInlineViewable())
                                         <div class="relative mb-4 overflow-hidden rounded-user-md border border-brand-line bg-brand-soft">
-                                            <iframe src="{{ route('learn.documents.stream', $doc) }}#toolbar=0&navpanes=0"
+                                            <iframe src="{{ route('learn.documents.stream', ['document' => $doc, 'course_id' => $enrollment->course_id]) }}#toolbar=0&navpanes=0"
                                                     class="h-[70vh] max-h-[720px] w-full"
                                                     title="{{ $doc->title }}"></iframe>
 
@@ -299,7 +299,7 @@
                                                 @endif
 
                                                 <div class="mt-3 flex flex-wrap items-center gap-2">
-                                                    <a href="{{ route('learn.documents.stream', $doc) }}"
+                                                    <a href="{{ route('learn.documents.stream', ['document' => $doc, 'course_id' => $enrollment->course_id]) }}"
                                                        target="_blank" rel="noopener"
                                                        class="{{ $doc->isInlineViewable() ? 'user-btn-secondary' : 'user-btn' }} !min-h-[38px] !px-4 !text-xs">
                                                         @svg('heroicon-o-arrow-top-right-on-square', 'h-4 w-4')
@@ -317,7 +317,7 @@
                                                         </span>
                                                     @endif
 
-                                                    @if ($doc->allow_download)
+                                                    @if ($documentCanDownload)
                                                         <a href="{{ route('learn.documents.download', $doc) }}"
                                                            class="user-btn-secondary !min-h-[38px] !px-4 !text-xs">
                                                             @svg('heroicon-o-arrow-down-tray', 'h-4 w-4')

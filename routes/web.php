@@ -14,6 +14,7 @@ use App\Livewire\Admin\EmployeeDetail;
 use App\Livewire\Admin\EmployeeManager;
 use App\Livewire\Admin\FileManager;
 use App\Livewire\Admin\PermissionMatrix;
+use App\Livewire\Admin\Profile as AdminProfile;
 use App\Livewire\Admin\QuizBuilder;
 use App\Livewire\Admin\SecurityCenter;
 use App\Livewire\Admin\SettingsManager;
@@ -72,6 +73,7 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
     ->name('admin.')
     ->group(function () {
         Route::get('/', AdminDashboard::class)->name('dashboard');
+        Route::get('/ca-nhan', AdminProfile::class)->name('profile');
 
         // 3.1 Quản lý nhân sự
         Route::get('/tai-khoan', AccountManager::class)

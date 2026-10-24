@@ -1,4 +1,5 @@
 <div>
+    @include('livewire.admin.partials.document-tabs', ['active' => 'permissions', 'documentCount' => $documentCount])
     @php
         $documentOptions = $documents->map(fn ($item) => ['value' => $item->id, 'label' => $item->title])->all();
         $categoryOptions = $categories->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all();
@@ -167,6 +168,11 @@
     {{-- Modal quy tắc --}}
     @if ($showModal)
         <x-admin.modal :title="$editingId ? 'Sửa quy tắc phân quyền' : 'Thêm quy tắc phân quyền'" maxWidth="max-w-3xl">
+            @if ($duplicateError)
+                <div role="alert" class="mb-4 rounded-admin border border-brand-red/30 bg-red-50 px-3 py-2 text-sm font-semibold text-brand-red">
+                    {{ $duplicateError }}
+                </div>
+            @endif
             <form wire:submit="save" id="access-form" class="grid gap-4">
                 <div>
                     <label for="a_scope" class="admin-label">Phạm vi áp dụng</label>

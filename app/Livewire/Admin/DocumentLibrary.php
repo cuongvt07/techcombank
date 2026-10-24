@@ -85,6 +85,7 @@ class DocumentLibrary extends Component
     {
         return view('livewire.admin.document-library', [
             'documents' => $this->documents(),
+            'documentCount' => Document::count(),
             'categories' => DocumentCategory::active()->orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
             'jobGrades' => JobGrade::active()->orderBy('level')->get(),

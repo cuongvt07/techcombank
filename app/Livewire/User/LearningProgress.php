@@ -4,100 +4,50 @@ namespace App\Livewire\User;
 
 use App\Models\Certificate;
 use App\Models\Employee;
-use App\Models\Enrollment;
 use App\Models\QuizAttempt;
 use Illuminate\View\View;
 use Livewire\Component;
 
-/**
- * Lịch sử học tập và nhắc việc (spec 4.2).
- * Nhắc việc đặt lên đầu vì đó là lý do chính nhân viên mở màn hình này.
- */
+/** Kết quả kiểm tra và chứng nhận hoàn thành của nhân viên đang đăng nhập. */
 class LearningProgress extends Component
 {
-    public $statusFilter = '';
-
-    public function setStatusFilter(string $status): void
-    {
-        $allowed = ['', Enrollment::STATUS_COMPLETED, Enrollment::STATUS_IN_PROGRESS, Enrollment::STATUS_OVERDUE];
-        $this->statusFilter = in_array($status, $allowed, true) ? $status : '';
-    }
+    public ?int $viewingCertificateId = null;
 
     public function render(): View
     {
         $employee = auth()->user()?->employee;
 
         return view('livewire.user.learning-progress', [
-            'employee' => $employee,
-            'summary' => $this->summary($employee),
-            'dueSoon' => $this->dueSoon($employee),
-            'enrollments' => $this->enrollments($employee),
             'quizAttempts' => $this->quizAttempts($employee),
             'certificates' => $this->certificates($employee),
+            'viewingCertificate' => $this->viewingCertificate($employee),
         ])->layout('layouts.user', ['title' => 'Tiến độ học tập']);
     }
 
-    /** @return array<string, int|float> */
-    private function summary(?Employee $employee): array
+    public function showCertificate(int $certificateId): void
     {
-        if (! $employee) {
-            return ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'overdue' => 0, 'avg' => 0];
-        }
+        $employee = auth()->user()?->employee;
 
-        $base = Enrollment::where('employee_id', $employee->id)
-            ->whereNot('status', Enrollment::STATUS_CANCELLED);
-
-        return [
-            'total' => (clone $base)->count(),
-            'completed' => (clone $base)->where('status', Enrollment::STATUS_COMPLETED)->count(),
-            'in_progress' => (clone $base)->where('status', Enrollment::STATUS_IN_PROGRESS)->count(),
-            'overdue' => (clone $base)->where('status', Enrollment::STATUS_OVERDUE)->count(),
-            'avg' => round((float) (clone $base)->avg('progress_percent'), 0),
-        ];
-    }
-
-    /** Khoá bắt buộc chưa xong, sắp đến hạn hoặc đã quá hạn (spec 4.2: nhắc việc). */
-    private function dueSoon(?Employee $employee)
-    {
-        if (! $employee) {
-            return collect();
-        }
-
-        return Enrollment::with('course')
+        if ($employee && Certificate::query()
             ->where('employee_id', $employee->id)
-            ->mandatory()
-            ->unfinished()
-            ->whereNotNull('due_date')
-            ->orderBy('due_date')
-            ->limit(5)
-            ->get();
-    }
-
-    private function enrollments(?Employee $employee)
-    {
-        if (! $employee) {
-            return collect();
+            ->whereKey($certificateId)
+            ->exists()) {
+            $this->viewingCertificateId = $certificateId;
         }
-
-        return Enrollment::with('course')
-            ->where('employee_id', $employee->id)
-            ->whereNot('status', Enrollment::STATUS_CANCELLED)
-            ->when($this->statusFilter !== '', function ($query) {
-                return $query->where('status', $this->statusFilter);
-            })
-            ->orderByRaw("FIELD(status, 'overdue', 'in_progress', 'not_started', 'completed')")
-            ->orderByDesc('last_accessed_at')
-            ->get();
     }
 
-    /** Kết quả các lần thi, mới nhất trước (spec 3.2.3: lưu lịch sử từng lần). */
+    public function closeCertificate(): void
+    {
+        $this->viewingCertificateId = null;
+    }
+
     private function quizAttempts(?Employee $employee)
     {
         if (! $employee) {
             return collect();
         }
 
-        return QuizAttempt::with('quiz')
+        return QuizAttempt::with('quiz.course')
             ->where('employee_id', $employee->id)
             ->whereNot('status', QuizAttempt::STATUS_IN_PROGRESS)
             ->orderByDesc('submitted_at')
@@ -115,5 +65,16 @@ class LearningProgress extends Component
             ->where('employee_id', $employee->id)
             ->orderByDesc('issued_at')
             ->get();
+    }
+
+    private function viewingCertificate(?Employee $employee): ?Certificate
+    {
+        if (! $employee || ! $this->viewingCertificateId) {
+            return null;
+        }
+
+        return Certificate::with(['course', 'employee'])
+            ->where('employee_id', $employee->id)
+            ->find($this->viewingCertificateId);
     }
 }

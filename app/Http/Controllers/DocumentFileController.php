@@ -47,7 +47,11 @@ class DocumentFileController extends Controller
             abort(403, 'Tài khoản chưa gắn hồ sơ nhân sự.');
         }
 
-        $resolved = $this->access->resolve($employee, $document);
+        $resolved = $this->access->resolveForCourse(
+            $employee,
+            $document,
+            $inline ? $request->integer('course_id') ?: null : null,
+        );
 
         if (! $resolved['can_view']) {
             // Ghi cả lượt bị từ chối: chuỗi lượt từ chối liên tiếp là dấu hiệu

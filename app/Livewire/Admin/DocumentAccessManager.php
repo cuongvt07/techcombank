@@ -41,6 +41,7 @@ class DocumentAccessManager extends Component
 
     public bool $showModal = false;
     public ?int $editingId = null;
+    public ?string $duplicateError = null;
 
     // Phạm vi áp dụng: một tài liệu cụ thể hoặc cả danh mục
     public string $scope = 'document';
@@ -75,6 +76,7 @@ class DocumentAccessManager extends Component
         return view('livewire.admin.document-access-manager', [
             'rules' => $this->rules(),
             'documents' => Document::orderBy('title')->get(),
+            'documentCount' => Document::count(),
             'categories' => DocumentCategory::active()->orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
             'jobTitles' => JobTitle::active()->orderBy('name')->get(),
@@ -105,6 +107,7 @@ class DocumentAccessManager extends Component
         $rule = DocumentAccessRule::findOrFail($id);
 
         $this->editingId = $rule->id;
+        $this->duplicateError = null;
         $this->scope = $rule->document_id ? 'document' : 'category';
         $this->documentId = $rule->document_id;
         $this->categoryId = $rule->document_category_id;
@@ -165,6 +168,12 @@ class DocumentAccessManager extends Component
         $gradeIds = array_values(array_unique(array_map('intval', $this->jobGradeIds)));
         $departmentIds = array_values(array_unique(array_map('intval', $this->departmentIds)));
 
+        if ($this->duplicateRuleExists($payload, $departmentIds, $gradeIds)) {
+            $this->duplicateError = 'Quy tắc này đã tồn tại. Hãy chỉnh sửa quy tắc hiện có thay vì tạo trùng.';
+
+            return;
+        }
+
         if ($this->editingId) {
             $rule = DocumentAccessRule::findOrFail($this->editingId);
             $rule->update($payload);
@@ -180,6 +189,40 @@ class DocumentAccessManager extends Component
 
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    /** Chặn lưu trùng cùng phạm vi, điều kiện và hiệu lực; bỏ qua chính rule đang sửa. */
+    private function duplicateRuleExists(array $payload, array $departmentIds, array $gradeIds): bool
+    {
+        $departmentIds = $this->normalizedIds($departmentIds);
+        $gradeIds = $this->normalizedIds($gradeIds);
+
+        return DocumentAccessRule::query()
+            ->with(['departments', 'jobGrades'])
+            ->where('document_id', $payload['document_id'])
+            ->where('document_category_id', $payload['document_category_id'])
+            ->where('job_title_id', $payload['job_title_id'])
+            ->where('min_grade_level', $payload['min_grade_level'])
+            ->where('employment_status', $payload['employment_status'])
+            ->where('include_sub_departments', $payload['include_sub_departments'])
+            ->where('effect', $payload['effect'])
+            ->when($this->editingId, fn ($query) => $query->whereKeyNot($this->editingId))
+            ->get()
+            ->contains(fn (DocumentAccessRule $rule) =>
+                $this->normalizedIds($rule->departmentIds()) === $departmentIds
+                && $this->normalizedIds($rule->gradeIds()) === $gradeIds
+            );
+    }
+
+    /** @param array<int, int|string> $ids
+     *  @return array<int, int>
+     */
+    private function normalizedIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids);
+
+        return $ids;
     }
 
     public function toggleActive(int $id): void
@@ -258,6 +301,7 @@ class DocumentAccessManager extends Component
         $this->reset([
             'editingId', 'documentId', 'categoryId', 'departmentIds',
             'jobTitleId', 'jobGradeIds', 'minGradeLevel', 'employmentStatus',
+            'duplicateError',
         ]);
         $this->scope = 'document';
         $this->includeSubDepartments = true;

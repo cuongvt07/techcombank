@@ -55,6 +55,9 @@ class CoursePlayer extends Component
     {
         $enrollment = $this->enrollment();
         $current = $this->currentLesson();
+        $documentPermission = $current?->document && $this->employee()
+            ? app(DocumentAccessService::class)->resolve($this->employee(), $current->document)
+            : null;
 
         return view('livewire.user.course-player', [
             'enrollment' => $enrollment,
@@ -70,6 +73,8 @@ class CoursePlayer extends Component
             'watermarkText' => $current?->document && $current->document->enable_watermark
                 ? app(DocumentAccessService::class)->watermarkText($this->employee())
                 : null,
+            'documentCanDownload' => (bool) ($documentPermission['can_download'] ?? false)
+                && (bool) ($current?->document?->allow_download ?? false),
 
             // Xong hết bài thì nút "Bài sau" đổi thành "Thoát": không còn bài
             // nào để đi tiếp, để nguyên nút mờ là ngõ cụt

@@ -72,42 +72,28 @@
             @endif
         </div>
 
-        {{-- Ba chỉ số nhanh --}}
-        <div class="relative mt-5 grid grid-cols-3 gap-2 sm:gap-2.5">
-            <div class="min-w-0 rounded-user-md bg-white/[.14] px-2.5 py-2.5 backdrop-blur sm:px-3">
-                <strong class="block text-xl font-bold leading-none sm:text-2xl">{{ $summary['total'] }}</strong>
-                <span class="mt-1 block truncate text-[10px] text-white/80 sm:text-[11px]">Khóa được giao</span>
-            </div>
-            <div class="min-w-0 rounded-user-md bg-white/[.14] px-2.5 py-2.5 backdrop-blur sm:px-3">
-                <strong class="block text-xl font-bold leading-none sm:text-2xl">{{ $summary['completed'] }}</strong>
-                <span class="mt-1 block truncate text-[10px] text-white/80 sm:text-[11px]">Đã hoàn thành</span>
-            </div>
-            <div class="min-w-0 rounded-user-md bg-white/[.14] px-2.5 py-2.5 backdrop-blur sm:px-3">
-                <strong class="block text-xl font-bold leading-none sm:text-2xl">{{ $summary['certificates'] }}</strong>
-                <span class="mt-1 block truncate text-[10px] text-white/80 sm:text-[11px]">Chứng nhận</span>
-            </div>
-        </div>
     </section>
 
-    {{-- Filter dạng pill (spec 6.5: thành phần phụ được phép bo tròn) --}}
-    <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Tổng quan tiến độ khóa học">
         @foreach ([
-            'all' => 'Tất cả',
-            'mandatory' => 'Bắt buộc',
-            'in_progress' => 'Đang học',
-            'completed' => 'Đã xong',
-        ] as $key => $label)
+            'all' => ['Tổng khóa', $summary['total'], ''],
+            'completed' => ['Đã hoàn thành', $summary['completed'], 'text-state-success'],
+            'unfinished' => ['Cần hoàn thành', $summary['needs_completion'], 'text-state-warning'],
+            'overdue' => ['Quá hạn', $summary['overdue'], 'text-brand-red'],
+            'progress' => ['% hoàn thành', $summary['overall_percent'] . '%', 'text-brand-red'],
+        ] as $key => [$label, $value, $tone])
             <button type="button"
                     wire:click="setFilter('{{ $key }}')"
+                    aria-pressed="{{ $filter === $key ? 'true' : 'false' }}"
                     @class([
-                        'user-pill transition-all duration-200',
-                        'bg-brand-red text-white shadow-user-sm' => $filter === $key,
-                        'hover:bg-brand-line' => $filter !== $key,
+                        'user-card min-h-[84px] p-4 text-left transition hover:border-brand-red',
+                        'ring-2 ring-brand-red' => $filter === $key,
                     ])>
-                {{ $label }}
+                <span class="text-[11px] font-semibold uppercase text-brand-muted">{{ $label }}</span>
+                <strong @class(['mt-1 block text-2xl font-bold leading-none', $tone])>{{ $value }}</strong>
             </button>
         @endforeach
-    </div>
+    </section>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @forelse ($enrollments as $enrollment)

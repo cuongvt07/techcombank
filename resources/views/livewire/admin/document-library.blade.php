@@ -1,4 +1,5 @@
 <div>
+    @include('livewire.admin.partials.document-tabs', ['active' => 'library', 'documentCount' => $documentCount])
     <x-admin.page-header title="Thư viện tài liệu"
                          subtitle="Tài liệu, video bài giảng, phiên bản và cấp độ bảo mật.">
         <x-slot:actions>
@@ -87,11 +88,6 @@
                                     </span>
                                     <div class="min-w-0">
                                         <div class="truncate font-bold">{{ $doc->title }}</div>
-                                        @if ($doc->currentVersion)
-                                            <div class="truncate text-xs text-brand-muted">
-                                                {{ $doc->currentVersion->original_filename }}
-                                            </div>
-                                        @endif
                                     </div>
                                 </div>
                             </td>

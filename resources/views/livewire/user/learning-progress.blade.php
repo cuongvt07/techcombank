@@ -1,144 +1,25 @@
-<div>
-    {{-- Nhắc việc lên đầu: đây là lý do chính nhân viên mở màn hình này (spec 4.2) --}}
-    @if ($dueSoon->isNotEmpty())
-        <section class="mb-5">
-            <h2 class="mb-2.5 text-sm font-bold">Cần hoàn thành</h2>
-            <div class="grid gap-2.5">
-                @foreach ($dueSoon as $item)
-                    @php $days = $item->daysUntilDue(); @endphp
-
-                    <a wire:navigate href="{{ route('learn.course', $item->course) }}"
-                       @class([
-                           'flex items-center gap-3 rounded-user-md border p-3.5 transition-shadow hover:shadow-user-sm',
-                           'border-brand-red bg-brand-red-tint' => $days !== null && $days < 0,
-                           'border-state-warning bg-state-warning-tint' => $days !== null && $days >= 0 && $days <= 7,
-                           'border-brand-line bg-white' => $days === null || $days > 7,
-                       ])>
-                        <span @class([
-                            'grid h-10 w-10 shrink-0 place-items-center rounded-user-md',
-                            'bg-brand-red text-white' => $days !== null && $days < 0,
-                            'bg-state-warning text-white' => $days !== null && $days >= 0 && $days <= 7,
-                            'bg-brand-soft text-brand-muted' => $days === null || $days > 7,
-                        ])>
-                            @svg('heroicon-o-clock', 'h-5 w-5')
-                        </span>
-
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-bold">{{ $item->course->title }}</p>
-                            <p class="mt-0.5 text-xs text-brand-muted">
-                                {{ (int) $item->progress_percent }}% hoàn thành ·
-                                @if ($days !== null && $days < 0)
-                                    <span class="font-bold text-brand-red">Quá hạn {{ abs($days) }} ngày</span>
-                                @elseif ($days !== null)
-                                    Còn {{ $days }} ngày
-                                @endif
-                            </p>
-                        </div>
-
-                        @svg('heroicon-o-chevron-right', 'h-5 w-5 shrink-0 text-brand-muted')
-                    </a>
-                @endforeach
-            </div>
-        </section>
-    @endif
-
-    <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <button type="button" wire:click="setStatusFilter('')"
-                aria-pressed="{{ $statusFilter === '' ? 'true' : 'false' }}"
-                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === '' ? 'ring-2 ring-brand-red' : '' }}">
-            <span class="text-[11px] font-semibold uppercase text-brand-muted">Tổng khóa học</span>
-            <strong class="mt-1 block text-2xl font-bold leading-none">{{ $summary['total'] }}</strong>
-        </button>
-        <button type="button" wire:click="setStatusFilter('completed')"
-                aria-pressed="{{ $statusFilter === 'completed' ? 'true' : 'false' }}"
-                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'completed' ? 'ring-2 ring-brand-red' : '' }}">
-            <span class="text-[11px] font-semibold uppercase text-brand-muted">Đã hoàn thành</span>
-            <strong class="mt-1 block text-2xl font-bold leading-none text-state-success">{{ $summary['completed'] }}</strong>
-        </button>
-        <button type="button" wire:click="setStatusFilter('in_progress')"
-                aria-pressed="{{ $statusFilter === 'in_progress' ? 'true' : 'false' }}"
-                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'in_progress' ? 'ring-2 ring-brand-red' : '' }}">
-            <span class="text-[11px] font-semibold uppercase text-brand-muted">Đang học</span>
-            {{-- Khóa còn dở tô vàng: nhắc người học còn việc chưa xong --}}
-            <strong class="mt-1 block text-2xl font-bold leading-none {{ $summary['in_progress'] > 0 ? 'text-state-warning' : '' }}">
-                {{ $summary['in_progress'] }}
-            </strong>
-        </button>
-        <button type="button" wire:click="setStatusFilter('overdue')"
-                aria-pressed="{{ $statusFilter === 'overdue' ? 'true' : 'false' }}"
-                class="user-card p-4 text-left transition hover:border-brand-red {{ $statusFilter === 'overdue' ? 'ring-2 ring-brand-red' : '' }}">
-            <span class="text-[11px] font-semibold uppercase text-brand-muted">Quá hạn</span>
-            <strong class="mt-1 block text-2xl font-bold leading-none text-brand-red">{{ $summary['overdue'] }}</strong>
-        </button>
-        <div class="user-card p-4">
-            <span class="text-[11px] font-semibold uppercase text-brand-muted">Tiến độ trung bình</span>
-            <strong class="mt-1 block text-2xl font-bold leading-none text-brand-red">{{ (int) $summary['avg'] }}%</strong>
+<div class="grid gap-6">
+    <section>
+        <div class="mb-3">
+            <h1 class="text-lg font-bold">Kết quả bài kiểm tra</h1>
+            <p class="mt-1 text-sm text-brand-muted">Bấm vào kết quả để mở khóa học có bài kiểm tra đó.</p>
         </div>
-    </section>
-
-    <section class="mb-5">
-        <h2 class="mb-2.5 text-sm font-bold">
-            {{ $statusFilter === '' ? 'Tất cả khóa học' : match ($statusFilter) {
-                'completed' => 'Khóa học đã hoàn thành',
-                'in_progress' => 'Khóa học đang học',
-                'overdue' => 'Khóa học quá hạn',
-                default => 'Tất cả khóa học',
-            } }}
-            <span class="font-normal text-brand-muted">({{ $enrollments->count() }})</span>
-        </h2>
 
         <div class="user-card overflow-hidden">
-            @forelse ($enrollments as $item)
-                <a wire:navigate href="{{ route('learn.course', $item->course) }}"
-                   class="flex items-center gap-3 border-b border-brand-line p-4 transition-colors last:border-b-0 hover:bg-brand-soft">
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <p class="truncate text-sm font-bold">{{ $item->course->title }}</p>
-                            @if ($item->is_mandatory)
-                                <span class="tag tag-red">Bắt buộc</span>
-                            @endif
-                        </div>
-
-                        <div class="mt-2 flex items-center gap-2.5">
-                            <div class="progress-track flex-1">
-                                <div class="progress-fill {{ $item->isCompleted() ? '!bg-state-success' : '' }}"
-                                     style="width: {{ (float) $item->progress_percent }}%"></div>
-                            </div>
-                            <span class="shrink-0 text-xs font-bold {{ $item->isCompleted() ? 'text-state-success' : 'text-brand-red' }}">
-                                {{ (int) $item->progress_percent }}%
-                            </span>
-                        </div>
-
-                        <p class="mt-1 text-xs text-brand-muted">
-                            {{ $item->completed_lessons }}/{{ $item->total_lessons }} bài
-                            @if ($item->completed_at)
-                                · Hoàn thành {{ $item->completed_at->format('d/m/Y') }}
-                            @elseif ($item->due_date)
-                                · Hạn {{ $item->due_date->format('d/m/Y') }}
-                            @endif
-                        </p>
-                    </div>
-
-                    @svg('heroicon-o-chevron-right', 'h-5 w-5 shrink-0 text-brand-muted')
-                </a>
-            @empty
-                <p class="p-8 text-center text-sm text-brand-muted">Bạn chưa được giao khóa học nào.</p>
-            @endforelse
-        </div>
-    </section>
-
-    @if ($quizAttempts->isNotEmpty())
-        <section class="mb-5">
-            <h2 class="mb-2.5 text-sm font-bold">Kết quả bài kiểm tra</h2>
-
-            <div class="user-card overflow-hidden">
-                @foreach ($quizAttempts as $attempt)
+            @forelse ($quizAttempts as $attempt)
+                @php $course = $attempt->quiz?->course; @endphp
+                @if ($course)
+                    <a wire:navigate href="{{ route('learn.course', $course) }}"
+                       class="flex items-center justify-between gap-3 border-b border-brand-line p-4 transition-colors last:border-b-0 hover:bg-brand-soft">
+                @else
                     <div class="flex items-center justify-between gap-3 border-b border-brand-line p-4 last:border-b-0">
+                @endif
                         <div class="min-w-0">
                             <p class="truncate text-sm font-bold">{{ $attempt->quiz?->title ?? '—' }}</p>
                             <p class="mt-0.5 text-xs text-brand-muted">
-                                Lần {{ $attempt->attempt_no }} ·
-                                {{ $attempt->submitted_at?->format('d/m/Y H:i') ?? '—' }}
+                                {{ $course?->title ?? 'Không còn khóa học liên kết' }}
+                                · Lần {{ $attempt->attempt_no }}
+                                · {{ $attempt->submitted_at?->format('d/m/Y H:i') ?? '—' }}
                             </p>
                         </div>
 
@@ -147,38 +28,92 @@
                             <span class="tag {{ $attempt->is_passed ? 'tag-green' : 'tag-red' }}">
                                 {{ $attempt->is_passed ? 'Đạt' : 'Chưa đạt' }}
                             </span>
+                            @if ($course)
+                                @svg('heroicon-o-chevron-right', 'h-4 w-4 text-brand-muted')
+                            @endif
                         </div>
+                @if ($course)
+                    </a>
+                @else
                     </div>
-                @endforeach
-            </div>
-        </section>
-    @endif
+                @endif
+            @empty
+                <p class="p-5 text-sm text-brand-muted">Bạn chưa có kết quả bài kiểm tra.</p>
+            @endforelse
+        </div>
+    </section>
 
-    @if ($certificates->isNotEmpty())
-        <section>
-            <h2 class="mb-2.5 text-sm font-bold">Chứng nhận hoàn thành</h2>
+    <section>
+        <div class="mb-3">
+            <h2 class="text-lg font-bold">Chứng nhận hoàn thành</h2>
+            <p class="mt-1 text-sm text-brand-muted">Mở chứng nhận để xem mã và thông tin xác nhận.</p>
+        </div>
 
-            <div class="grid gap-3 sm:grid-cols-2">
-                @foreach ($certificates as $certificate)
-                    <div class="user-card p-4">
-                        <div class="flex items-start gap-3">
-                            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-user-md bg-state-success-tint text-state-success">
-                                @svg('heroicon-o-trophy', 'h-5 w-5')
-                            </span>
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-bold">{{ $certificate->course?->title }}</p>
-                                <p class="mt-0.5 font-mono text-[11px] text-brand-muted">{{ $certificate->certificate_no }}</p>
-                                <p class="mt-1 text-xs text-brand-muted">
-                                    Cấp ngày {{ $certificate->issued_at?->format('d/m/Y') }}
-                                    @if ($certificate->score)
-                                        · {{ (int) $certificate->score }} điểm
-                                    @endif
-                                </p>
-                            </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+            @forelse ($certificates as $certificate)
+                <button type="button" wire:click="showCertificate({{ $certificate->id }})"
+                        class="user-card flex w-full items-start gap-3 p-4 text-left transition hover:border-brand-red">
+                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-user-md bg-state-success-tint text-state-success">
+                        @svg('heroicon-o-trophy', 'h-5 w-5')
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-bold">{{ $certificate->course?->title }}</span>
+                        <span class="mt-0.5 block font-mono text-[11px] text-brand-muted">{{ $certificate->certificate_no }}</span>
+                        <span class="mt-1 block text-xs text-brand-red">Xem bằng chứng chứng nhận</span>
+                    </span>
+                    @svg('heroicon-o-chevron-right', 'h-4 w-4 shrink-0 text-brand-muted')
+                </button>
+            @empty
+                <p class="user-card p-5 text-sm text-brand-muted">Bạn chưa có chứng nhận hoàn thành.</p>
+            @endforelse
+        </div>
+    </section>
+
+    @if ($viewingCertificate)
+        <div class="fixed inset-0 z-[100] grid place-items-center bg-brand-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="certificate-title">
+            <div class="user-card relative w-full max-w-lg overflow-hidden">
+                <div class="border-b border-brand-line bg-state-success-tint p-5 text-center">
+                    <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white text-state-success shadow-user-sm">
+                        @svg('heroicon-o-trophy', 'h-7 w-7')
+                    </span>
+                    <h2 id="certificate-title" class="mt-3 text-lg font-bold">Chứng nhận hoàn thành</h2>
+                    <p class="mt-1 text-sm text-brand-muted">{{ $viewingCertificate->course?->title }}</p>
+                </div>
+
+                <dl class="grid gap-3 p-5 text-sm">
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-brand-muted">Học viên</dt>
+                        <dd class="text-right font-semibold">{{ $viewingCertificate->employee?->full_name }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-brand-muted">Mã chứng nhận</dt>
+                        <dd class="text-right font-mono font-bold">{{ $viewingCertificate->certificate_no }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-brand-muted">Mã xác thực</dt>
+                        <dd class="break-all text-right font-mono">{{ $viewingCertificate->verification_code }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-brand-muted">Ngày cấp</dt>
+                        <dd class="text-right font-semibold">{{ $viewingCertificate->issued_at?->format('d/m/Y') ?? '—' }}</dd>
+                    </div>
+                    @if ($viewingCertificate->score !== null)
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-brand-muted">Điểm</dt>
+                            <dd class="text-right font-semibold">{{ (int) $viewingCertificate->score }}</dd>
                         </div>
-                    </div>
-                @endforeach
+                    @endif
+                    @if (! $viewingCertificate->isValid())
+                        <div class="rounded-user-md border border-state-warning bg-state-warning-tint p-3 text-xs font-semibold text-state-warning">
+                            Chứng nhận này đã hết hạn {{ $viewingCertificate->valid_until?->format('d/m/Y') }}.
+                        </div>
+                    @endif
+                </dl>
+
+                <div class="flex justify-end border-t border-brand-line p-4">
+                    <button type="button" wire:click="closeCertificate" class="user-btn">Đóng</button>
+                </div>
             </div>
-        </section>
+        </div>
     @endif
 </div>
