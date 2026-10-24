@@ -74,6 +74,7 @@ class DocumentAccessManager extends Component
     {
         return view('livewire.admin.document-access-manager', [
             'documents' => $this->documents(),
+            'documentSuggestions' => $this->documentSuggestions(),
             'selectedRules' => $this->selectedRules(),
             'selectedDocument' => $this->documentId
                 ? Document::with(['currentVersion.storedFile', 'ownerDepartment'])->find($this->documentId)
@@ -90,6 +91,14 @@ class DocumentAccessManager extends Component
         if (in_array($property, ['search', 'scopeFilter'], true)) {
             $this->resetPage();
         }
+    }
+
+    public function selectDocumentSuggestion(int $documentId): void
+    {
+        $document = Document::query()->findOrFail($documentId);
+
+        $this->search = $document->title;
+        $this->resetPage();
     }
 
     public function create(): void
@@ -331,6 +340,21 @@ class DocumentAccessManager extends Component
             ->when(trim($this->search) !== '', fn ($query) => $query->where('title', 'like', '%' . trim($this->search) . '%'))
             ->orderBy('title')
             ->paginate(15);
+    }
+
+    private function documentSuggestions()
+    {
+        $term = trim($this->search);
+
+        if (mb_strlen($term) < 2) {
+            return collect();
+        }
+
+        return Document::query()
+            ->where('title', 'like', '%' . $term . '%')
+            ->orderBy('title')
+            ->limit(6)
+            ->get(['id', 'title']);
     }
 
     /** Các quy tắc thuộc bộ phân quyền của tài liệu đang chọn. */

@@ -7,11 +7,27 @@
 
     <div class="admin-panel">
         <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[240px] flex-1">
+            <div class="relative min-w-[240px] flex-1" x-data="{ open: false }" @click.outside="open = false">
                 <label for="f-document-access-manager-search-0" class="admin-label">Tìm tài liệu</label>
-                <input id="f-document-access-manager-search-0" type="search" wire:model="search"
-                       wire:keydown.enter="applySearch" class="admin-input"
+                <input id="f-document-access-manager-search-0" type="search" wire:model.live.debounce.300ms="search"
+                       wire:keydown.enter="applySearch" x-on:focus="open = true" x-on:keydown.escape="open = false"
+                       autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="document-access-suggestions"
+                       :aria-expanded="open && {{ $documentSuggestions->isNotEmpty() ? 'true' : 'false' }}"
+                       class="admin-input"
                        placeholder="Nhập tên tài liệu...">
+                @if ($documentSuggestions->isNotEmpty())
+                    <div id="document-access-suggestions" x-cloak x-show="open"
+                         class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-admin border border-brand-line bg-white shadow-lg"
+                         role="listbox" aria-label="Gợi ý tài liệu">
+                        @foreach ($documentSuggestions as $suggestion)
+                            <button type="button" role="option" wire:key="document-access-suggestion-{{ $suggestion->id }}"
+                                    wire:click="selectDocumentSuggestion({{ $suggestion->id }})" x-on:click="open = false"
+                                    class="block w-full border-b border-brand-line px-3 py-2.5 text-left text-sm text-brand-ink last:border-b-0 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
+                                {{ $suggestion->title }}
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
             </div>
             <div class="ml-auto flex items-end gap-2">
                 <button type="button" wire:click="applySearch" class="admin-btn">
