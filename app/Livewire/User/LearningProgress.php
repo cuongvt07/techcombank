@@ -47,12 +47,22 @@ class LearningProgress extends Component
             return collect();
         }
 
-        return QuizAttempt::with('quiz.course')
+        $attempts = QuizAttempt::with('quiz.course')
             ->where('employee_id', $employee->id)
             ->whereNot('status', QuizAttempt::STATUS_IN_PROGRESS)
             ->orderByDesc('submitted_at')
-            ->limit(20)
             ->get();
+
+        return $attempts
+            ->groupBy('quiz_id')
+            ->flatMap(fn ($quizAttempts) => $quizAttempts->sort(function (QuizAttempt $a, QuizAttempt $b): int {
+                $scoreOrder = (float) $b->percentage <=> (float) $a->percentage;
+
+                return $scoreOrder !== 0
+                    ? $scoreOrder
+                    : (($b->submitted_at?->getTimestamp() ?? 0) <=> ($a->submitted_at?->getTimestamp() ?? 0));
+            }))
+            ->values();
     }
 
     private function certificates(?Employee $employee)
