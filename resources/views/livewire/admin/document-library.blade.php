@@ -165,11 +165,8 @@
     </div>
 
     @if ($showModal)
-        <x-admin.modal :title="$createStep === 1
-                ? ($editingId ? 'Bước 1/2 · Sửa tài liệu' : 'Bước 1/2 · Tạo tài liệu')
-                : 'Bước 2/2 · Phân quyền'" maxWidth="max-w-3xl">
+        <x-admin.modal :title="$editingId ? 'Sửa tài liệu' : 'Tạo tài liệu'" maxWidth="max-w-3xl">
             <form wire:submit="save" id="doc-form" class="grid gap-4 sm:grid-cols-2">
-                @if ($createStep === 1)
                 <div class="sm:col-span-2">
                     <label for="d_title" class="admin-label">Tiêu đề</label>
                     <input id="d_title" type="text" wire:model="title" class="admin-input">
@@ -196,12 +193,6 @@
                     <x-admin.searchable-select id="d_cat" label="Danh mục" model="document_category_id"
                         :options="$categories->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
                         :selected="$document_category_id" emptyLabel="— Chọn —" />
-                </div>
-
-                <div>
-                    <x-admin.searchable-select id="d_dept" label="Phòng ban ban hành" model="owner_department_id"
-                        :options="$departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all()"
-                        :selected="$owner_department_id" emptyLabel="— Chọn —" />
                 </div>
 
                 <div>
@@ -311,49 +302,12 @@
                         </span>
                     </label>
                 </div>
-                @else
-                    <div class="sm:col-span-2 rounded-admin border border-brand-line bg-brand-soft p-3 text-sm">
-                        Mỗi tài liệu có một bộ phân quyền gồm các quy tắc. Chọn nhóm quyền chung tại đây; có thể thêm các quy tắc riêng theo chức danh hoặc điều kiện khác trong màn Phân quyền tài liệu.
-                        @if ($editingId && ($otherRules = $this->otherRuleCount()) > 0)
-                            <span class="mt-1 block text-xs text-brand-muted">
-                                Bộ phân quyền hiện có {{ $otherRules }} quy tắc khác.
-                                <a href="{{ route('admin.access-rules') }}" wire:navigate class="font-semibold text-brand-red hover:underline">Mở danh sách tài liệu và quy tắc</a>.
-                            </span>
-                        @endif
-                    </div>
-                    <x-admin.multi-check id="doc_access_department" label="Phòng ban được xem" model="accessDepartmentIds"
-                        :options="$departments->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_path])->all()"
-                        class="sm:col-span-2"
-                        hint="Chọn được nhiều phòng ban (gồm cả phòng con). Không chọn = toàn công ty." />
-                    <x-admin.multi-check id="doc_access_grade" label="Cấp bậc được xem" model="accessJobGradeIds"
-                        :options="$jobGrades->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
-                        class="sm:col-span-2"
-                        hint="Chọn được nhiều cấp bậc. Không chọn = mọi cấp bậc đều xem được." />
-                    <div class="sm:col-span-2 grid gap-2.5 border-t border-brand-line pt-4">
-                        <p class="admin-label !mb-0">Quyền truy cập</p>
-                        <label class="flex items-center gap-2 text-sm font-medium">
-                            <input type="checkbox" checked disabled class="h-4 w-4 rounded-admin-sm">
-                            Được xem tài liệu
-                        </label>
-                        <label class="flex items-center gap-2 text-sm font-medium">
-                            <input type="checkbox" wire:model="accessCanDownload" class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                            Được tải xuống
-                        </label>
-                        <label class="flex items-center gap-2 text-sm font-medium">
-                            <input type="checkbox" wire:model="accessCanPrint" class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
-                            Được in
-                        </label>
-                    </div>
-                @endif
             </form>
 
             <x-slot:footer>
                 <button type="button" wire:click="$set('showModal', false)" class="admin-btn-secondary">Hủy</button>
-                @if ($createStep === 2)
-                    <button type="button" wire:click="backToContent" class="admin-btn-secondary">Quay lại</button>
-                @endif
                 <button type="submit" form="doc-form" class="admin-btn" wire:loading.attr="disabled" wire:target="save,upload">
-                    {{ $createStep === 1 ? 'Tiếp tục phân quyền' : ($editingId ? 'Lưu thay đổi' : 'Tạo tài liệu') }}
+                    {{ $editingId ? 'Lưu thay đổi' : 'Tạo tài liệu' }}
                 </button>
             </x-slot:footer>
         </x-admin.modal>

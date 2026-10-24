@@ -63,7 +63,6 @@ class DocumentAccessManager extends Component
     public bool $canDownload = false;
     public bool $canPrint = false;
     public string $effect = DocumentAccessRule::EFFECT_ALLOW;
-    public int $priority = 0;
 
     // Công cụ thử quyền
     public bool $showTester = false;
@@ -152,7 +151,6 @@ class DocumentAccessManager extends Component
         $this->canDownload = (bool) $rule->can_download;
         $this->canPrint = (bool) $rule->can_print;
         $this->effect = $rule->effect;
-        $this->priority = $rule->priority;
 
         $this->showModal = true;
     }
@@ -170,7 +168,6 @@ class DocumentAccessManager extends Component
             'jobGradeIds' => ['array'],
             'jobGradeIds.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
             'minGradeLevel' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'priority' => ['required', 'integer', 'min:0', 'max:1000'],
         ], [
             'documentId.required' => 'Hãy chọn tài liệu áp dụng.',
             'categoryId.required' => 'Hãy chọn danh mục áp dụng.',
@@ -192,41 +189,49 @@ class DocumentAccessManager extends Component
             'can_download' => $this->effect === DocumentAccessRule::EFFECT_DENY ? false : $this->canDownload,
             'can_print' => $this->effect === DocumentAccessRule::EFFECT_DENY ? false : $this->canPrint,
             'effect' => $this->effect,
-            'priority' => $this->priority,
             'is_active' => true,
         ];
 
         $gradeIds = array_values(array_unique(array_map('intval', $this->jobGradeIds)));
         $departmentIds = array_values(array_unique(array_map('intval', $this->departmentIds)));
 
-        if ($this->duplicateRuleExists($payload, $departmentIds, $gradeIds)) {
-            $this->duplicateError = 'Quy tắc này đã tồn tại. Hãy chỉnh sửa quy tắc hiện có thay vì tạo trùng.';
+        $saved = DB::transaction(function () use ($payload, $gradeIds, $departmentIds): bool {
+            $targetTable = $payload['document_id'] ? 'documents' : 'document_categories';
+            $targetId = $payload['document_id'] ?? $payload['document_category_id'];
+            DB::table($targetTable)->where('id', $targetId)->lockForUpdate()->first();
 
-            return;
-        }
+            if ($this->duplicateRuleExists($payload, $departmentIds, $gradeIds)) {
+                $this->duplicateError = 'Quy tắc này đã tồn tại. Hãy chỉnh sửa quy tắc hiện có thay vì tạo trùng.';
 
-        if ($this->editingId) {
-            $rule = DocumentAccessRule::findOrFail($this->editingId);
-            abort_unless($rule->document_id === $this->documentId, 403);
+                return false;
+            }
 
-            DB::transaction(function () use ($rule, $payload, $gradeIds, $departmentIds): void {
+            if ($this->editingId) {
+                $rule = DocumentAccessRule::findOrFail($this->editingId);
+                abort_unless($rule->document_id === $this->documentId, 403);
                 $rule->update($payload);
                 $rule->jobGrades()->sync($gradeIds);
                 $rule->departments()->sync($departmentIds);
-            });
+            } else {
+                $rule = DocumentAccessRule::create($payload);
+                $rule->jobGrades()->sync($gradeIds);
+                $rule->departments()->sync($departmentIds);
+            }
 
-            session()->flash('status', 'Đã cập nhật phân quyền tài liệu.');
-            $this->resetRuleFields();
-        } else {
-            $rule = DocumentAccessRule::create($payload);
-            $rule->jobGrades()->sync($gradeIds);
-            $rule->departments()->sync($departmentIds);
-            session()->flash('status', 'Đã thêm quy tắc vào bộ phân quyền tài liệu.');
-            $this->resetRuleFields();
+            return true;
+        });
+
+        if (! $saved) {
+            return;
         }
+
+        session()->flash('status', $this->editingId
+            ? 'Đã cập nhật phân quyền tài liệu.'
+            : 'Đã thêm quy tắc vào bộ phân quyền tài liệu.');
+        $this->resetRuleFields();
     }
 
-    /** Chặn lưu trùng cùng phạm vi, điều kiện và hiệu lực; bỏ qua chính rule đang sửa. */
+    /** Chặn lưu trùng cùng điều kiện áp dụng; bỏ qua quyền cấp/chặn và rule đang sửa. */
     private function duplicateRuleExists(array $payload, array $departmentIds, array $gradeIds): bool
     {
         $departmentIds = $this->normalizedIds($departmentIds);
@@ -239,13 +244,12 @@ class DocumentAccessManager extends Component
             ->where('job_title_id', $payload['job_title_id'])
             ->where('min_grade_level', $payload['min_grade_level'])
             ->where('employment_status', $payload['employment_status'])
-            ->where('include_sub_departments', $payload['include_sub_departments'])
-            ->where('effect', $payload['effect'])
             ->when($this->editingId, fn ($query) => $query->whereKeyNot($this->editingId))
             ->get()
             ->contains(fn (DocumentAccessRule $rule) =>
                 $this->normalizedIds($rule->departmentIds()) === $departmentIds
                 && $this->normalizedIds($rule->gradeIds()) === $gradeIds
+                && ($departmentIds === [] || (bool) $rule->include_sub_departments === $payload['include_sub_departments'])
             );
     }
 
@@ -339,7 +343,6 @@ class DocumentAccessManager extends Component
         return DocumentAccessRule::query()
             ->with(['departments', 'department', 'jobGrades', 'jobGrade', 'jobTitle'])
             ->where('document_id', $this->documentId)
-            ->orderByDesc('priority')
             ->orderByDesc('id')
             ->get();
     }
@@ -356,7 +359,6 @@ class DocumentAccessManager extends Component
         $this->canDownload = false;
         $this->canPrint = false;
         $this->effect = DocumentAccessRule::EFFECT_ALLOW;
-        $this->priority = 0;
         $this->resetValidation();
     }
 
@@ -373,7 +375,6 @@ class DocumentAccessManager extends Component
         $this->canDownload = false;
         $this->canPrint = false;
         $this->effect = DocumentAccessRule::EFFECT_ALLOW;
-        $this->priority = 0;
         $this->resetValidation();
     }
 }

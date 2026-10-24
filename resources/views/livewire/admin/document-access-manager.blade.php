@@ -227,23 +227,13 @@
                     <p class="mt-2 text-xs text-brand-muted">Quyền tải vẫn chịu giới hạn bởi cài đặt cho phép tải của tài liệu.</p>
                 </div>
 
-                <details class="rounded-admin border border-brand-line px-3 py-2">
-                    <summary class="cursor-pointer text-xs font-semibold text-brand-muted">Thiết lập nâng cao</summary>
-                    <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label for="a_effect" class="admin-label">Hiệu lực</label>
-                            <select id="a_effect" wire:model.live="effect" class="admin-input">
-                                <option value="allow">Cho phép</option>
-                                <option value="deny">Chặn truy cập</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="a_prio" class="admin-label">Độ ưu tiên</label>
-                            <input id="a_prio" type="number" wire:model="priority" class="admin-input">
-                            @error('priority') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-                </details>
+                <div class="max-w-sm">
+                    <label for="a_effect" class="admin-label">Hiệu lực</label>
+                    <select id="a_effect" wire:model.live="effect" class="admin-input">
+                        <option value="allow">Cho phép</option>
+                        <option value="deny">Chặn truy cập</option>
+                    </select>
+                </div>
             </form>
 
             <section class="mt-5 border-t border-brand-line pt-4">

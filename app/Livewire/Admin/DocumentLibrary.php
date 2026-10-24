@@ -4,12 +4,9 @@ namespace App\Livewire\Admin;
 
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
-use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentCategory;
 use App\Models\DocumentVersion;
-use App\Models\DocumentAccessRule;
-use App\Models\JobGrade;
 use App\Services\FileStorageService;
 use App\Services\VideoEmbedService;
 use Illuminate\Support\Facades\DB;
@@ -54,7 +51,6 @@ class DocumentLibrary extends Component
 
     public bool $showModal = false;
     public bool $showVersions = false;
-    public int $createStep = 1;
     public ?int $editingId = null;
     public ?int $versionDocumentId = null;
 
@@ -62,7 +58,6 @@ class DocumentLibrary extends Component
     public string $description = '';
     public string $kind = Document::KIND_FILE;
     public ?int $document_category_id = null;
-    public ?int $owner_department_id = null;
     public string $confidentiality = Document::CONF_INTERNAL;
     public bool $allow_download = false;
     public bool $enable_watermark = true;
@@ -71,24 +66,12 @@ class DocumentLibrary extends Component
     public string $video_url = '';
     public string $change_note = '';
     public $upload = null;
-    /** Phòng ban được xem tài liệu, chọn nhiều. Rỗng = toàn công ty. */
-    public array $accessDepartmentIds = [];
-    /** Cấp bậc được xem tài liệu, chọn nhiều. Rỗng = mọi cấp bậc. */
-    public array $accessJobGradeIds = [];
-    public bool $accessCanDownload = false;
-    public bool $accessCanPrint = false;
-
-    /** Quy tắc phân quyền chính đang sửa ở bước 2 (null = sẽ tạo mới). */
-    public ?int $accessRuleId = null;
-
     public function render(): View
     {
         return view('livewire.admin.document-library', [
             'documents' => $this->documents(),
             'documentCount' => Document::count(),
             'categories' => DocumentCategory::active()->orderBy('name')->get(),
-            'departments' => Department::active()->orderBy('name')->get(),
-            'jobGrades' => JobGrade::active()->orderBy('level')->get(),
             'versions' => $this->versions(),
         ])->layout('layouts.admin', ['title' => 'Thư viện tài liệu']);
     }
@@ -121,7 +104,6 @@ class DocumentLibrary extends Component
         $this->description = (string) $document->description;
         $this->kind = $document->kind;
         $this->document_category_id = $document->document_category_id;
-        $this->owner_department_id = $document->owner_department_id;
         $this->confidentiality = $document->confidentiality;
         $this->allow_download = (bool) $document->allow_download;
         $this->enable_watermark = (bool) $document->enable_watermark;
@@ -129,9 +111,6 @@ class DocumentLibrary extends Component
         $this->video_url = (string) $document->video_url;
         $this->change_note = '';
         $this->upload = null;
-        $this->createStep = 1;
-        $this->loadPrimaryRule($document);
-
         $this->showModal = true;
     }
 
@@ -139,32 +118,16 @@ class DocumentLibrary extends Component
     {
         $this->requirePermission($this->editingId ? 'documents.update' : 'documents.create');
 
-        if ($this->createStep === 1) {
-            $this->continueToPermissions();
-
-            return;
-        }
-
         $data = $this->validate($this->rules());
-        $accessData = $this->validate([
-            'accessDepartmentIds' => ['array'],
-            'accessDepartmentIds.*' => ['integer', 'distinct', Rule::exists('departments', 'id')],
-            'accessJobGradeIds' => ['array'],
-            'accessJobGradeIds.*' => ['integer', 'distinct', Rule::exists('job_grades', 'id')],
-            'accessCanDownload' => ['boolean'],
-            'accessCanPrint' => ['boolean'],
-        ]);
 
-        DB::transaction(function () use ($data, $accessData) {
+        DB::transaction(function () use ($data) {
             $payload = [
                 'title' => $data['title'],
                 'description' => $data['description'] ?: null,
                 'kind' => $data['kind'],
                 'document_category_id' => $data['document_category_id'],
-                'owner_department_id' => $data['owner_department_id'],
                 'confidentiality' => $data['confidentiality'],
-                // Quy tắc cho tải mà tài liệu cấm tải thì quy tắc vô nghĩa — bật theo
-                'allow_download' => $this->allow_download || $accessData['accessCanDownload'],
+                'allow_download' => $this->allow_download,
                 'enable_watermark' => $this->enable_watermark,
                 'duration_seconds' => $data['kind'] === Document::KIND_VIDEO ? $data['duration_seconds'] : null,
             ];
@@ -192,8 +155,6 @@ class DocumentLibrary extends Component
                 $document = Document::create($payload);
             }
 
-            $this->savePrimaryRule($document, $accessData);
-
             // File mới luôn sinh một phiên bản mới, giữ nguyên lịch sử cũ (spec 3.2.1).
             // Video không đi đường này: nội dung nằm ở nguồn ngoài, không có file để lưu.
             if ($this->upload && ! $document->isVideo()) {
@@ -201,93 +162,10 @@ class DocumentLibrary extends Component
             }
         });
 
-        session()->flash('status', $this->editingId ? 'Đã cập nhật tài liệu và phân quyền.' : 'Đã tạo tài liệu và phân quyền.');
+        session()->flash('status', $this->editingId ? 'Đã cập nhật tài liệu.' : 'Đã tạo tài liệu.');
 
         $this->showModal = false;
         $this->resetForm();
-    }
-
-    public function continueToPermissions(): void
-    {
-        $this->requirePermission($this->editingId ? 'documents.update' : 'documents.create');
-
-        $this->validate($this->rules());
-        $this->createStep = 2;
-    }
-
-    public function backToContent(): void
-    {
-        $this->createStep = 1;
-    }
-
-    /**
-     * Quy tắc chính = quy tắc cho phép đầu tiên chỉ lọc theo phòng ban / cấp bậc,
-     * chính là quy tắc tạo ở bước 2 khi thêm tài liệu. Các quy tắc khác vẫn thuộc
-     * cùng bộ phân quyền và được quản lý ở màn Phân quyền tài liệu.
-     */
-    private function primaryRule(Document $document): ?DocumentAccessRule
-    {
-        return $document->accessRules()
-            ->where('effect', DocumentAccessRule::EFFECT_ALLOW)
-            ->whereNull('job_title_id')
-            ->whereNull('employment_status')
-            ->whereNull('min_grade_level')
-            ->orderBy('id')
-            ->first();
-    }
-
-    private function loadPrimaryRule(Document $document): void
-    {
-        $rule = $this->primaryRule($document);
-
-        $this->accessRuleId = $rule?->id;
-        $this->accessDepartmentIds = $rule ? $rule->departmentIds() : [];
-        $this->accessJobGradeIds = $rule ? $rule->gradeIds() : [];
-        $this->accessCanDownload = (bool) $rule?->can_download;
-        $this->accessCanPrint = (bool) $rule?->can_print;
-    }
-
-    private function savePrimaryRule(Document $document, array $accessData): void
-    {
-        $values = [
-            // Phòng ban, cấp bậc nằm ở bảng nối; cột cũ để trống, tránh lệch với danh sách vừa chọn
-            'department_id' => null,
-            'job_grade_id' => null,
-            'can_view' => true,
-            'can_download' => $accessData['accessCanDownload'],
-            'can_print' => $accessData['accessCanPrint'],
-        ];
-
-        $rule = $this->accessRuleId
-            ? $document->accessRules()->whereKey($this->accessRuleId)->first()
-            : null;
-
-        if ($rule) {
-            $rule->update($values);
-        } else {
-            $rule = DocumentAccessRule::create($values + [
-                'document_id' => $document->id,
-                'include_sub_departments' => true,
-                'effect' => DocumentAccessRule::EFFECT_ALLOW,
-                'priority' => 0,
-                'is_active' => true,
-            ]);
-        }
-
-        $rule->departments()->sync(array_values(array_unique(array_map('intval', $accessData['accessDepartmentIds'] ?? []))));
-        $rule->jobGrades()->sync(array_values(array_unique(array_map('intval', $accessData['accessJobGradeIds'] ?? []))));
-    }
-
-    /** Số quy tắc khác ngoài quy tắc chính trong cùng bộ phân quyền. */
-    public function otherRuleCount(): int
-    {
-        if (! $this->editingId) {
-            return 0;
-        }
-
-        return DocumentAccessRule::where('document_id', $this->editingId)
-            ->when($this->accessRuleId, fn ($query) => $query->whereKeyNot($this->accessRuleId))
-            ->count();
     }
 
     /**
@@ -423,7 +301,6 @@ class DocumentLibrary extends Component
             'description' => ['nullable', 'string', 'max:2000'],
             'kind' => ['required', Rule::in([Document::KIND_FILE, Document::KIND_VIDEO])],
             'document_category_id' => ['nullable', Rule::exists('document_categories', 'id')],
-            'owner_department_id' => ['nullable', Rule::exists('departments', 'id')],
             'confidentiality' => ['required', Rule::in([
                 Document::CONF_PUBLIC, Document::CONF_INTERNAL,
                 Document::CONF_CONFIDENTIAL, Document::CONF_RESTRICTED,
@@ -462,16 +339,12 @@ class DocumentLibrary extends Component
     {
         $this->reset([
             'editingId', 'title', 'description', 'document_category_id',
-            'owner_department_id', 'duration_seconds', 'video_url', 'change_note', 'upload',
-            'accessDepartmentIds', 'accessJobGradeIds', 'accessRuleId',
+            'duration_seconds', 'video_url', 'change_note', 'upload',
         ]);
-        $this->createStep = 1;
         $this->kind = Document::KIND_FILE;
         $this->confidentiality = Document::CONF_INTERNAL;
         $this->allow_download = false;
         $this->enable_watermark = true;
-        $this->accessCanDownload = false;
-        $this->accessCanPrint = false;
         $this->resetValidation();
     }
 }
