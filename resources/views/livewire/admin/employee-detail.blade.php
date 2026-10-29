@@ -129,7 +129,7 @@
                         <dl class="grid gap-2.5 text-sm">
                             <div class="flex gap-3">
                                 <dt class="w-32 shrink-0 text-brand-muted">Email</dt>
-                                <dd class="min-w-0 truncate">{{ $employee->email ?? '—' }}</dd>
+                                <dd class="min-w-0 truncate">{{ $employee->user?->email ?? $employee->email ?? '—' }}</dd>
                             </div>
                             <div class="flex gap-3">
                                 <dt class="w-32 shrink-0 text-brand-muted">Điện thoại</dt>

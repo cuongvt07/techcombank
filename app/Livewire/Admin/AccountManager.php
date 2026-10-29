@@ -93,16 +93,38 @@ class AccountManager extends Component
         $this->showModal = true;
     }
 
-    /** Chọn hồ sơ: hồ sơ đã có email công việc thì điền sẵn làm email đăng nhập. */
+    /**
+     * Chọn hồ sơ khi tạo tài khoản: hồ sơ có email cũ thì lấy làm email đăng nhập,
+     * không có thì để trống cho người tạo tự nhập. Kiểm tra trùng ngay.
+     */
     public function updatedEmployeeId(): void
     {
-        $employee = $this->employee_id ? Employee::find($this->employee_id) : null;
-
-        if ($employee?->email && blank($this->email)) {
-            $this->email = $employee->email;
+        if (! $this->editingId) {
+            $employee = $this->employee_id ? Employee::find($this->employee_id) : null;
+            $this->email = (string) ($employee?->email ?? '');
+            $this->checkEmail();
         }
 
         $this->resetValidation('employee_id');
+    }
+
+    /** Gõ email → kiểm tra định dạng + trùng ngay (gọi qua wire:model.live), không đợi bấm lưu. */
+    public function updatedEmail(): void
+    {
+        $this->email = trim($this->email);
+        $this->checkEmail();
+    }
+
+    private function checkEmail(): void
+    {
+        $this->resetValidation('email');
+
+        if (filled($this->email)) {
+            $this->validateOnly('email', $this->rules(), [
+                'email.unique' => 'Email này đã được tài khoản khác sử dụng.',
+                'email.email' => 'Email không đúng định dạng.',
+            ]);
+        }
     }
 
     public function edit(int $id): void
@@ -171,6 +193,7 @@ class AccountManager extends Component
                 }
 
                 $user->save();
+                $user->employee?->update(['email' => $user->email]);
                 if (! $editingSelf) {
                     $user->syncRoles([$data['role']]);
                 }
@@ -180,9 +203,11 @@ class AccountManager extends Component
                 return;
             }
 
+            $email = $data['email'];
+
             $user = User::create([
                 'name' => $employee->full_name,
-                'email' => $data['email'],
+                'email' => $email,
                 'password' => $this->password,
                 'status' => $data['status'],
                 'must_change_password' => $this->must_change_password,
@@ -191,12 +216,13 @@ class AccountManager extends Component
 
             $user->assignRole($data['role']);
 
-            $employee->update(['user_id' => $user->id]);
+            // Hồ sơ dùng chung email đăng nhập: trang chi tiết nhân viên, watermark đọc từ đây
+            $employee->update(['user_id' => $user->id, 'email' => $email]);
 
             // Có tài khoản là học được: giao ngay lộ trình theo vị trí + onboarding (spec 4.4)
             app(CourseAssignmentService::class)->syncForEmployee($employee->refresh());
 
-            session()->flash('status', "Đã tạo tài khoản cho {$employee->employee_code} · {$employee->full_name}.");
+            session()->flash('status', "Đã tạo tài khoản {$email} cho {$employee->employee_code} · {$employee->full_name}.");
         });
 
         $this->showSaveConfirm = false;
@@ -313,6 +339,7 @@ class AccountManager extends Component
                     ->whereNull('user_id')
                     ->when($this->editingId, fn ($q2) => $q2->orWhere('user_id', $this->editingId))),
             ],
+            // Không trùng tài khoản nào, kể cả tài khoản đã xóa (cột email là unique)
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingId)],
             // Tạo mới bắt buộc có mật khẩu; sửa thì để trống nghĩa là giữ nguyên
             'password' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],

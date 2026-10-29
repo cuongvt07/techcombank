@@ -189,7 +189,7 @@ class DocumentAccessService
     {
         return implode(' • ', array_filter([
             $employee->full_name,
-            $employee->email ?: $employee->employee_code,
+            $employee->user?->email ?: ($employee->email ?: $employee->employee_code),
             now()->format('d/m/Y H:i'),
         ]));
     }

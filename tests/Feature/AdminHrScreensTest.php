@@ -61,6 +61,73 @@ class AdminHrScreensTest extends TestCase
         $this->assertSame(1, Employee::where('full_name', 'Nguyễn Văn Test')->count());
     }
 
+    public function test_chon_ho_so_co_email_cu_thi_dien_san(): void
+    {
+        $employee = Employee::factory()->create(['user_id' => null, 'email' => 'email.cu@techcombank.local']);
+
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('employee_id', $employee->id)
+            ->assertSet('email', 'email.cu@techcombank.local')
+            ->assertHasNoErrors('email');
+    }
+
+    public function test_ho_so_khong_co_email_thi_de_trong_cho_nhap(): void
+    {
+        $employee = Employee::factory()->create(['user_id' => null, 'email' => null]);
+
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('employee_id', $employee->id)
+            ->assertSet('email', '')
+            ->assertSee('Hồ sơ chưa có email');
+    }
+
+    public function test_go_email_trung_bao_loi_ngay_khong_doi_luu(): void
+    {
+        User::factory()->create(['email' => 'da.co@techcombank.local']);
+        $employee = Employee::factory()->create(['user_id' => null, 'email' => null]);
+
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('employee_id', $employee->id)
+            // Chỉ gõ, chưa bấm lưu — lỗi trùng hiện ngay
+            ->set('email', 'da.co@techcombank.local')
+            ->assertHasErrors(['email' => 'unique'])
+            ->assertSee('Email này đã được tài khoản khác sử dụng.')
+            ->set('email', 'moi.tinh@techcombank.local')
+            ->assertHasNoErrors('email')
+            ->assertSee('Email dùng được');
+    }
+
+    public function test_email_cu_cua_ho_so_bi_trung_cung_bao_ngay(): void
+    {
+        User::factory()->create(['email' => 'trung.cu@techcombank.local']);
+        $employee = Employee::factory()->create(['user_id' => null, 'email' => 'trung.cu@techcombank.local']);
+
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('employee_id', $employee->id)
+            ->assertHasErrors(['email' => 'unique']);
+    }
+
+    public function test_tao_tai_khoan_ghi_email_vao_ho_so(): void
+    {
+        $employee = Employee::factory()->create(['user_id' => null, 'email' => null]);
+
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->set('employee_id', $employee->id)
+            ->set('email', 'nhap.tay@techcombank.local')
+            ->set('password', 'matkhau123')
+            ->call('requestSave')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        // Hồ sơ dùng chung email đăng nhập (trang chi tiết, watermark đọc từ đây)
+        $this->assertSame('nhap.tay@techcombank.local', $employee->fresh()->email);
+    }
+
     public function test_bat_buoc_chon_ho_so_khi_tao_tai_khoan(): void
     {
         Livewire::test(AccountManager::class)

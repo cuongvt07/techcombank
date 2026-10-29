@@ -187,8 +187,24 @@
                 {{-- Bước 2: thông tin đăng nhập --}}
                 <div>
                     <label for="email" class="admin-label">Email đăng nhập <span class="text-brand-red" aria-hidden="true">*</span></label>
-                    <input id="email" type="email" wire:model="email" class="admin-input" autocomplete="off">
-                    @error('email') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
+                    {{-- Kiểm tra trùng ngay khi gõ (dừng gõ 0,5 giây), không đợi bấm lưu --}}
+                    <input id="email" type="email" wire:model.live.debounce.500ms="email" autocomplete="off"
+                           placeholder="ten.nhanvien@techcombank.com.vn"
+                           @class(['admin-input', '!border-brand-red' => $errors->has('email')])>
+                    <div wire:loading wire:target="email" class="mt-1 text-xs text-brand-muted">Đang kiểm tra email...</div>
+                    <div wire:loading.remove wire:target="email">
+                        @error('email')
+                            <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p>
+                        @else
+                            @if (filled($email))
+                                <p class="mt-1 flex items-center gap-1 text-xs font-semibold text-state-success">
+                                    @svg('heroicon-o-check-circle', 'h-3.5 w-3.5') Email dùng được
+                                </p>
+                            @elseif (! $editingId && $selectedEmployee)
+                                <p class="mt-1 text-xs text-brand-muted">Hồ sơ chưa có email — nhập email đăng nhập cho nhân viên.</p>
+                            @endif
+                        @enderror
+                    </div>
                 </div>
 
                 <div>
