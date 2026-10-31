@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Auth;
 
-use App\Enums\RoleName;
 use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\SecurityMonitorService;
@@ -93,10 +92,10 @@ class Login extends Component
         $this->redirectIntended($this->homeFor($authenticated), navigate: true);
     }
 
-    /** Admin và nhân viên vào hai site khác nhau (spec mục 1). */
+    /** Người có quyền xem màn quản trị vào site quản trị; còn lại vào site học tập. */
     private function homeFor(User $user): string
     {
-        return $user->hasAnyRole(RoleName::adminRoles())
+        return $user->canAccessAdminSite()
             ? route('admin.dashboard')
             : route('learn.events');
     }

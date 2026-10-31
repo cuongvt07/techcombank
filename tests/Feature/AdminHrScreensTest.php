@@ -35,6 +35,14 @@ class AdminHrScreensTest extends TestCase
 
     // ---- 3.1.1 Quản lý tài khoản -------------------------------------------
 
+    public function test_tao_tai_khoan_mac_dinh_chon_vai_tro_nhan_vien(): void
+    {
+        Livewire::test(AccountManager::class)
+            ->call('create')
+            ->assertSet('role', RoleName::EMPLOYEE->value)
+            ->assertSeeHtml('<option value="employee" selected>');
+    }
+
     public function test_tao_tai_khoan_tu_ho_so_nhan_su_co_san(): void
     {
         // Luồng: tạo hồ sơ trước, tạo tài khoản bằng cách chọn hồ sơ đó

@@ -225,7 +225,7 @@
                         <label for="role" class="admin-label">Vai trò <span class="text-brand-red" aria-hidden="true">*</span></label>
                         <select id="role" wire:model="role" class="admin-input">
                             @foreach ($roles as $r)
-                                <option value="{{ $r->name }}">
+                                <option value="{{ $r->name }}" @selected($role === $r->name)>
                                     {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
                                 </option>
                             @endforeach

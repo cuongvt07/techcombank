@@ -46,6 +46,7 @@ class AdminConfigScreensTest extends TestCase
 
         $this->assertNotContains(RoleName::ADMIN->value, $roles->pluck('name')->all());
         $this->assertContains(RoleName::EMPLOYEE->value, $roles->pluck('name')->all());
+        $this->assertContains(RoleName::MANAGER->value, $roles->pluck('name')->all());
     }
 
     public function test_mac_dinh_mo_vai_tro_nhan_vien(): void
@@ -161,15 +162,44 @@ class AdminConfigScreensTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_chi_cau_hinh_vai_tro_nhan_vien(): void
+    public function test_chi_cau_hinh_vai_tro_nhan_vien_va_quan_ly(): void
     {
         // Vai trò Nhân sự giữ bộ quyền cố định, không chỉnh ở màn này
         Livewire::test(PermissionMatrix::class)
-            ->assertViewHas('roles', fn ($roles) => $roles->pluck('name')->all() === [RoleName::EMPLOYEE->value])
+            ->assertViewHas('roles', fn ($roles) => $roles->pluck('name')->all() === [
+                RoleName::EMPLOYEE->value,
+                RoleName::MANAGER->value,
+            ])
             ->set('role', RoleName::HR->value)
             ->assertStatus(404);
 
         $this->assertTrue(Role::findByName(RoleName::HR->value)->hasPermissionTo('employees.view'));
+    }
+
+    public function test_co_the_cau_hinh_quyen_cho_vai_tro_quan_ly(): void
+    {
+        $manager = Role::findByName(RoleName::MANAGER->value);
+        $this->assertTrue($manager->hasPermissionTo('learning.access'));
+        $this->assertFalse($manager->hasPermissionTo('dashboard.view'));
+
+        Livewire::test(PermissionMatrix::class)
+            ->set('role', RoleName::MANAGER->value)
+            ->call('toggle', 'dashboard', 'view')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertTrue($manager->fresh()->hasPermissionTo('dashboard.view'));
+    }
+
+    public function test_quan_ly_duoc_vao_site_quan_tri_sau_khi_duoc_cap_quyen_xem(): void
+    {
+        $manager = User::factory()->create(['status' => User::STATUS_ACTIVE]);
+        $manager->assignRole(RoleName::MANAGER->value);
+        Role::findByName(RoleName::MANAGER->value)->givePermissionTo('dashboard.view');
+
+        $this->actingAs($manager)
+            ->get('/')
+            ->assertRedirect(route('admin.dashboard'));
     }
 
     public function test_quan_tri_vien_co_toan_bo_quyen(): void

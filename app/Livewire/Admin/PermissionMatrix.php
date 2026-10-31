@@ -17,16 +17,16 @@ use Spatie\Permission\PermissionRegistrar;
  * Phân quyền theo vai trò (spec 3.1.4): mỗi vai trò một bảng
  * màn hình × Xem / Thêm / Sửa / Xóa.
  *
- * Chỉ cấu hình vai trò Nhân viên (EDITABLE_ROLES). Quản trị viên đã có toàn
- * quyền qua Gate::before; vai trò Nhân sự giữ bộ quyền cố định từ seeder, không
- * chỉnh ở màn này. Muốn mở thêm vai trò thì thêm vào EDITABLE_ROLES.
+ * Cấu hình vai trò Nhân viên và Quản lý (EDITABLE_ROLES). Quản trị viên đã có
+ * toàn quyền qua Gate::before; vai trò Nhân sự giữ bộ quyền cố định từ seeder,
+ * không chỉnh ở màn này.
  */
 class PermissionMatrix extends Component
 {
     use ChecksPermissions;
 
     /** Các vai trò được chỉnh quyền ở màn này. */
-    private const EDITABLE_ROLES = [RoleName::EMPLOYEE];
+    private const EDITABLE_ROLES = [RoleName::EMPLOYEE, RoleName::MANAGER];
 
     #[Url(as: 'vai-tro')]
     public string $role = '';

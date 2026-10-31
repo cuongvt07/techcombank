@@ -48,7 +48,7 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
 
-    return Auth::user()->isAdmin()
+    return Auth::user()->canAccessAdminSite()
         ? redirect()->route('admin.dashboard')
         : redirect()->route('learn.events');
 });

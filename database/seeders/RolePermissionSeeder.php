@@ -12,7 +12,8 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Vai trò và quyền hệ thống.
  *
- * ADMIN (toàn quyền), HR (quản lý hồ sơ nhân sự) và EMPLOYEE (chỉ học tập).
+ * ADMIN (toàn quyền), HR (quản lý hồ sơ nhân sự), MANAGER (quyền quản trị
+ * được cấu hình trên ma trận) và EMPLOYEE (chỉ học tập).
  *
  * Tầng permission giữ quyền chi tiết theo từng hành động. Mỗi vai trò khai
  * báo tập quyền riêng ở ROLE_PERMISSIONS.
@@ -32,6 +33,9 @@ class RolePermissionSeeder extends Seeder
         RoleName::HR->value => [
             'dashboard.view',
             'employees.view', 'employees.create', 'employees.update',
+        ],
+        RoleName::MANAGER->value => [
+            PermissionCatalog::LEARNING,
         ],
         RoleName::EMPLOYEE->value => [
             PermissionCatalog::LEARNING,
