@@ -288,6 +288,7 @@
                                         'color' => $statusColors[$key], 'danger' => $key === 'overdue',
                                      ])->values()->all()"
                                      center-label="lượt ghi danh" click-action="filterStatus"
+                                     :headers="['label' => 'Trạng thái', 'value' => 'Số lượt', 'percent' => 'Tỷ lệ']"
                                      :active-key="$statusFilter" label="Phân bố trạng thái ghi danh" />
             @endif
         </x-admin.report.panel>
@@ -319,7 +320,8 @@
             @if ($unitRows->isEmpty())
                 <p class="py-12 text-center text-sm text-brand-muted">Không có lượt ghi danh nào trong phạm vi lọc.</p>
             @else
-                <x-admin.chart.hbar class="dash-desktop-only" :rows="$unitRows" :max="100" :benchmark="$units['overall']" label-width="10rem" />
+                <x-admin.chart.hbar class="dash-desktop-only" :rows="$unitRows" :max="100" :benchmark="$units['overall']" label-width="10rem" value-width="5.5rem"
+                                     :headers="['label' => 'Đơn vị', 'bar' => 'Phân bố trạng thái', 'value' => 'Hoàn thành']" />
 
                 {{-- Màn hẹp: nhãn nằm trên thanh (không đủ chỗ cho cột nhãn), 4 dòng đầu + "Xem cả" --}}
                 <div class="dash-mobile-only">
@@ -359,6 +361,13 @@
                 </x-slot:actions>
             @endif
 
+            @if ($courses->isNotEmpty())
+                <div class="mb-3 flex items-end gap-3 border-b border-brand-line pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-muted">
+                    <span class="min-w-0 flex-1">Khóa học</span>
+                    <span class="w-20 shrink-0 text-right">Tiến độ TB</span>
+                    <span class="w-24 shrink-0 text-right">Lượt quá hạn</span>
+                </div>
+            @endif
             <div class="grid gap-4">
                 @forelse ($courses as $course)
                     <div wire:key="course-{{ $course->id }}">
@@ -375,7 +384,7 @@
                         </div>
                         <div class="flex items-center gap-3 text-[13px]">
                             <div class="dash-bar min-w-0 flex-1"><span style="width: {{ min(100, (float) $course->avg_progress) }}%; background: #141821"></span></div>
-                            <span class="w-14 shrink-0 text-right tabular-nums">{{ $fmtPct($course->avg_progress) }}</span>
+                            <span class="w-20 shrink-0 text-right tabular-nums">{{ $fmtPct($course->avg_progress) }}</span>
                             <span class="w-24 shrink-0 text-right font-semibold text-brand-red tabular-nums">{{ $fmtInt($course->overdue) }} quá hạn</span>
                         </div>
                     </div>

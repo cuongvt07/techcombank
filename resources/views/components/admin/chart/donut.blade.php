@@ -6,6 +6,8 @@
     'clickAction' => null,
     'activeKey' => null,
     'label' => 'Phân bố',
+    // Tiêu đề cột chú giải (tùy chọn): ['label' => 'Trạng thái', 'value' => 'Số lượt', 'percent' => 'Tỷ lệ']
+    'headers' => null,
 ])
 
 {{--
@@ -59,6 +61,14 @@
     </div>
 
     <ul class="grid min-w-[200px] flex-1 gap-2">
+        @if ($headers)
+            <li class="flex items-end gap-2.5 border-b border-brand-line px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-muted">
+                <span class="w-2.5 shrink-0"></span>
+                <span class="min-w-0 flex-1 truncate">{{ $headers['label'] ?? '' }}</span>
+                <span class="w-16 shrink-0 text-right">{{ $headers['value'] ?? '' }}</span>
+                <span class="w-14 shrink-0 text-right">{{ $headers['percent'] ?? '' }}</span>
+            </li>
+        @endif
         @foreach ($segments as $s)
             @php $danger = ! empty($s['danger']); @endphp
             <li @if ($clickAction && isset($s['key'])) wire:click="{{ $clickAction }}('{{ $s['key'] }}')" role="button" tabindex="0" @endif
@@ -69,8 +79,8 @@
                 ])>
                 <span class="h-2.5 w-2.5 shrink-0" style="background: {{ $s['color'] }}"></span>
                 <span @class(['min-w-0 flex-1 truncate', 'font-semibold text-brand-red' => $danger])>{{ $s['label'] }}</span>
-                <span @class(['shrink-0 font-semibold tabular-nums', 'text-brand-red' => $danger])>{{ number_format($s['value'], 0, ',', '.') }}</span>
-                <span @class(['w-12 shrink-0 text-right tabular-nums', 'text-brand-red' => $danger, 'text-brand-muted' => ! $danger])>{{ $fmtPct($s['percent']) }}</span>
+                <span @class(['w-16 shrink-0 text-right font-semibold tabular-nums', 'text-brand-red' => $danger])>{{ number_format($s['value'], 0, ',', '.') }}</span>
+                <span @class(['w-14 shrink-0 text-right tabular-nums', 'text-brand-red' => $danger, 'text-brand-muted' => ! $danger])>{{ $fmtPct($s['percent']) }}</span>
             </li>
         @endforeach
     </ul>

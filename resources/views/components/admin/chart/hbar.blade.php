@@ -22,6 +22,8 @@
     'clickAction' => null,
     'activeKey' => null,
     'barHeight' => 'h-3.5',
+    // Tiêu đề cột (tùy chọn): ['label' => 'Đơn vị', 'bar' => 'Phân bố', 'value' => 'Hoàn thành', 'sub' => '...']
+    'headers' => null,
 ])
 
 {{--
@@ -34,6 +36,18 @@
 @endphp
 
 <div {{ $attributes->merge(['class' => 'grid gap-2.5']) }}>
+    @if ($headers)
+        @php $hasSub = $rows->contains(fn ($r) => isset($r['sub'])); @endphp
+        <div class="grid items-end gap-3 border-b border-brand-line pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-muted"
+             style="grid-template-columns: {{ $labelWidth }} minmax(0, 1fr) {{ $valueWidth }}{{ $hasSub ? ' ' . $subWidth : '' }}">
+            <span class="truncate">{{ $headers['label'] ?? '' }}</span>
+            <span class="truncate">{{ $headers['bar'] ?? '' }}</span>
+            <span class="text-right">{{ $headers['value'] ?? '' }}</span>
+            @if ($hasSub)
+                <span class="text-right">{{ $headers['sub'] ?? '' }}</span>
+            @endif
+        </div>
+    @endif
     @foreach ($rows as $row)
         @php
             $isActive = $activeKey !== null && (string) ($row['key'] ?? '') === (string) $activeKey;
