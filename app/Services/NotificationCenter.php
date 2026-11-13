@@ -17,9 +17,9 @@ use Illuminate\Support\Str;
  * Chuông thông báo — một chỗ cho cả gửi lẫn đọc.
  *
  * Hai nguồn, một cách "đã đọc / chưa đọc":
- *  - Announcement (sự kiện công ty + lời nhắc học riêng): đã đọc lưu ở
- *    announcement_reads theo nhân viên — thông báo toàn công ty không thể nhân
- *    bản cho từng người.
+ *  - Announcement — CHỈ lời nhắc học / nhắc làm lại gửi riêng từng nhân viên
+ *    (type course, có employee_id); đã đọc lưu ở announcement_reads. Sự kiện &
+ *    thông báo chung công ty đã bỏ (fb6) nên không còn hiện ở chuông.
  *  - Thông báo tài khoản (bảng notifications, read_at): phân công phiếu hỗ trợ,
  *    phiếu được xử lý, cấp thêm lượt làm bài. Gửi theo user vì người nhận có thể
  *    là quản trị viên không có hồ sơ nhân viên.
@@ -35,12 +35,10 @@ class NotificationCenter
 
     public const CAT_LEARNING = 'learning';
     public const CAT_SUPPORT = 'support';
-    public const CAT_EVENTS = 'events';
 
     public const CATEGORY_LABELS = [
         self::CAT_LEARNING => 'Học tập',
         self::CAT_SUPPORT => 'Hỗ trợ',
-        self::CAT_EVENTS => 'Sự kiện',
     ];
 
     // ---- Gửi ------------------------------------------------------------------
@@ -119,7 +117,7 @@ class NotificationCenter
     {
         return $site === self::SITE_ADMIN
             ? ['all' => 'Tất cả', self::CAT_SUPPORT => 'Hỗ trợ', self::CAT_LEARNING => 'Học tập']
-            : ['all' => 'Tất cả', self::CAT_LEARNING => 'Học tập', self::CAT_SUPPORT => 'Hỗ trợ', self::CAT_EVENTS => 'Sự kiện'];
+            : ['all' => 'Tất cả', self::CAT_LEARNING => 'Học tập', self::CAT_SUPPORT => 'Hỗ trợ'];
     }
 
     /**
@@ -144,11 +142,9 @@ class NotificationCenter
         }
 
         if ($site === self::SITE_USER && ($employee = $this->employee($user))) {
-            $row = Announcement::query()->unreadFor($employee)->reorder()->toBase()
-                ->selectRaw("COALESCE(SUM(type = 'course' AND employee_id IS NOT NULL), 0) AS learning, COUNT(*) AS total")
-                ->first();
-            $counts[self::CAT_LEARNING] += (int) $row->learning;
-            $counts[self::CAT_EVENTS] += (int) $row->total - (int) $row->learning;
+            $counts[self::CAT_LEARNING] += $this->announcementQuery($employee, self::CAT_LEARNING)
+                ->whereDoesntHave('reads', fn ($q) => $q->where('employee_id', $employee->id))
+                ->count();
         }
 
         return ['all' => array_sum($counts)] + $counts;
@@ -167,7 +163,7 @@ class NotificationCenter
             ->get()
             ->map(fn ($n) => [
                 'key' => 'n:' . $n->id,
-                'category' => $n->data['category'] ?? self::CAT_EVENTS,
+                'category' => $n->data['category'] ?? self::CAT_LEARNING,
                 'title' => (string) ($n->data['title'] ?? ''),
                 'body' => (string) ($n->data['body'] ?? ''),
                 'at' => $n->created_at,
@@ -185,17 +181,13 @@ class NotificationCenter
                 ->get(['id', 'title', 'content', 'type', 'employee_id', 'published_at'])
                 ->map(fn (Announcement $a) => [
                     'key' => 'a:' . $a->id,
-                    'category' => $a->isLearningReminder() ? self::CAT_LEARNING : self::CAT_EVENTS,
+                    'category' => self::CAT_LEARNING,
                     'title' => $a->title,
                     'body' => Str::limit((string) $a->content, 160),
                     'at' => $a->published_at,
                     'read' => (bool) $a->is_read,
-                    'icon' => match (true) {
-                        $a->isLearningReminder() => 'heroicon-s-academic-cap',
-                        $a->isPersonal() => 'heroicon-s-user',
-                        default => 'heroicon-o-megaphone',
-                    },
-                    'accent' => $a->isLearningReminder(),
+                    'icon' => 'heroicon-s-academic-cap',
+                    'accent' => true,
                 ]);
 
             $items = $items->concat($announcements);
@@ -217,7 +209,7 @@ class NotificationCenter
         }
 
         if ($source === 'a' && $site === self::SITE_USER && ($employee = $this->employee($user))) {
-            $announcement = Announcement::query()->notifiableFor($employee)->with('course:id,slug')->find((int) $id);
+            $announcement = $this->announcementQuery($employee, 'all')->with('course:id,slug')->find((int) $id);
             $announcement?->markReadBy($employee);
 
             return $announcement?->targetUrl();
@@ -252,15 +244,18 @@ class NotificationCenter
             ->when($tab !== 'all', fn ($q) => $q->where('data->category', $tab));
     }
 
-    /** Announcement của nhân viên theo tab: Học tập = lời nhắc riêng loại khóa học, Sự kiện = phần còn lại. */
+    /**
+     * Announcement hiện ở chuông nhân viên: chỉ lời nhắc học gửi riêng (loại khóa
+     * học, có employee_id) — thuộc tab Học tập. Sự kiện / thông báo chung công ty
+     * (employee_id NULL) và thông báo riêng loại khác không còn hiện.
+     */
     private function announcementQuery(Employee $employee, string $tab): Builder
     {
-        $learning = fn ($q) => $q->where('type', Announcement::TYPE_COURSE)->whereNotNull('employee_id');
-
         return Announcement::query()
             ->notifiableFor($employee)
-            ->when($tab === self::CAT_LEARNING, $learning)
-            ->when($tab === self::CAT_EVENTS, fn ($q) => $q->whereNot($learning));
+            ->where('type', Announcement::TYPE_COURSE)
+            ->whereNotNull('employee_id')
+            ->when(! in_array($tab, ['all', self::CAT_LEARNING], true), fn ($q) => $q->whereRaw('1 = 0'));
     }
 
     private function employee(User $user): ?Employee

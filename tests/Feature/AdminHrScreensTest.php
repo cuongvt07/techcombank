@@ -424,7 +424,7 @@ class AdminHrScreensTest extends TestCase
         // chuyển về site học tập — chuyển hướng chứ không phải 403, để người
         // dùng không rơi vào ngõ cụt.
         $this->actingAs($employee->refresh());
-        $this->get(route('admin.accounts'))->assertRedirect(route('learn.events'));
+        $this->get(route('admin.accounts'))->assertRedirect(route('learn.courses'));
     }
 
     public function test_quan_tri_vien_vao_duoc_man_hinh_tai_khoan(): void

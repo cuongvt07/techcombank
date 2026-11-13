@@ -233,7 +233,7 @@ class UserGuideTest extends TestCase
         // Bản quản trị nêu chi tiết cấu hình bảo mật và phân quyền
         $this->actingAs($this->employeeUser)
             ->get(route('admin.guide', 'admin'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 
     public function test_admin_tai_duoc_ca_hai_ban(): void

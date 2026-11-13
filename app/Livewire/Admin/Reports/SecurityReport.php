@@ -147,6 +147,17 @@ class SecurityReport extends Component
         );
     }
 
+    /** Link "Xuất báo cáo (mẫu)": tab đang xem (cảnh báo / lịch sử đăng nhập) theo bộ lọc hiện tại. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'bao-mat-dang-nhap',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to,
+            'loai' => $this->type, 'muc-do' => $this->severity, 'trang-thai' => $this->status,
+            'bang' => $this->tab, 'thu' => $this->loginWeekday, 'gio' => $this->loginHour, 'sap-xep' => $this->sortDir,
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     public function render(SecurityReportService $service): View
     {
         $period = $this->period();

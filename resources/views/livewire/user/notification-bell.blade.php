@@ -141,11 +141,11 @@
             </div>
 
             @unless ($admin)
-                <a href="{{ route('learn.events') }}"
+                <a href="{{ route('learn.courses') }}"
                    wire:navigate
                    @click="open = false"
                    class="block border-t border-brand-line px-4 py-3 text-center text-sm font-bold text-brand-red hover:bg-brand-soft">
-                    Xem tất cả sự kiện
+                    Đến Khóa học của tôi
                 </a>
             @endunless
         </div>

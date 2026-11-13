@@ -1,11 +1,12 @@
 <?php
 
 use App\Http\Controllers\AvatarController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DocumentFileController;
+use App\Http\Controllers\ReportTemplateController;
 use App\Http\Controllers\UserGuideController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\AccountManager;
-use App\Livewire\Admin\AnnouncementManager;
 use App\Livewire\Admin\CourseBuilder;
 use App\Livewire\Admin\Dashboard as AdminDashboard;
 use App\Livewire\Admin\DocumentAccessManager;
@@ -28,7 +29,6 @@ use App\Livewire\Auth\Login;
 use App\Livewire\User\CoursePlayer;
 use App\Livewire\User\DocumentBrowser;
 use App\Livewire\User\LearningProgress;
-use App\Livewire\User\EventFeed;
 use App\Livewire\User\MyCourses;
 use App\Livewire\User\Onboarding;
 use App\Livewire\User\Profile as UserProfile;
@@ -50,7 +50,7 @@ Route::get('/', function () {
 
     return Auth::user()->canAccessAdminSite()
         ? redirect()->route('admin.dashboard')
-        : redirect()->route('learn.events');
+        : redirect()->route('learn.courses');
 });
 
 Route::middleware('guest')->group(function () {
@@ -104,11 +104,12 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])
                 ->middleware('can:report_security.view')->name('security');
             Route::get('/yeu-cau-ho-tro', SupportReport::class)
                 ->middleware('can:report_support.view')->name('support');
-        });
 
-        // 3.1.5 Sự kiện & thông báo
-        Route::get('/su-kien', AnnouncementManager::class)
-            ->middleware('can:announcements.view')->name('announcements');
+            // Báo cáo khuôn mẫu: trang in A4 / Excel theo mẫu — quyền Xem kiểm trong controller theo từng báo cáo
+            Route::get('/mau/{report}', ReportTemplateController::class)
+                ->where('report', 'tong-quan|tien-do-hoc-tap|ket-qua-kiem-tra|truy-cap-tai-lieu|bao-mat-dang-nhap|yeu-cau-ho-tro')
+                ->name('template');
+        });
 
         // 3.2 Tài liệu nội bộ
         Route::get('/tai-lieu', DocumentLibrary::class)
@@ -134,7 +135,6 @@ Route::middleware('auth')
     ->prefix('hoc-tap')
     ->name('learn.')
     ->group(function () {
-        Route::get('/su-kien', EventFeed::class)->name('events');
         Route::get('/chao-mung', Onboarding::class)->name('onboarding');
 
         // Ảnh đại diện: file nằm ngoài public nên phải đi qua controller
@@ -143,6 +143,8 @@ Route::middleware('auth')
         Route::get('/khoa-hoc/{course:slug}', CoursePlayer::class)->name('course');
         Route::get('/khoa-hoc/{course:slug}/kiem-tra/{lesson}', QuizPlayer::class)->name('quiz');
         Route::get('/tien-do', LearningProgress::class)->name('progress');
+        // Chứng nhận hoàn thành: trang riêng để in / lưu PDF, chỉ chủ sở hữu xem được
+        Route::get('/chung-nhan/{certificate}', [CertificateController::class, 'show'])->name('certificate');
         Route::get('/tai-lieu', DocumentBrowser::class)->name('documents');
         Route::get('/ho-tro', SupportRequestForm::class)->name('support');
         Route::get('/huong-dan-su-dung', UserGuideController::class)->name('guide');

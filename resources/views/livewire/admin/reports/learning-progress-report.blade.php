@@ -68,6 +68,7 @@
                     @endif
                 </button>
             @endcan
+            @include('reports.print.menu', ['url' => $this->templateUrl()])
             <x-admin.report.export-menu />
         </x-slot:actions>
     </x-admin.page-header>

@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\RoleName;
 use App\Livewire\Admin\Reports\SupportReport;
 use App\Livewire\Admin\SupportManager;
-use App\Livewire\User\EventFeed;
 use App\Livewire\User\NotificationBell;
 use App\Models\Announcement;
 use App\Models\AnnouncementRead;
@@ -73,6 +72,16 @@ class NotificationBellTest extends TestCase
         return app(NotificationCenter::class)->unreadCounts(($user ?? $this->user)->fresh(), $site);
     }
 
+    /** Lời nhắc học gửi riêng — loại Announcement duy nhất còn hiện ở chuông. */
+    private function reminder(array $attributes = []): Announcement
+    {
+        return $this->notice(array_merge([
+            'title' => 'Nhắc hoàn thành khóa học',
+            'type' => Announcement::TYPE_COURSE,
+            'employee_id' => $this->employee->id,
+        ], $attributes));
+    }
+
     private function unread(?Employee $employee = null): int
     {
         return Announcement::unreadCountFor(($employee ?? $this->employee)->fresh());
@@ -123,51 +132,75 @@ class NotificationBellTest extends TestCase
         app(NotificationCenter::class)->attemptsGranted(Quiz::factory()->create(['course_id' => $course->id]), $this->employee, 1);
         // Hỗ trợ: phiếu của tôi được tiếp nhận
         app(NotificationCenter::class)->supportAccepted($this->ticket());
-        // Sự kiện: thông báo chung + sự kiện riêng không phải nhắc học
+        // Sự kiện / thông báo chung đã bỏ (fb6): không còn tab, không được đếm
         $this->notice();
         $this->notice(['employee_id' => $this->employee->id]);
-        $this->notice(['type' => Announcement::TYPE_COURSE]); // khóa học nhưng toàn công ty → Sự kiện
+        $this->notice(['type' => Announcement::TYPE_COURSE]); // khóa học nhưng toàn công ty
 
-        $this->assertSame(['all' => 6, 'learning' => 2, 'support' => 1, 'events' => 3], $this->counts());
+        $this->assertSame(['all' => 3, 'learning' => 2, 'support' => 1], $this->counts());
 
         $bell = Livewire::actingAs($this->user)->test(NotificationBell::class)
-            ->assertSee('6 chưa đọc')
+            ->assertSee('3 chưa đọc')
+            ->assertViewHas('tabs', ['all' => 'Tất cả', 'learning' => 'Học tập', 'support' => 'Hỗ trợ'])
+            ->call('setTab', 'events')
+            ->assertSet('tab', 'all')
             ->call('setTab', 'support')
             ->assertSee('đã được tiếp nhận xử lý')
             ->assertDontSee('cấp thêm');
 
         // "Đánh dấu đã đọc tất cả" chỉ áp cho tab đang mở
         $bell->call('markAllRead');
-        $this->assertSame(['all' => 5, 'learning' => 2, 'support' => 0, 'events' => 3], $this->counts());
+        $this->assertSame(['all' => 2, 'learning' => 2, 'support' => 0], $this->counts());
 
-        $bell->call('setTab', 'learning')->call('markAllRead');
-        $this->assertSame(['all' => 3, 'learning' => 0, 'support' => 0, 'events' => 3], $this->counts());
-
-        $bell->call('setTab', 'all')->call('markAllRead')->assertSee('Bạn đã xem hết');
-        $this->assertSame(0, $this->counts()['all']);
+        $bell->call('setTab', 'learning')->call('markAllRead')->assertSee('Bạn đã xem hết');
+        $this->assertSame(['all' => 0, 'learning' => 0, 'support' => 0], $this->counts());
     }
 
     public function test_chuong_bam_mot_cai_giam_mot_va_danh_dau_tat_ca(): void
     {
-        $general = $this->notice(['title' => 'Hội nghị toàn hàng']);
-        $this->notice(['title' => 'Phỏng vấn đánh giá', 'employee_id' => $this->employee->id]);
-        $this->notice(['title' => 'Lịch nghỉ lễ']);
+        $course = Course::factory()->create();
+        $first = $this->reminder(['title' => 'Nhắc học An toàn thông tin', 'course_id' => $course->id]);
+        $this->reminder(['title' => 'Nhắc làm lại bài kiểm tra']);
+        $this->reminder(['title' => 'Nhắc học Phòng chống rửa tiền']);
 
         $bell = Livewire::actingAs($this->user)->test(NotificationBell::class)
-            ->assertSee('Hội nghị toàn hàng')
+            ->assertSee('Nhắc học An toàn thông tin')
             ->assertSee('3 chưa đọc');
 
-        $bell->call('open', 'a:' . $general->id)
-            ->assertRedirect(route('learn.events', ['su-kien' => $general->id]));
-        $this->assertSame(2, $this->unread());
+        $bell->call('open', 'a:' . $first->id)
+            ->assertRedirect(route('learn.course', $course));
+        $this->assertSame(2, $this->counts()['learning']);
 
         // Bấm lại cái đã đọc không làm hỏng số
-        $bell->call('open', 'a:' . $general->id);
-        $this->assertSame(2, $this->unread());
+        $bell->call('open', 'a:' . $first->id);
+        $this->assertSame(2, $this->counts()['learning']);
 
         $bell->call('markAllRead')->assertSee('Bạn đã xem hết');
-        $this->assertSame(0, $this->unread());
+        $this->assertSame(0, $this->counts()['all']);
         $this->assertSame(3, AnnouncementRead::where('employee_id', $this->employee->id)->count());
+    }
+
+    public function test_su_kien_va_thong_bao_chung_khong_con_hien_o_chuong(): void
+    {
+        $general = $this->notice(['title' => 'Hội nghị toàn hàng']);
+        $personal = $this->notice(['title' => 'Phỏng vấn đánh giá', 'employee_id' => $this->employee->id]);
+        $this->reminder(['title' => 'Nhắc hoàn thành khóa AML']);
+
+        $bell = Livewire::actingAs($this->user)->test(NotificationBell::class)
+            ->assertSee('Nhắc hoàn thành khóa AML')
+            ->assertDontSee('Hội nghị toàn hàng')
+            ->assertDontSee('Phỏng vấn đánh giá')
+            ->assertDontSee('Xem tất cả sự kiện')
+            ->assertSee('1 chưa đọc');
+
+        // Gọi thẳng khóa của sự kiện cũng không mở / không đánh dấu gì
+        $bell->call('open', 'a:' . $general->id)->assertNoRedirect()
+            ->call('open', 'a:' . $personal->id)->assertNoRedirect();
+        $this->assertSame(0, AnnouncementRead::count());
+
+        // Đánh dấu tất cả chỉ chạm lời nhắc học
+        $bell->call('markAllRead');
+        $this->assertSame(1, AnnouncementRead::count());
     }
 
     public function test_khong_mo_duoc_thong_bao_cua_nguoi_khac(): void
@@ -189,7 +222,7 @@ class NotificationBellTest extends TestCase
     public function test_badge_hien_9_cong_khi_qua_9(): void
     {
         foreach (range(1, 11) as $i) {
-            $this->notice(['title' => "Thông báo {$i}"]);
+            $this->reminder(['title' => "Lời nhắc {$i}"]);
         }
 
         Livewire::actingAs($this->user)->test(NotificationBell::class)
@@ -275,7 +308,7 @@ class NotificationBellTest extends TestCase
             ->set('assigned_to', $agent->id)
             ->call('assign');
 
-        $this->assertSame(['all' => 1, 'learning' => 0, 'support' => 1, 'events' => 0], $this->counts($agent, NotificationCenter::SITE_ADMIN));
+        $this->assertSame(['all' => 1, 'learning' => 0, 'support' => 1], $this->counts($agent, NotificationCenter::SITE_ADMIN));
         $this->assertSame(0, $this->counts($this->admin, NotificationCenter::SITE_ADMIN)['all'], 'Người giao không tự báo mình');
         $this->assertSame(1, $this->counts()['support'], 'Nhân viên gửi phiếu được báo đã tiếp nhận');
 
@@ -353,28 +386,9 @@ class NotificationBellTest extends TestCase
             ->assertRedirect(route('learn.course', $course, false));
     }
 
-    // ---- Trang Sự kiện ----------------------------------------------------------------
-
-    public function test_trang_su_kien_mo_tu_chuong_hoac_bam_vao_thi_danh_dau_da_doc(): void
-    {
-        $focused = $this->notice(['title' => 'Mở từ chuông']);
-        $other = $this->notice(['title' => 'Bấm trên trang']);
-
-        Livewire::actingAs($this->user)
-            ->withQueryParams(['su-kien' => $focused->id])
-            ->test(EventFeed::class)
-            ->assertSee('Mở từ chuông');
-        $this->assertSame(1, $this->unread());
-
-        Livewire::actingAs($this->user)->test(EventFeed::class)
-            ->call('markRead', $other->id)
-            ->assertDispatched('notifications-updated');
-        $this->assertSame(0, $this->unread());
-    }
-
     public function test_tai_khoan_khong_co_ho_so_nhan_vien_van_dung_duoc_chuong(): void
     {
-        $this->notice(['title' => 'Chỉ cho nhân viên']);
+        $this->reminder(['title' => 'Chỉ cho nhân viên']);
 
         Livewire::actingAs($this->admin)->test(NotificationBell::class)
             ->assertOk()

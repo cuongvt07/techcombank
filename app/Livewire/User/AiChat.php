@@ -9,6 +9,7 @@ use App\Services\AiAssistantService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use RuntimeException;
 
@@ -29,8 +30,31 @@ class AiChat extends Component
 
     public string $errorMessage = '';
 
-    public function render(): View
+    /**
+     * Ẩn hẳn trợ lý khi đang ở trang làm bài kiểm tra — không để nhân viên hỏi AI
+     * lấy đáp án. Xác định một lần lúc mount (request đầu là trang thật; các request
+     * Livewire sau đó đi qua route livewire.update nên không dùng routeIs được nữa).
+     */
+    #[Locked]
+    public bool $suppressed = false;
+
+    public function mount(): void
     {
+        $this->suppressed = self::isSuppressedRoute();
+    }
+
+    /** Các trang không hiển thị trợ lý AI. */
+    public static function isSuppressedRoute(): bool
+    {
+        return request()->routeIs('learn.quiz');
+    }
+
+    public function render(): View|string
+    {
+        if ($this->suppressed) {
+            return '<div hidden></div>';
+        }
+
         return view('livewire.user.ai-chat', [
             'enabled' => app(AiAssistantService::class)->isEnabled(),
             'suggestions' => $this->suggestions(),
@@ -39,6 +63,10 @@ class AiChat extends Component
 
     public function toggle(): void
     {
+        if ($this->suppressed) {
+            return;
+        }
+
         $this->open = ! $this->open;
 
         if ($this->open && $this->messages === []) {
@@ -103,6 +131,10 @@ class AiChat extends Component
 
     public function send(AiAssistantService $assistant): void
     {
+        if ($this->suppressed) {
+            return;
+        }
+
         $this->errorMessage = '';
 
         $question = trim($this->question);

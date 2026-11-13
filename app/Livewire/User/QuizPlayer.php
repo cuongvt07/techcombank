@@ -57,11 +57,16 @@ class QuizPlayer extends Component
     public function render(): View
     {
         $attempt = $this->attempt();
+        $inProgress = $attempt?->isInProgress() ?? false;
 
         return view('livewire.user.quiz-player', [
             'quiz' => $this->lesson->quiz,
             'attempt' => $attempt,
-            'questions' => $this->questions($attempt),
+            // Chỉ nạp câu hỏi khi đang làm bài; màn kết quả dùng $review (đã lọc theo cấu hình)
+            'questions' => $inProgress ? $this->questions($attempt) : collect(),
+            'review' => $attempt && ! $inProgress ? app(QuizService::class)->review($attempt) : null,
+            // Khóa có cấp chứng nhận: chặn rời trang mạnh hơn khi đang làm bài
+            'requiresCertificate' => (bool) $this->course->issue_certificate,
             'history' => $this->history(),
             'canAttempt' => $this->lesson->quiz->canAttempt($this->employee()),
             'attemptsUsed' => $this->lesson->quiz->attemptCountFor($this->employee()),
@@ -154,6 +159,16 @@ class QuizPlayer extends Component
         if ($attempt?->isInProgress() && $attempt->hasExpired()) {
             $service->submit($attempt);
             session()->flash('error', 'Đã hết thời gian làm bài. Bài thi được nộp tự động.');
+        }
+    }
+
+    /** Trình duyệt báo nhân viên vừa chuyển sang tab/ứng dụng khác khi đang làm bài. */
+    public function recordTabLeave(QuizService $service): void
+    {
+        $attempt = $this->attempt();
+
+        if ($attempt) {
+            $service->recordTabLeave($attempt);
         }
     }
 

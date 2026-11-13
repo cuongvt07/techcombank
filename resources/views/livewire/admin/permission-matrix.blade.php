@@ -1,6 +1,6 @@
 <div>
     <x-admin.page-header title="Phân quyền hệ thống"
-                         subtitle="Tick các thao tác nhân viên được phép làm trên từng màn hình quản trị.">
+                         subtitle="Tick các thao tác vai trò Nhân sự / Quản lý được phép làm trên từng màn hình quản trị. Tài khoản học tập của nhân viên không chịu ảnh hưởng.">
         @if ($canEdit)
             <x-slot:actions>
                 <button type="button" wire:click="resetChanges" class="admin-btn-secondary" @disabled(! $dirty)>Hủy</button>
@@ -10,8 +10,9 @@
     </x-admin.page-header>
 
     <div class="admin-panel">
-        {{-- Vai trò đang cấu hình. Hiện chỉ có Nhân viên nên là nhãn tĩnh;
-             mở thêm vai trò (PermissionMatrix::EDITABLE_ROLES) thì tự thành tab để chọn --}}
+        {{-- Vai trò đang cấu hình (PermissionMatrix::EDITABLE_ROLES: Nhân sự, Quản lý).
+             Chỉ còn một vai trò thì hiện nhãn tĩnh, nhiều vai trò thì thành tab để chọn.
+             Vai trò Nhân viên không có ở đây — chỉ giữ quyền học tập cố định. --}}
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line px-4 py-3">
             @if ($roles->count() === 1)
                 @php $only = $roles->first(); @endphp
@@ -54,7 +55,8 @@
             @endif
 
             <p class="text-xs text-brand-muted">
-                <strong class="text-brand-ink">{{ \App\Enums\RoleName::ADMIN->label() }}</strong> luôn có toàn quyền nên không cần cấu hình.
+                <strong class="text-brand-ink">{{ \App\Enums\RoleName::ADMIN->label() }}</strong> luôn có toàn quyền;
+                <strong class="text-brand-ink">{{ \App\Enums\RoleName::EMPLOYEE->label() }}</strong> chỉ có quyền học tập — không cần cấu hình.
             </p>
         </div>
 

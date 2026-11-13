@@ -200,7 +200,7 @@ class SupportManagerTest extends TestCase
     {
         $this->actingAs($this->employeeUser)
             ->get(route('admin.support'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 
     public function test_admin_vao_duoc_man_hinh(): void

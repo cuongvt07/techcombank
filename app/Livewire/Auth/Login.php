@@ -97,7 +97,7 @@ class Login extends Component
     {
         return $user->canAccessAdminSite()
             ? route('admin.dashboard')
-            : route('learn.events');
+            : route('learn.courses');
     }
 
     private function recordAttempt(?User $user, string $result, ?string $reason = null): void

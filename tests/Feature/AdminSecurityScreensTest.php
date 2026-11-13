@@ -482,7 +482,7 @@ class AdminSecurityScreensTest extends TestCase
 
         $this->actingAs($employee->refresh())
             ->get(route('admin.security'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 
     public function test_quan_tri_vien_vao_duoc_man_hinh_phan_quyen_tai_lieu(): void

@@ -58,7 +58,7 @@ class NotificationBell extends Component
         }
     }
 
-    /** Trang Sự kiện đánh dấu đọc → chuông vẽ lại để số giảm ngay. */
+    /** Nơi khác đánh dấu đã đọc → chuông vẽ lại để số giảm ngay. */
     #[On('notifications-updated')]
     public function refreshBell(): void
     {

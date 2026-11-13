@@ -20,7 +20,7 @@ class EnsureUserIsAdmin
         if (! $request->user()?->canAccessAdminSite()) {
             // Tự tạo RedirectResponse: trong request Livewire, redirect() trả Redirector
             // của Livewire (không phải Response) và làm vỡ kiểu trả về của middleware
-            return new RedirectResponse(route('learn.events'));
+            return new RedirectResponse(route('learn.courses'));
         }
 
         return $next($request);

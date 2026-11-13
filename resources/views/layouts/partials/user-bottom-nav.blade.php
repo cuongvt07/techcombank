@@ -7,7 +7,6 @@
 --}}
 @php
     $tabs = [
-        ['route' => 'learn.events', 'label' => 'Sự kiện', 'icon' => 'calendar-days'],
         ['route' => 'learn.courses', 'label' => 'Khóa học', 'icon' => 'academic-cap'],
         ['route' => 'learn.progress', 'label' => 'Tiến độ', 'icon' => 'chart-bar'],
         ['route' => 'learn.documents', 'label' => 'Tài liệu', 'icon' => 'document-text'],

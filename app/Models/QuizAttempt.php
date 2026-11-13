@@ -17,13 +17,14 @@ class QuizAttempt extends Model
     protected $fillable = [
         'quiz_id', 'employee_id', 'lesson_id', 'attempt_no', 'status',
         'score', 'max_score', 'percentage', 'is_passed',
-        'started_at', 'submitted_at', 'expires_at', 'ip_address',
+        'started_at', 'submitted_at', 'expires_at', 'ip_address', 'tab_leave_count',
     ];
 
     protected function casts(): array
     {
         return [
             'attempt_no' => 'integer',
+            'tab_leave_count' => 'integer',
             'score' => 'decimal:2',
             'max_score' => 'decimal:2',
             'percentage' => 'decimal:2',

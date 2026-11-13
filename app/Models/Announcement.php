@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * Sự kiện / thông báo gửi tới nhân viên (spec 3.1.5).
+ * Thông báo gửi tới nhân viên. Màn "Sự kiện & thông báo" đã bỏ (fb6); bảng
+ * còn dùng cho lời nhắc học / nhắc làm lại gửi riêng (LearningReminderService),
+ * hiện ở tab Học tập của chuông thông báo.
  *
  * Hai phạm vi gán:
  *  - employee_id NULL  : toàn công ty
@@ -213,18 +215,14 @@ class Announcement extends Model
     }
 
     /**
-     * Trang mở ra khi bấm thông báo ở chuông: lời nhắc khóa học → khóa đó (hoặc
-     * Khóa học của tôi nếu không rõ khóa); còn lại → đúng sự kiện trên trang Sự kiện.
+     * Trang mở ra khi bấm thông báo ở chuông: lời nhắc khóa học → khóa đó; không
+     * rõ khóa (hoặc thông báo loại khác) → Khóa học của tôi. Trang Sự kiện đã bỏ.
      */
     public function targetUrl(): string
     {
-        if ($this->type === self::TYPE_COURSE) {
-            return $this->course?->slug
-                ? route('learn.course', $this->course)
-                : route('learn.courses');
-        }
-
-        return route('learn.events', ['su-kien' => $this->id]);
+        return $this->type === self::TYPE_COURSE && $this->course?->slug
+            ? route('learn.course', $this->course)
+            : route('learn.courses');
     }
 
     private static function notifySince(Employee $employee): ?Carbon

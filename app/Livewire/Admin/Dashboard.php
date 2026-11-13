@@ -164,6 +164,18 @@ class Dashboard extends Component
                 . LearningReminderService::COOLDOWN_HOURS . ' giờ qua hoặc đã hoàn thành)' : '') . '.';
     }
 
+    /** Link "Xuất báo cáo (mẫu)": bản in / Excel tổng quan theo bộ lọc đang xem. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'tong-quan',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to,
+            'ss' => $this->compare, 'dv' => $this->departmentId, 'cd' => $this->jobTitleId, 'loai' => $this->courseType,
+            // Rỗng = mọi trạng thái nhân sự; gửi 'tat-ca' để không bị hiểu là mặc định
+            'nv' => implode(',', $this->employmentStatuses) ?: 'tat-ca',
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     // ---- Hiển thị -----------------------------------------------------------
 
     public function render(): View

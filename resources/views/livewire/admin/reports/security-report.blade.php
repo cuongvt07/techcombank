@@ -19,6 +19,7 @@
                     @svg('heroicon-o-shield-check', 'h-4 w-4') Mở Trung tâm bảo mật
                 </a>
             @endcan
+            @include('reports.print.menu', ['url' => $this->templateUrl()])
             <x-admin.report.export-menu />
         </x-slot:actions>
     </x-admin.page-header>

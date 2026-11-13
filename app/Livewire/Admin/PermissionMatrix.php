@@ -17,16 +17,17 @@ use Spatie\Permission\PermissionRegistrar;
  * Phân quyền theo vai trò (spec 3.1.4): mỗi vai trò một bảng
  * màn hình × Xem / Thêm / Sửa / Xóa.
  *
- * Cấu hình vai trò Nhân viên và Quản lý (EDITABLE_ROLES). Quản trị viên đã có
- * toàn quyền qua Gate::before; vai trò Nhân sự giữ bộ quyền cố định từ seeder,
- * không chỉnh ở màn này.
+ * Cấu hình vai trò Nhân sự và Quản lý (EDITABLE_ROLES) — các vai trò làm việc
+ * trên site quản trị. Quản trị viên đã có toàn quyền qua Gate::before. Vai trò
+ * Nhân viên KHÔNG chỉnh ở màn này: nó chỉ giữ quyền cố định learning.access
+ * (seeder) để học tập, sửa ở đây sẽ ảnh hưởng tài khoản học của mọi nhân viên.
  */
 class PermissionMatrix extends Component
 {
     use ChecksPermissions;
 
     /** Các vai trò được chỉnh quyền ở màn này. */
-    private const EDITABLE_ROLES = [RoleName::EMPLOYEE, RoleName::MANAGER];
+    private const EDITABLE_ROLES = [RoleName::HR, RoleName::MANAGER];
 
     #[Url(as: 'vai-tro')]
     public string $role = '';
@@ -41,8 +42,8 @@ class PermissionMatrix extends Component
         $roles = $this->editableRoles();
 
         if (! $roles->contains('name', $this->role)) {
-            // Mặc định mở Nhân viên — vai trò hay phải chỉnh nhất
-            $this->role = $roles->firstWhere('name', RoleName::EMPLOYEE->value)?->name
+            // Mặc định mở Nhân sự — vai trò hay phải chỉnh nhất
+            $this->role = $roles->firstWhere('name', RoleName::HR->value)?->name
                 ?? $roles->first()?->name
                 ?? '';
         }
@@ -185,6 +186,8 @@ class PermissionMatrix extends Component
         $this->requirePermission('roles.update');
 
         $role = $this->currentRole();
+        // Chốt chặn: không bao giờ ghi đè quyền của vai trò Nhân viên (tài khoản học tập)
+        abort_if($role->name === RoleName::EMPLOYEE->value, 403);
         $catalog = PermissionCatalog::all();
 
         // Quyền ngoài bảng (vd. learning.access — vào site học tập) giữ nguyên

@@ -141,6 +141,59 @@ class QuizService
     }
 
     /**
+     * Dữ liệu "Xem lại bài làm" của một lượt đã nộp: từng câu, đáp án đã chọn,
+     * đáp án đúng, đúng/sai.
+     *
+     * Trả về null khi bài kiểm tra không cho xem đáp án (show_correct_answers tắt)
+     * hoặc lượt chưa nộp — mọi nơi hiển thị đều phải đi qua hàm này, nên khi tắt
+     * thì không có đường nào (kể cả gọi request Livewire) lấy được đáp án đúng.
+     *
+     * @return array<int, array{number:int, question:string, is_correct:bool, answered:bool, explanation:?string, options:array<int, array{content:string, picked:bool, correct:bool}>}>|null
+     */
+    public function review(QuizAttempt $attempt): ?array
+    {
+        $attempt->loadMissing('quiz');
+
+        if ($attempt->isInProgress() || ! $attempt->quiz?->show_correct_answers) {
+            return null;
+        }
+
+        return $attempt->answers()
+            ->with(['question' => fn ($q) => $q->withTrashed(), 'question.options'])
+            ->get()
+            ->values()
+            ->map(function (QuizAttemptAnswer $answer, int $index) {
+                $picked = array_map('intval', $answer->selected_option_ids ?? []);
+                $question = $answer->question;
+
+                return [
+                    'number' => $index + 1,
+                    // Ưu tiên snapshot: câu hỏi có thể bị sửa sau khi thi
+                    'question' => $answer->question_snapshot ?: ($question?->content ?? '—'),
+                    'is_correct' => (bool) $answer->is_correct,
+                    'answered' => $picked !== [],
+                    'explanation' => $question?->explanation,
+                    'options' => $question
+                        ? $question->options->map(fn ($option) => [
+                            'content' => $option->content,
+                            'picked' => in_array((int) $option->id, $picked, true),
+                            'correct' => (bool) $option->is_correct,
+                        ])->all()
+                        : [],
+                ];
+            })
+            ->all();
+    }
+
+    /** Ghi nhận một lần nhân viên rời tab trình duyệt khi đang làm bài. */
+    public function recordTabLeave(QuizAttempt $attempt): void
+    {
+        if ($attempt->isInProgress()) {
+            $attempt->increment('tab_leave_count');
+        }
+    }
+
+    /**
      * Chấm các lượt thi đã quá giờ mà chưa nộp.
      * Chạy định kỳ qua scheduler, tránh để lượt thi treo mãi ở in_progress.
      */

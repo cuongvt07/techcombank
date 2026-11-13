@@ -571,7 +571,7 @@ class CourseBuilderTest extends TestCase
 
         $this->actingAs($employee->refresh())
             ->get(route('admin.courses'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 
     public function test_quan_tri_vien_vao_duoc_man_hinh_khoa_hoc(): void

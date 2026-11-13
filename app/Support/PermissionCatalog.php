@@ -69,9 +69,6 @@ final class PermissionCatalog
             'courses' => ['Bộ tài liệu ban hành (khóa học)', self::CRUD],
             'quizzes' => ['Bài kiểm tra', self::CRUD],
         ],
-        'Sự kiện' => [
-            'announcements' => ['Sự kiện & thông báo', self::CRUD],
-        ],
         // Báo cáo chỉ đọc; "Sửa" = thao tác ngay trên báo cáo (gửi nhắc, cấp thêm lượt, phân công)
         'Báo cáo' => [
             'report_learning' => ['Báo cáo tiến độ học tập', [self::VIEW, self::UPDATE]],
@@ -137,7 +134,6 @@ final class PermissionCatalog
         'admin.access-rules' => 'document_access',
         'admin.courses' => 'courses',
         'admin.quizzes' => 'quizzes',
-        'admin.announcements' => 'announcements',
         'admin.security' => 'security',
         'admin.support' => 'support',
         'admin.settings' => 'settings',

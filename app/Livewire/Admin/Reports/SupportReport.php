@@ -187,6 +187,18 @@ class SupportReport extends Component
         ], $rows, $format, 'Yêu cầu hỗ trợ');
     }
 
+    /** Link "Xuất báo cáo (mẫu)" theo bộ lọc hiện tại; trạng thái rỗng (tất cả) gửi 'tat-ca'. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'yeu-cau-ho-tro',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to,
+            'chu_de' => $this->topic, 'uu_tien' => $this->priority, 'trang_thai' => $this->status !== '' ? $this->status : 'tat-ca',
+            'phu_trach' => $this->assignee, 'qua_sla' => $this->overSla ? '1' : '0',
+            'sap_xep' => $this->sort, 'chieu' => $this->direction,
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     private function service(): SupportReportService
     {
         return app(SupportReportService::class);

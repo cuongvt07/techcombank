@@ -272,6 +272,18 @@ class QuizResultReport extends Component
         ], $rows, $format, 'Kết quả kiểm tra');
     }
 
+    /** Link "Xuất báo cáo (mẫu)": trang in / Excel theo mẫu của tab đang xem, giữ bộ lọc. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'ket-qua-kiem-tra',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to, 'tab' => $this->tab,
+            'khoa' => $this->courseId, 'bai' => $this->quizId, 'don-vi' => $this->departmentId,
+            'ket-qua' => $this->result, 'lan' => $this->attemptScope, 'kq-luot' => $this->attemptResult,
+            'khoang' => $this->band, 'q' => $this->search, 'sx' => $this->sort, 'chieu' => $this->dir,
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     // ---- Hiển thị -------------------------------------------------------------
 
     public function render(): View

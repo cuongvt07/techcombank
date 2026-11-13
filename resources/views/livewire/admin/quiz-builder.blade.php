@@ -333,9 +333,10 @@
                         <input type="checkbox" wire:model="show_correct_answers"
                                class="mt-0.5 h-4 w-4 shrink-0 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red">
                         <span>
-                            Cho xem đáp án đúng sau khi nộp
+                            Cho nhân viên xem lại đáp án sau khi nộp
                             <span class="mt-0.5 block text-xs font-normal text-brand-muted">
-                                Cân nhắc tắt để tránh lộ ngân hàng câu hỏi qua các lượt thi lại.
+                                Bật: màn kết quả có mục "Xem lại bài làm" (đáp án đã chọn, đáp án đúng, đúng/sai, giải thích).
+                                Tắt: nhân viên chỉ thấy điểm — cân nhắc tắt để tránh lộ ngân hàng câu hỏi qua các lượt thi lại.
                             </span>
                         </span>
                     </label>

@@ -18,9 +18,6 @@
             ['route' => 'admin.courses', 'label' => 'Bộ tài liệu ban hành', 'icon' => 'academic-cap', 'permission' => 'courses.view'],
             ['route' => 'admin.quizzes', 'label' => 'Bài kiểm tra', 'icon' => 'clipboard-document-check', 'permission' => 'quizzes.view'],
         ],
-        'Sự kiện' => [
-            ['route' => 'admin.announcements', 'label' => 'Sự kiện & thông báo', 'icon' => 'megaphone', 'permission' => 'announcements.view'],
-        ],
         'Báo cáo' => [
             ['route' => 'admin.reports.learning', 'label' => 'Tiến độ học tập', 'icon' => 'chart-bar', 'permission' => 'report_learning.view'],
             ['route' => 'admin.reports.quiz', 'label' => 'Kết quả kiểm tra', 'icon' => 'clipboard-document-list', 'permission' => 'report_quiz.view'],

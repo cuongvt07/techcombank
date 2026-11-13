@@ -165,6 +165,17 @@ class DocumentAccessReport extends Component
         );
     }
 
+    /** Link "Xuất báo cáo (mẫu)": bảng theo tài liệu (không gồm nhật ký) theo bộ lọc đang xem. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'truy-cap-tai-lieu',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to,
+            'dm' => $this->categoryId, 'mat' => $this->confidentiality, 'hd' => $this->action,
+            'dv' => $this->ownerDepartmentId, 'sx' => $this->sort, 'chieu' => $this->direction,
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     public function render(DocumentAccessReportService $service): View
     {
         $period = $this->period();

@@ -51,7 +51,7 @@ class SiteAccessTest extends TestCase
 
         $this->actingAs($employee)
             ->get(route('admin.dashboard'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 
     public function test_nhan_vien_xem_duoc_danh_sach_khoa_hoc_cua_minh(): void
@@ -99,7 +99,7 @@ class SiteAccessTest extends TestCase
         $this->actingAs($admin)->get('/')->assertRedirect(route('admin.dashboard'));
 
         $employee = $this->makeUser(RoleName::EMPLOYEE);
-        $this->actingAs($employee)->get('/')->assertRedirect(route('learn.events'));
+        $this->actingAs($employee)->get('/')->assertRedirect(route('learn.courses'));
     }
 
     public function test_dang_xuat_va_chuyen_ve_trang_dang_nhap(): void

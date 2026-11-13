@@ -5,63 +5,59 @@ namespace App\Livewire\User;
 use App\Models\Certificate;
 use App\Models\Employee;
 use App\Models\QuizAttempt;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Component;
 
-/** Kết quả kiểm tra và chứng nhận hoàn thành của nhân viên đang đăng nhập. */
+/**
+ * Kết quả kiểm tra và chứng nhận hoàn thành của nhân viên đang đăng nhập.
+ * Chứng nhận mở ở trang riêng (route learn.certificate) để in / lưu PDF.
+ */
 class LearningProgress extends Component
 {
-    public ?int $viewingCertificateId = null;
-
     public function render(): View
     {
         $employee = auth()->user()?->employee;
 
         return view('livewire.user.learning-progress', [
-            'quizAttempts' => $this->quizAttempts($employee),
+            'quizResults' => $this->bestQuizResults($employee),
             'certificates' => $this->certificates($employee),
-            'viewingCertificate' => $this->viewingCertificate($employee),
         ])->layout('layouts.user', ['title' => 'Tiến độ học tập']);
     }
 
-    public function showCertificate(int $certificateId): void
-    {
-        $employee = auth()->user()?->employee;
-
-        if ($employee && Certificate::query()
-            ->where('employee_id', $employee->id)
-            ->whereKey($certificateId)
-            ->exists()) {
-            $this->viewingCertificateId = $certificateId;
-        }
-    }
-
-    public function closeCertificate(): void
-    {
-        $this->viewingCertificateId = null;
-    }
-
-    private function quizAttempts(?Employee $employee)
+    /**
+     * Mỗi bài kiểm tra một dòng: lượt có điểm cao nhất (bằng điểm thì lấy lượt
+     * nộp sau cùng), kèm tổng số lượt đã nộp. Bài vừa làm gần đây nằm trên.
+     *
+     * @return Collection<int, array{attempt: QuizAttempt, attempts_count: int, last_submitted_at: mixed}>
+     */
+    private function bestQuizResults(?Employee $employee): Collection
     {
         if (! $employee) {
             return collect();
         }
 
-        $attempts = QuizAttempt::with('quiz.course')
+        return QuizAttempt::with('quiz.course')
             ->where('employee_id', $employee->id)
             ->whereNot('status', QuizAttempt::STATUS_IN_PROGRESS)
-            ->orderByDesc('submitted_at')
-            ->get();
-
-        return $attempts
+            ->get()
             ->groupBy('quiz_id')
-            ->flatMap(fn ($quizAttempts) => $quizAttempts->sort(function (QuizAttempt $a, QuizAttempt $b): int {
-                $scoreOrder = (float) $b->percentage <=> (float) $a->percentage;
+            ->map(function (Collection $attempts) {
+                $best = $attempts->sort(function (QuizAttempt $a, QuizAttempt $b): int {
+                    $scoreOrder = (float) $b->percentage <=> (float) $a->percentage;
 
-                return $scoreOrder !== 0
-                    ? $scoreOrder
-                    : (($b->submitted_at?->getTimestamp() ?? 0) <=> ($a->submitted_at?->getTimestamp() ?? 0));
-            }))
+                    return $scoreOrder !== 0
+                        ? $scoreOrder
+                        : (($b->submitted_at?->getTimestamp() ?? 0) <=> ($a->submitted_at?->getTimestamp() ?? 0));
+                })->first();
+
+                return [
+                    'attempt' => $best,
+                    'attempts_count' => $attempts->count(),
+                    'last_submitted_at' => $attempts->max(fn (QuizAttempt $a) => $a->submitted_at?->getTimestamp() ?? 0),
+                ];
+            })
+            ->sortByDesc('last_submitted_at')
             ->values();
     }
 
@@ -75,16 +71,5 @@ class LearningProgress extends Component
             ->where('employee_id', $employee->id)
             ->orderByDesc('issued_at')
             ->get();
-    }
-
-    private function viewingCertificate(?Employee $employee): ?Certificate
-    {
-        if (! $employee || ! $this->viewingCertificateId) {
-            return null;
-        }
-
-        return Certificate::with(['course', 'employee'])
-            ->where('employee_id', $employee->id)
-            ->find($this->viewingCertificateId);
     }
 }

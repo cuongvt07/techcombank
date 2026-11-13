@@ -94,6 +94,7 @@
             <button type="button" onclick="window.print()" class="admin-btn-secondary dash-desktop-only">
                 @svg('heroicon-o-printer', 'h-4 w-4') Tải PDF tóm tắt
             </button>
+            @include('reports.print.menu', ['url' => $this->templateUrl()])
             @if ($reportLinks->isNotEmpty())
                 <div x-data="{ open: false }" class="relative" x-on:keydown.escape.window="open = false">
                     <button type="button" x-on:click="open = ! open" class="admin-btn" aria-haspopup="menu" x-bind:aria-expanded="open">

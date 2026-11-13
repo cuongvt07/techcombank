@@ -185,14 +185,14 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '2. Trang Sự kiện',
+                'title' => '2. Trang đầu và chuông thông báo',
                 'body' => [
-                    'Đây là trang đầu tiên khi bạn đăng nhập. Danh sách sự kiện và thông báo '
-                        . 'được sắp theo mức độ cần chú ý.',
-                    'Sự kiện dành riêng cho bạn có viền đỏ và nhãn "Dành riêng cho bạn", luôn '
-                        . 'nằm trên đầu. Tiếp đến là sự kiện đang diễn ra, rồi sự kiện sắp tới.',
-                    'Ba bộ lọc: Tất cả, Riêng tôi, Sắp diễn ra. Số bên cạnh "Riêng tôi" là số '
-                        . 'sự kiện dành riêng cho bạn.',
+                    'Sau khi đăng nhập, bạn vào thẳng trang Khóa học của tôi.',
+                    'Chuông thông báo ở góc trên có hai nhóm: Học tập (lời nhắc học, nhắc làm lại '
+                        . 'bài kiểm tra, được cấp thêm lượt làm bài) và Hỗ trợ (phiếu hỗ trợ được tiếp '
+                        . 'nhận hoặc giải quyết). Bấm một thông báo để mở đúng trang liên quan.',
+                    'Trên máy tính, bấm nút thu gọn ở thanh bên để mở rộng vùng làm việc; hệ thống '
+                        . 'nhớ lựa chọn này cho lần sau.',
                 ],
             ],
             [
@@ -298,7 +298,8 @@ class UserGuideService
                     'Hệ thống gồm hai site chạy trên cùng mã nguồn: site Quản trị (/quan-tri) và '
                         . 'site Học tập (/hoc-tap). Nhân viên thường vào site quản trị sẽ được chuyển '
                         . 'về site học tập.',
-                    'Có hai vai trò: Quản trị viên (toàn quyền) và Nhân viên (chỉ học tập).',
+                    'Các vai trò: Quản trị viên (toàn quyền), Nhân sự và Quản lý (quyền quản trị cấu hình '
+                        . 'ở màn Phân quyền), Nhân viên (chỉ học tập — không cấu hình ở màn Phân quyền).',
                     'Lưu ý quan trọng: Quản trị viên có toàn quyền, bao gồm xem hồ sơ của mọi nhân viên. '
                         . 'Chỉ cấp vai trò này cho người được phép tiếp cận dữ liệu nhân sự.',
                 ],
@@ -379,18 +380,7 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '8. Sự kiện và thông báo',
-                'body' => [
-                    'Gửi sự kiện cho toàn công ty hoặc riêng một nhân viên. Sự kiện gán riêng được đẩy lên đầu '
-                        . 'danh sách bên site người dùng.',
-                    'Điền thời gian bắt đầu/kết thúc và địa điểm nếu là sự kiện có lịch. Để trống nếu chỉ là '
-                        . 'thông báo chung.',
-                    'Để trống ngày phát hành để lưu nháp. Bấm nút phát hành khi muốn hiện với nhân viên.',
-                    'Gỡ sự kiện khỏi site người dùng mà vẫn giữ nội dung để đăng lại.',
-                ],
-            ],
-            [
-                'title' => '9. Phân quyền tài liệu',
+                'title' => '8. Phân quyền tài liệu',
                 'body' => [
                     'Nguyên tắc: mặc định từ chối. Tài liệu không có rule cho phép thì không ai xem được.',
                     'Rule từ chối luôn thắng rule cho phép. Một nhân viên khớp cả hai loại rule sẽ bị từ chối.',
@@ -401,7 +391,7 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '10. Trung tâm bảo mật',
+                'title' => '9. Trung tâm bảo mật',
                 'body' => [
                     'Nhật ký truy cập tài liệu: ai xem, ai tải, lúc nào, từ thiết bị nào.',
                     'Lịch sử đăng nhập và danh sách thiết bị đang hoạt động. Thu hồi được phiên đăng nhập bất kỳ.',
@@ -411,7 +401,7 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '11. Cấu hình chung',
+                'title' => '10. Cấu hình chung',
                 'body' => [
                     'Danh mục dùng chung: phòng ban, chức danh, cấp bậc, danh mục tài liệu.',
                     'Tham số hệ thống: tên hiển thị, số thiết bị đăng nhập tối đa, '
@@ -422,7 +412,7 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '12. Trợ lý AI',
+                'title' => '11. Trợ lý AI',
                 'body' => [
                     'Trợ lý dùng Groq API, cấu hình khóa trong biến môi trường GROQ_API_KEY. Không đặt khóa trong '
                         . 'mã nguồn.',

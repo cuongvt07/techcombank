@@ -292,6 +292,6 @@ class QuizBuilderTest extends TestCase
         // Bị chuyển về site học tập, không phải 403 (xem EnsureUserIsAdmin)
         $this->actingAs($employee->refresh())
             ->get(route('admin.quizzes'))
-            ->assertRedirect(route('learn.events'));
+            ->assertRedirect(route('learn.courses'));
     }
 }

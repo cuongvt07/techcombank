@@ -233,6 +233,18 @@ class LearningProgressReport extends Component
         return ReportExport::download('tien-do-hoc-tap', $headings, $rows, $format, 'Tiến độ học tập');
     }
 
+    /** Link "Xuất báo cáo (mẫu)": trang in / Excel theo mẫu, mang theo bộ lọc nền đang xem. */
+    public function templateUrl(): string
+    {
+        return route('admin.reports.template', array_filter([
+            'report' => 'tien-do-hoc-tap',
+            'ky' => $this->preset, 'tu' => $this->from, 'den' => $this->to,
+            'moc' => $this->basis, 'don-vi' => $this->department, 'khoa' => $this->course,
+            'loai' => $this->courseType, 'tien-do-tu' => $this->progressMin, 'tien-do-den' => $this->progressMax,
+            'nguon' => $this->source, 'bo-nghi' => $this->excludeResigned ? '1' : null,
+        ], fn ($v) => $v !== null && $v !== ''));
+    }
+
     public function render(): View
     {
         $report = $this->report();

@@ -45,19 +45,19 @@ class AdminConfigScreensTest extends TestCase
         $roles = Livewire::test(PermissionMatrix::class)->viewData('roles');
 
         $this->assertNotContains(RoleName::ADMIN->value, $roles->pluck('name')->all());
-        $this->assertContains(RoleName::EMPLOYEE->value, $roles->pluck('name')->all());
+        $this->assertContains(RoleName::HR->value, $roles->pluck('name')->all());
         $this->assertContains(RoleName::MANAGER->value, $roles->pluck('name')->all());
     }
 
-    public function test_mac_dinh_mo_vai_tro_nhan_vien(): void
+    public function test_mac_dinh_mo_vai_tro_nhan_su(): void
     {
         Livewire::test(PermissionMatrix::class)
-            ->assertSet('role', RoleName::EMPLOYEE->value);
+            ->assertSet('role', RoleName::HR->value);
     }
 
     public function test_bat_quyen_va_luu_thi_vai_tro_nhan_duoc_quyen(): void
     {
-        $role = Role::findByName(RoleName::EMPLOYEE->value);
+        $role = Role::findByName(RoleName::HR->value);
         $this->assertFalse($role->hasPermissionTo('courses.view'));
 
         Livewire::test(PermissionMatrix::class)
@@ -72,11 +72,42 @@ class AdminConfigScreensTest extends TestCase
     public function test_luu_khong_lam_mat_quyen_vao_site_hoc_tap(): void
     {
         // learning.access không nằm trong bảng màn hình — lưu bảng không được xóa nó
+        Role::findByName(RoleName::HR->value)->givePermissionTo('learning.access');
+
         Livewire::test(PermissionMatrix::class)
-            ->call('toggle', 'announcements', 'view')
+            ->call('toggle', 'documents', 'view')
             ->call('save');
 
-        $this->assertTrue(Role::findByName(RoleName::EMPLOYEE->value)->fresh()->hasPermissionTo('learning.access'));
+        $this->assertTrue(Role::findByName(RoleName::HR->value)->fresh()->hasPermissionTo('learning.access'));
+    }
+
+    public function test_luu_ma_tran_khong_dung_toi_vai_tro_nhan_vien(): void
+    {
+        // Vai trò Nhân viên là tài khoản học tập: chỉ giữ learning.access, không
+        // bao giờ bị ma trận ghi đè dù lưu vai trò nào
+        $employee = Role::findByName(RoleName::EMPLOYEE->value);
+
+        Livewire::test(PermissionMatrix::class)
+            ->call('toggleColumn', 'manage')
+            ->call('save');
+
+        Livewire::test(PermissionMatrix::class)
+            ->set('role', RoleName::MANAGER->value)
+            ->call('toggleColumn', 'view')
+            ->call('save');
+
+        $this->assertSame(['learning.access'], $employee->fresh()->permissions->pluck('name')->all());
+    }
+
+    public function test_khong_mo_duoc_vai_tro_nhan_vien_tren_ma_tran(): void
+    {
+        Livewire::withQueryParams(['vai-tro' => RoleName::EMPLOYEE->value])
+            ->test(PermissionMatrix::class)
+            ->assertSet('role', RoleName::HR->value);
+
+        Livewire::test(PermissionMatrix::class)
+            ->set('role', RoleName::EMPLOYEE->value)
+            ->assertStatus(404);
     }
 
     public function test_tick_thao_tac_cap_moi_them_sua_xoa_va_tu_tick_xem(): void
@@ -87,7 +118,7 @@ class AdminConfigScreensTest extends TestCase
             ->assertSet('granted', fn ($g) => $g['quizzes.view'] && $g['quizzes.create'] && $g['quizzes.update'] && $g['quizzes.delete'])
             ->call('save');
 
-        $role = Role::findByName(RoleName::EMPLOYEE->value)->fresh();
+        $role = Role::findByName(RoleName::HR->value)->fresh();
         foreach (['view', 'create', 'update', 'delete'] as $action) {
             $this->assertTrue($role->hasPermissionTo("quizzes.{$action}"));
         }
@@ -95,14 +126,14 @@ class AdminConfigScreensTest extends TestCase
 
     public function test_bo_thao_tac_giu_quyen_xem(): void
     {
-        Role::findByName(RoleName::EMPLOYEE->value)
+        Role::findByName(RoleName::HR->value)
             ->givePermissionTo(['quizzes.view', 'quizzes.create', 'quizzes.update', 'quizzes.delete']);
 
         Livewire::test(PermissionMatrix::class)
             ->call('toggle', 'quizzes', 'manage')
             ->call('save');
 
-        $role = Role::findByName(RoleName::EMPLOYEE->value)->fresh();
+        $role = Role::findByName(RoleName::HR->value)->fresh();
         $this->assertTrue($role->hasPermissionTo('quizzes.view'));
         $this->assertFalse($role->hasPermissionTo('quizzes.create'));
         $this->assertFalse($role->hasPermissionTo('quizzes.delete'));
@@ -111,7 +142,7 @@ class AdminConfigScreensTest extends TestCase
     public function test_thao_tac_cap_le_cu_hien_mot_phan_va_bam_thi_cap_du(): void
     {
         // Dữ liệu cũ chỉ có quyền Sửa — ô Thao tác hiện "một phần"; bấm vào thì cấp đủ
-        Role::findByName(RoleName::EMPLOYEE->value)->givePermissionTo(['quizzes.view', 'quizzes.update']);
+        Role::findByName(RoleName::HR->value)->givePermissionTo(['quizzes.view', 'quizzes.update']);
 
         $component = Livewire::test(PermissionMatrix::class);
         $this->assertTrue($component->instance()->hasPartialManage('quizzes'));
@@ -141,7 +172,7 @@ class AdminConfigScreensTest extends TestCase
 
     public function test_bo_xem_thi_bo_het_thao_tac_cua_man(): void
     {
-        $role = Role::findByName(RoleName::EMPLOYEE->value);
+        $role = Role::findByName(RoleName::HR->value);
         $role->givePermissionTo(['quizzes.view', 'quizzes.create', 'quizzes.update']);
 
         Livewire::test(PermissionMatrix::class)
@@ -162,18 +193,16 @@ class AdminConfigScreensTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_chi_cau_hinh_vai_tro_nhan_vien_va_quan_ly(): void
+    public function test_chi_cau_hinh_vai_tro_nhan_su_va_quan_ly(): void
     {
-        // Vai trò Nhân sự giữ bộ quyền cố định, không chỉnh ở màn này
+        // Vai trò Nhân viên chỉ học tập — không xuất hiện trên ma trận
         Livewire::test(PermissionMatrix::class)
             ->assertViewHas('roles', fn ($roles) => $roles->pluck('name')->all() === [
-                RoleName::EMPLOYEE->value,
+                RoleName::HR->value,
                 RoleName::MANAGER->value,
-            ])
-            ->set('role', RoleName::HR->value)
-            ->assertStatus(404);
+            ]);
 
-        $this->assertTrue(Role::findByName(RoleName::HR->value)->hasPermissionTo('employees.view'));
+        $this->assertTrue(Role::findByName(RoleName::EMPLOYEE->value)->hasPermissionTo('learning.access'));
     }
 
     public function test_co_the_cau_hinh_quyen_cho_vai_tro_quan_ly(): void
@@ -219,7 +248,7 @@ class AdminConfigScreensTest extends TestCase
 
     public function test_hoan_tac_khong_ghi_vao_csdl(): void
     {
-        $role = Role::findByName(RoleName::EMPLOYEE->value);
+        $role = Role::findByName(RoleName::HR->value);
 
         Livewire::test(PermissionMatrix::class)
             ->call('toggle', 'accounts', 'manage')

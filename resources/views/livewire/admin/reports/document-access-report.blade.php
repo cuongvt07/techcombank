@@ -15,6 +15,7 @@
     <x-admin.page-header title="Báo cáo truy cập và sử dụng tài liệu"
                          subtitle="Lượt xem lặp của cùng người trong 5 phút được gộp thành một lượt">
         <x-slot:actions>
+            @include('reports.print.menu', ['url' => $this->templateUrl()])
             <x-admin.report.export-menu />
         </x-slot:actions>
     </x-admin.page-header>

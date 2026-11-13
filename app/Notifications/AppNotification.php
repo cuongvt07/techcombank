@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notification;
 class AppNotification extends Notification
 {
     /**
-     * @param  string  $category  learning | support | events (tab của chuông)
+     * @param  string  $category  learning | support (tab của chuông)
      * @param  string  $url  đường dẫn tương đối, mở khi bấm thông báo
      */
     public function __construct(

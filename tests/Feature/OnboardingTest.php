@@ -207,7 +207,7 @@ class OnboardingTest extends TestCase
     public function test_nhan_vien_moi_thay_muc_chao_mung_tren_menu(): void
     {
         $this->actingAs($this->user)
-            ->get(route('learn.events'))
+            ->get(route('learn.courses'))
             ->assertSee('Chào mừng');
     }
 
@@ -216,7 +216,7 @@ class OnboardingTest extends TestCase
         $this->employee->update(['is_new_hire' => false]);
 
         $this->actingAs($this->user->refresh())
-            ->get(route('learn.events'))
+            ->get(route('learn.courses'))
             ->assertDontSee('Chào mừng');
     }
 
