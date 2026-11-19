@@ -123,7 +123,7 @@ class CourseBuilder extends Component
             'documents' => Document::published()->orderBy('title')->get(),
             'quizzes' => Quiz::published()->orderBy('title')->get(),
             'enrolledCount' => $course ? $course->enrollments()->count() : 0,
-        ])->layout('layouts.admin', ['title' => 'Bộ tài liệu ban hành']);
+        ])->layout('layouts.admin', ['title' => 'Khóa học']);
     }
 
     public function updated($property): void

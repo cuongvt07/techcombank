@@ -15,7 +15,7 @@
         'Tài liệu nội bộ' => [
             ['route' => 'admin.files', 'label' => 'Kho tài nguyên', 'icon' => 'folder', 'permission' => 'files.view'],
             ['route' => 'admin.documents', 'label' => 'Thư viện & phân quyền', 'icon' => 'document-duplicate', 'permission' => 'documents.view'],
-            ['route' => 'admin.courses', 'label' => 'Bộ tài liệu ban hành', 'icon' => 'academic-cap', 'permission' => 'courses.view'],
+            ['route' => 'admin.courses', 'label' => 'Khóa học', 'icon' => 'academic-cap', 'permission' => 'courses.view'],
             ['route' => 'admin.quizzes', 'label' => 'Bài kiểm tra', 'icon' => 'clipboard-document-check', 'permission' => 'quizzes.view'],
         ],
         'Báo cáo' => [

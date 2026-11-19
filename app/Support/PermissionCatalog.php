@@ -66,7 +66,7 @@ final class PermissionCatalog
             'files' => ['Kho tài nguyên', self::CRUD],
             'documents' => ['Thư viện tài liệu', [self::VIEW, self::CREATE, self::UPDATE]],
             'document_access' => ['Phân quyền tài liệu', self::CRUD],
-            'courses' => ['Bộ tài liệu ban hành (khóa học)', self::CRUD],
+            'courses' => ['Khóa học', self::CRUD],
             'quizzes' => ['Bài kiểm tra', self::CRUD],
         ],
         // Báo cáo chỉ đọc; "Sửa" = thao tác ngay trên báo cáo (gửi nhắc, cấp thêm lượt, phân công)

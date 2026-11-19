@@ -1,7 +1,7 @@
 <div>
     @if (! $editingCourse)
         {{-- MỨC 1: danh sách khóa học --}}
-        <x-admin.page-header title="Bộ tài liệu ban hành"
+        <x-admin.page-header title="Khóa học"
                              subtitle="Khóa học gồm nhiều bài giảng xếp theo trình tự, giao tự động theo phòng ban.">
             <x-slot:actions>
                 @can('courses.create')

@@ -355,7 +355,7 @@ class UserGuideService
                 ],
             ],
             [
-                'title' => '6. Bộ tài liệu ban hành (khóa học)',
+                'title' => '6. Khóa học',
                 'body' => [
                     'Một khóa gồm nhiều bài. Bài có ba dạng: bài đọc (soạn nội dung trực tiếp), video (dán link '
                         . 'YouTube/Vimeo), và bài kiểm tra (chọn từ danh sách bài kiểm tra đã tạo).',
