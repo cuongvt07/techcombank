@@ -211,7 +211,19 @@ class Employee extends Model
      */
     public function initials(): string
     {
-        $parts = preg_split('/\s+/u', trim((string) $this->full_name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        return self::initialsOf($this->full_name);
+    }
+
+    /** Chữ cái avatar cho một họ tên bất kỳ (dùng cả khi tài khoản chưa gắn hồ sơ). */
+    public static function initialsOf(?string $name): string
+    {
+        $name = trim((string) $name);
+        // Tên nhập từ nguồn ngoài có thể ở dạng dấu tách rời (NFD) — gộp lại để lấy đúng chữ cái
+        if (class_exists(\Normalizer::class)) {
+            $name = \Normalizer::normalize($name, \Normalizer::FORM_C) ?: $name;
+        }
+
+        $parts = preg_split('/\s+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
         if ($parts === []) {
             return '?';

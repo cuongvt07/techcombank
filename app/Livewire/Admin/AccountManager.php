@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Enums\RoleName;
@@ -28,6 +29,8 @@ use Spatie\Permission\Models\Role;
 class AccountManager extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -67,6 +70,7 @@ class AccountManager extends Component
     {
         return view('livewire.admin.account-manager', [
             'users' => $this->users(),
+            'summary' => $this->summaryLine(),
             'roles' => Role::orderBy('name')->get(),
             'departments' => Department::active()->orderBy('name')->get(),
             'employeeOptions' => $this->showModal ? $this->employeeOptions() : [],
@@ -74,6 +78,19 @@ class AccountManager extends Component
                 ? Employee::with(['department', 'jobTitle', 'jobGrade'])->find($this->employee_id)
                 : null,
         ])->layout('layouts.admin', ['title' => 'Quản lý tài khoản']);
+    }
+
+    /** Dòng đếm nhanh dưới tiêu đề: "122 tài khoản · 110 hoạt động · 4 đã khóa · 8 vô hiệu". */
+    private function summaryLine(): string
+    {
+        $counts = User::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        return implode(' · ', [
+            number_format((int) $counts->sum(), 0, ',', '.') . ' tài khoản',
+            (int) ($counts[User::STATUS_ACTIVE] ?? 0) . ' hoạt động',
+            (int) ($counts[User::STATUS_LOCKED] ?? 0) . ' đã khóa',
+            (int) ($counts[User::STATUS_DISABLED] ?? 0) . ' vô hiệu',
+        ]);
     }
 
     public function updated($property): void
@@ -325,7 +342,7 @@ class AccountManager extends Component
                 fn ($e) => $e->inDepartment((int) $this->departmentFilter)
             ))
             ->orderByDesc('id')
-            ->paginate(15);
+            ->paginate($this->perPage());
     }
 
     private function rules(): array

@@ -8,120 +8,96 @@ $scrollIntoViewJsSnippet = ($scrollTo !== false)
        (\$el.closest('{$scrollTo}') || document.querySelector('{$scrollTo}')).scrollIntoView()
     JS
     : '';
+
+// Ô "Mỗi trang" (fb7 mục 6) chỉ hiện khi component đang render dùng trait HasPerPage;
+// component khác (vd. các báo cáo) giữ nguyên hành vi cũ, không phát sinh wire:model lạ.
+$perPageComponent = \Livewire\Livewire::current();
+$perPageOptions = ($perPageComponent && in_array(\App\Livewire\Concerns\HasPerPage::class, class_uses_recursive($perPageComponent), true))
+    ? $perPageComponent->perPageOptions()
+    : [];
+$showSummary = $summary ?? true;
+// Có ô "Mỗi trang" thì vẫn hiện thanh khi chỉ có 1 trang — người dùng đã chọn 50
+// dòng vẫn cần chỗ để chọn lại 15.
+$showBar = $paginator->hasPages() || ($perPageOptions !== [] && $paginator->total() > 0);
+$showPerPage = $perPageOptions !== [] && $paginator->total() > min($perPageOptions);
+$pageBtn = 'inline-flex h-9 min-w-[36px] items-center justify-center rounded-admin border px-2.5 text-sm leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40';
+$pageIdle = $pageBtn . ' border-brand-line bg-white font-medium text-brand-ink hover:border-brand-red hover:text-brand-red';
+$pageDisabled = $pageBtn . ' cursor-default border-brand-line bg-white text-brand-ink opacity-40';
 @endphp
 
 <div>
-    @if ($paginator->hasPages())
-        <nav role="navigation" aria-label="Pagination Navigation" class="flex items-center justify-between">
-            <div class="flex justify-between flex-1 sm:hidden">
-                <span>
-                    @if ($paginator->onFirstPage())
-                        <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-brand-ink bg-white border border-brand-line cursor-default opacity-40 leading-5 rounded-md">
-                            {!! __('pagination.previous') !!}
-                        </span>
-                    @else
-                        <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" dusk="previousPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.before" class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-brand-ink bg-white border border-brand-line leading-5 rounded-md hover:text-brand-red focus:outline-none focus:ring ring-brand-red/30 focus:border-brand-red active:bg-brand-soft active:text-brand-ink transition ease-in-out duration-150 hover:bg-brand-soft">
-                            {!! __('pagination.previous') !!}
-                        </button>
-                    @endif
-                </span>
-
-                <span>
-                    @if ($paginator->hasMorePages())
-                        <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" dusk="nextPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.before" class="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-brand-ink bg-white border border-brand-line leading-5 rounded-md hover:text-brand-red focus:outline-none focus:ring ring-brand-red/30 focus:border-brand-red active:bg-brand-soft active:text-brand-ink transition ease-in-out duration-150 hover:bg-brand-soft">
-                            {!! __('pagination.next') !!}
-                        </button>
-                    @else
-                        <span class="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-brand-ink bg-white border border-brand-line cursor-default opacity-40 leading-5 rounded-md">
-                            {!! __('pagination.next') !!}
-                        </span>
-                    @endif
-                </span>
-            </div>
-
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                {{-- Trang đã tự in dòng đếm theo ngữ cảnh ("… / 48 dòng") thì gọi links(data: ['summary' => false]) --}}
-                <div @class(['invisible' => ! ($summary ?? true)])>
-                    <p class="text-sm text-brand-ink leading-5">
-                        <span>{!! __('Showing') !!}</span>
-                        <span class="font-medium">{{ $paginator->firstItem() }}</span>
-                        <span>{!! __('to') !!}</span>
-                        <span class="font-medium">{{ $paginator->lastItem() }}</span>
-                        <span>{!! __('of') !!}</span>
-                        <span class="font-medium">{{ $paginator->total() }}</span>
-                        <span>{!! __('results') !!}</span>
+    @if ($showBar)
+        <nav role="navigation" aria-label="Phân trang" class="list-pager">
+            {{-- Bên trái: "Hiển thị 1–15 trên 122 kết quả · Mỗi trang [15 ▾]" — chữ đen, không mờ --}}
+            <div class="list-pager-info">
+                @if ($showSummary)
+                    <p class="text-sm text-brand-ink">
+                        Hiển thị
+                        <span class="font-semibold">{{ $paginator->firstItem() ?? 0 }}–{{ $paginator->lastItem() ?? 0 }}</span>
+                        trên
+                        <span class="font-semibold">{{ number_format($paginator->total(), 0, ',', '.') }}</span>
+                        kết quả
                     </p>
-                </div>
+                @endif
 
-                <div>
-                    <span class="relative z-0 inline-flex rtl:flex-row-reverse rounded-md shadow-sm">
-                        <span>
-                            {{-- Previous Page Link --}}
-                            @if ($paginator->onFirstPage())
-                                <span aria-disabled="true" aria-label="{{ __('pagination.previous') }}">
-                                    <span class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-brand-ink bg-white border border-brand-line cursor-default opacity-40 rounded-l-md leading-5" aria-hidden="true">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </span>
-                                </span>
-                            @else
-                                <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" dusk="previousPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.after" class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-brand-ink bg-white border border-brand-line rounded-l-md leading-5 hover:text-brand-red focus:z-10 focus:outline-none focus:border-brand-red focus:ring ring-brand-red/30 active:bg-brand-soft active:text-brand-ink transition ease-in-out duration-150 hover:bg-brand-soft" aria-label="{{ __('pagination.previous') }}">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            @endif
-                        </span>
-
-                        {{-- Pagination Elements --}}
-                        @foreach ($elements as $element)
-                            {{-- "Three Dots" Separator --}}
-                            @if (is_string($element))
-                                <span aria-disabled="true">
-                                    <span class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-brand-ink bg-white border border-brand-line cursor-default opacity-40 leading-5">{{ $element }}</span>
-                                </span>
-                            @endif
-
-                            {{-- Array Of Links --}}
-                            @if (is_array($element))
-                                @foreach ($element as $page => $url)
-                                    <span wire:key="paginator-{{ $paginator->getPageName() }}-page{{ $page }}">
-                                        @if ($page == $paginator->currentPage())
-                                            <span aria-current="page">
-                                                <span class="relative z-10 inline-flex items-center px-4 py-2 -ml-px text-sm font-bold text-white bg-brand-red border border-brand-red cursor-default leading-5">{{ $page }}</span>
-                                            </span>
-                                        @else
-                                            <button type="button" wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" class="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-brand-ink bg-white border border-brand-line leading-5 hover:text-brand-red focus:z-10 focus:outline-none focus:border-brand-red focus:ring ring-brand-red/30 active:bg-brand-soft active:text-brand-ink transition ease-in-out duration-150 hover:bg-brand-soft" aria-label="{{ __('Go to page :page', ['page' => $page]) }}">
-                                                {{ $page }}
-                                            </button>
-                                        @endif
-                                    </span>
-                                @endforeach
-                            @endif
-                        @endforeach
-
-                        <span>
-                            {{-- Next Page Link --}}
-                            @if ($paginator->hasMorePages())
-                                <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" dusk="nextPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.after" class="relative inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-brand-ink bg-white border border-brand-line rounded-r-md leading-5 hover:text-brand-red focus:z-10 focus:outline-none focus:border-brand-red focus:ring ring-brand-red/30 active:bg-brand-soft active:text-brand-ink transition ease-in-out duration-150 hover:bg-brand-soft" aria-label="{{ __('pagination.next') }}">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            @else
-                                <span aria-disabled="true" aria-label="{{ __('pagination.next') }}">
-                                    <span class="relative inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-brand-ink bg-white border border-brand-line cursor-default opacity-40 rounded-r-md leading-5" aria-hidden="true">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </span>
-                                </span>
-                            @endif
-                        </span>
-                    </span>
-                </div>
+                @if ($showPerPage)
+                    <label class="list-pager-size">
+                        <span>Mỗi trang</span>
+                        <select wire:model.live="perPage" class="list-pager-select" aria-label="Số dòng mỗi trang">
+                            @foreach ($perPageOptions as $option)
+                                <option value="{{ $option }}">{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @endif
             </div>
+
+            @if ($paginator->hasPages())
+                <div class="flex flex-wrap items-center gap-1">
+                    {{-- Trang trước --}}
+                    @if ($paginator->onFirstPage())
+                        <span class="{{ $pageDisabled }}" aria-disabled="true" aria-label="Trang trước">
+                            @svg('heroicon-o-chevron-left', 'h-4 w-4')
+                        </span>
+                    @else
+                        <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" dusk="previousPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.after" class="{{ $pageIdle }}" aria-label="Trang trước">
+                            @svg('heroicon-o-chevron-left', 'h-4 w-4')
+                        </button>
+                    @endif
+
+                    {{-- Số trang: trang hiện tại nền đỏ chữ trắng, các trang khác nền trắng chữ đen --}}
+                    @foreach ($elements as $element)
+                        @if (is_string($element))
+                            <span class="{{ $pageDisabled }}" aria-disabled="true">{{ $element }}</span>
+                        @endif
+
+                        @if (is_array($element))
+                            @foreach ($element as $page => $url)
+                                <span wire:key="paginator-{{ $paginator->getPageName() }}-page{{ $page }}" class="contents">
+                                    @if ($page == $paginator->currentPage())
+                                        <span aria-current="page" class="{{ $pageBtn }} cursor-default border-brand-red bg-brand-red font-bold text-white">{{ $page }}</span>
+                                    @else
+                                        <button type="button" wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" class="{{ $pageIdle }}" aria-label="Đến trang {{ $page }}">
+                                            {{ $page }}
+                                        </button>
+                                    @endif
+                                </span>
+                            @endforeach
+                        @endif
+                    @endforeach
+
+                    {{-- Trang sau --}}
+                    @if ($paginator->hasMorePages())
+                        <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" dusk="nextPage{{ $paginator->getPageName() == 'page' ? '' : '.' . $paginator->getPageName() }}.after" class="{{ $pageIdle }}" aria-label="Trang sau">
+                            @svg('heroicon-o-chevron-right', 'h-4 w-4')
+                        </button>
+                    @else
+                        <span class="{{ $pageDisabled }}" aria-disabled="true" aria-label="Trang sau">
+                            @svg('heroicon-o-chevron-right', 'h-4 w-4')
+                        </span>
+                    @endif
+                </div>
+            @endif
         </nav>
     @endif
 </div>

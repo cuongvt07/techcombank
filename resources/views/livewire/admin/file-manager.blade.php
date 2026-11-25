@@ -1,6 +1,7 @@
 <div>
+    {{-- Dòng đếm nhanh dưới tiêu đề (trước nằm ở chân cây thư mục, chữ nhỏ) --}}
     <x-admin.page-header title="Kho tài nguyên"
-                         subtitle="Thư mục và file dùng chung toàn hệ thống. Kéo file từ máy vào để tải lên.">
+                         :subtitle="number_format($stats['files'], 0, ',', '.') . ' file · ' . $stats['folders'] . ' thư mục · ' . app(\App\Services\FileStorageService::class)->humanSize($stats['size'])">
         <x-slot:actions>
             @can('files.create')
             <button type="button" wire:click="createFolder" class="admin-btn-secondary">
@@ -46,10 +47,6 @@
                 ])
             </nav>
 
-            <div class="border-t border-brand-line p-3 text-[11px] text-brand-muted">
-                {{ $stats['folders'] }} thư mục · {{ $stats['files'] }} file ·
-                {{ app(\App\Services\FileStorageService::class)->humanSize($stats['size']) }}
-            </div>
         </aside>
 
         <div class="min-w-0">
@@ -116,42 +113,20 @@
                     </div>
                 @enderror
 
+                <x-admin.list-toolbar placeholder="Tìm file trong toàn bộ kho...">
+                    <x-admin.list-filter label="Loại file" model="kindFilter">
+                        <option value="">Tất cả</option>
+                        <option value="document">Văn bản</option>
+                        <option value="spreadsheet">Bảng tính</option>
+                        <option value="presentation">Trình chiếu</option>
+                        <option value="pdf">PDF</option>
+                        <option value="image">Hình ảnh</option>
+                        <option value="video">Video</option>
+                        <option value="archive">File nén</option>
+                    </x-admin.list-filter>
+                </x-admin.list-toolbar>
+
                 <div class="admin-panel">
-                    <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-                        <div class="min-w-[220px] flex-1">
-                            <label for="f-file-manager-search-0" class="admin-label">Tìm kiếm</label>
-                            <input id="f-file-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                                   placeholder="Tìm file trong toàn bộ kho...">
-                        </div>
-
-                        <div>
-                            <label for="f-file-manager-kindFilter-1" class="admin-label">Loại file</label>
-                            <select id="f-file-manager-kindFilter-1" wire:model.live="kindFilter" class="admin-input w-auto min-w-[160px]">
-                                <option value="">Mọi loại file</option>
-                                <option value="document">Văn bản</option>
-                                <option value="spreadsheet">Bảng tính</option>
-                                <option value="presentation">Trình chiếu</option>
-                                <option value="pdf">PDF</option>
-                                <option value="image">Hình ảnh</option>
-                                <option value="video">Video</option>
-                                <option value="archive">File nén</option>
-                            </select>
-                        </div>
-                        <div class="ml-auto flex items-end gap-2">
-                            <button type="button" wire:click="applySearch" class="admin-btn">
-                                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                                Tìm kiếm
-                            </button>
-                            <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-                        </div>
-                    </div>
-
-                    @if ($search !== '')
-                        <div class="border-b border-brand-line bg-brand-soft px-4 py-2.5 text-xs text-brand-muted">
-                            Đang tìm trong toàn bộ kho — kết quả hiển thị kèm vị trí thư mục.
-                        </div>
-                    @endif
-
                     <div class="overflow-x-auto">
                         <table class="admin-table">
                             <thead>
@@ -291,9 +266,7 @@
                         </table>
                     </div>
 
-                    @if ($files->hasPages())
-                        <div class="border-t border-brand-line p-4">{{ $files->links() }}</div>
-                    @endif
+                    <x-admin.list-pagination :paginator="$files" />
                 </div>
             </div>
         </div>

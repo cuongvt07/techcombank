@@ -6,8 +6,7 @@
             ->map(fn ($item) => ['value' => $item->id, 'label' => $item->full_name . ' · ' . $item->employee_code])->all();
     @endphp
 
-    <x-admin.page-header title="Hồ sơ nhân sự"
-                         subtitle="Thông tin cá nhân, vị trí trong tổ chức và lịch sử điều chuyển.">
+    <x-admin.page-header title="Hồ sơ nhân sự" :subtitle="$summary">
         <x-slot:actions>
             @can('employees.create')
             <button type="button" wire:click="create" class="admin-btn">+ Thêm nhân sự</button>
@@ -43,73 +42,45 @@
         </div>
     @endif
 
+    <x-admin.list-toolbar placeholder="Tìm theo tên hoặc mã nhân viên...">
+        <x-admin.list-filter label="Phòng ban" model="departmentFilter">
+            <option value="">Tất cả</option>
+            @foreach ($departments as $dept)
+                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Trạng thái" model="statusFilter">
+            <option value="">Tất cả</option>
+            <option value="probation">Thử việc</option>
+            <option value="official">Chính thức</option>
+            <option value="suspended">Tạm ngưng</option>
+            <option value="resigned">Đã nghỉ việc</option>
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Chức danh" model="jobTitleFilter">
+            <option value="">Tất cả</option>
+            @foreach ($jobTitles as $title)
+                <option value="{{ $title->id }}">{{ $title->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Cấp bậc" model="jobGradeFilter">
+            <option value="">Tất cả</option>
+            @foreach ($jobGrades as $grade)
+                <option value="{{ $grade->id }}">{{ $grade->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Năm vào làm" model="joinedYearFilter">
+            <option value="">Tất cả</option>
+            @foreach ($joinedYears as $year)
+                <option value="{{ $year }}">{{ $year }}</option>
+            @endforeach
+        </x-admin.list-filter>
+    </x-admin.list-toolbar>
+
     <div class="admin-panel">
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[240px] flex-1">
-                <label for="f-employee-manager-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-employee-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                       placeholder="Tìm theo tên hoặc mã nhân viên...">
-            </div>
-
-            <div>
-                <label for="f-employee-manager-departmentFilter-1" class="admin-label">Phòng ban</label>
-                <select id="f-employee-manager-departmentFilter-1" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
-                    <option value="">Mọi phòng ban</option>
-                    @foreach ($departments as $dept)
-                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <label for="f-employee-manager-statusFilter-2" class="admin-label">Trạng thái</label>
-                <select id="f-employee-manager-statusFilter-2" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                    <option value="">Mọi trạng thái</option>
-                    <option value="probation">Thử việc</option>
-                    <option value="official">Chính thức</option>
-                    <option value="suspended">Tạm ngưng</option>
-                    <option value="resigned">Đã nghỉ việc</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="f-employee-manager-jobTitleFilter" class="admin-label">Chức danh</label>
-                <select id="f-employee-manager-jobTitleFilter" wire:model.live="jobTitleFilter" class="admin-input w-auto min-w-[180px]">
-                    <option value="">Mọi chức danh</option>
-                    @foreach ($jobTitles as $title)
-                        <option value="{{ $title->id }}">{{ $title->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <label for="f-employee-manager-jobGradeFilter" class="admin-label">Cấp bậc</label>
-                <select id="f-employee-manager-jobGradeFilter" wire:model.live="jobGradeFilter" class="admin-input w-auto min-w-[150px]">
-                    <option value="">Mọi cấp bậc</option>
-                    @foreach ($jobGrades as $grade)
-                        <option value="{{ $grade->id }}">{{ $grade->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <label for="f-employee-manager-joinedYearFilter" class="admin-label">Năm vào làm</label>
-                <select id="f-employee-manager-joinedYearFilter" wire:model.live="joinedYearFilter" class="admin-input w-auto min-w-[130px]">
-                    <option value="">Mọi năm</option>
-                    @foreach ($joinedYears as $year)
-                        <option value="{{ $year }}">{{ $year }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
-        </div>
-
         <div class="overflow-x-auto">
             <table class="admin-table">
                 <thead>
@@ -198,9 +169,7 @@
             </table>
         </div>
 
-        @if ($employees->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $employees->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$employees" />
     </div>
 
     @if ($showModal)

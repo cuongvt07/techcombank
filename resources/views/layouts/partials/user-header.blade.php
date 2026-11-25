@@ -35,6 +35,12 @@
             <div class="shrink-0" style="margin-right: -8px;">
                 @livewire('user.notification-bell')
             </div>
+
+            {{-- Mobile không có sidebar (chỉ có bottom tab bar) nên menu tài khoản
+                 — gồm Đăng xuất — đặt ở đây; desktop dùng thẻ cuối sidebar. --}}
+            <x-account-menu site="user" tone="light" placement="header"
+                            class="shrink-0 lg:hidden"
+                            :subtitle="auth()->user()?->employee?->department?->name" />
         @endauth
     </div>
 </header>

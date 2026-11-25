@@ -2,6 +2,7 @@
 
 namespace App\Livewire\User;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Models\Document;
 use App\Models\DocumentAccessLog;
@@ -23,6 +24,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class DocumentBrowser extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use WithPagination;
 
@@ -103,7 +106,7 @@ class DocumentBrowser extends Component
     private function documents(?Employee $employee)
     {
         if (! $employee) {
-            return Document::whereRaw('1 = 0')->paginate(12);
+            return Document::whereRaw('1 = 0')->paginate($this->perPage());
         }
 
         return app(DocumentAccessService::class)
@@ -116,6 +119,6 @@ class DocumentBrowser extends Component
             ->when($this->categoryFilter, fn ($q) => $q->where('document_category_id', $this->categoryFilter))
             ->when($this->kindFilter, fn ($q) => $q->where('kind', $this->kindFilter))
             ->orderByDesc('published_at')
-            ->paginate(12);
+            ->paginate($this->perPage());
     }
 }

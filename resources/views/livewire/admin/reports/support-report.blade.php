@@ -160,8 +160,9 @@
             @endif
         </x-admin.report.panel>
 
-        <x-admin.report.panel title="Phân bố theo chủ đề" subtitle="số phiếu gửi trong kỳ · nhãn phụ: trung vị giờ xử lý"
-                              :note="$topics['note']" :noteAlert="$topics['alert']">
+        <x-admin.report.panel title="Phân bố theo chủ đề"
+                              :note="'Số phiếu gửi trong kỳ; nhãn phụ là trung vị giờ xử lý.' . ($topics['note'] ? '<br>' . $topics['note'] : '')"
+                              :noteAlert="$topics['alert']">
             @if (empty($topics['rows']))
                 <p class="py-10 text-center text-sm text-brand-muted">Chưa có yêu cầu nào trong kỳ.</p>
             @else
@@ -187,17 +188,18 @@
     {{-- Bảng --}}
     <section class="admin-panel min-w-0">
         <header class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3">
-            <div class="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
+            <div class="flex min-w-0 flex-wrap items-center gap-x-2.5">
                 <h2 class="text-[15px] font-bold">{{ $tableTitle }}</h2>
-                <span class="text-xs text-brand-muted">{{ $fmt($rows->total()) }} yêu cầu{{ $sort === 'overdue' && $direction === 'desc' ? ' · xếp theo thời gian quá hạn giảm dần' : '' }}</span>
-                @if ($overSla)
-                    {{-- Định nghĩa "quá SLA" ngay cạnh tiêu đề: người xem hay hỏi đây là gì --}}
-                    <p class="basis-full text-xs text-brand-muted">
-                        <strong class="text-brand-ink">Quá SLA</strong> = yêu cầu chưa được giải quyết xong khi đã quá hạn xử lý cam kết
+                <span class="text-xs text-brand-muted">{{ $fmt($rows->total()) }} yêu cầu</span>
+                {{-- Định nghĩa "quá SLA" và quyền xem nội dung: để trong tooltip thay vì dòng chữ nhỏ --}}
+                <x-admin.report.info label="Chú thích bảng" class="-ml-1">
+                    @if ($overSla)
+                        <strong>Quá SLA</strong> = yêu cầu chưa được giải quyết xong khi đã quá hạn xử lý cam kết
                         theo độ ưu tiên (Cao 8 giờ, Thường 24 giờ, Thấp 72 giờ kể từ lúc gửi).
-                        Ô chọn chỉ có ở yêu cầu chưa có người phụ trách.
-                    </p>
-                @endif
+                        Ô chọn chỉ có ở yêu cầu chưa có người phụ trách.<br>
+                    @endif
+                    Nội dung chi tiết chỉ mở được khi có quyền xem trường nhạy cảm.
+                </x-admin.report.info>
             </div>
             <div x-data="{ open: false }" class="relative" x-on:keydown.escape.window="open = false">
                 <button type="button" x-on:click="open = ! open" class="admin-btn-secondary" aria-haspopup="menu" x-bind:aria-expanded="open">
@@ -360,9 +362,8 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-brand-line px-5 py-3 text-xs text-brand-muted">
             <span>
                 @if ($rows->total() > 0)
-                    Hiển thị {{ $rows->firstItem() }}–{{ $rows->lastItem() }} / {{ $fmt($rows->total()) }} {{ $overSla ? 'yêu cầu quá SLA' : 'yêu cầu' }} ·
+                    Hiển thị {{ $rows->firstItem() }}–{{ $rows->lastItem() }} / {{ $fmt($rows->total()) }} {{ $overSla ? 'yêu cầu quá SLA' : 'yêu cầu' }}
                 @endif
-                Nội dung chi tiết chỉ mở được khi có quyền xem trường nhạy cảm
             </span>
             <span>Cập nhật {{ \App\Support\Reports\ReportPeriod::nowLabel() }}</span>
         </div>

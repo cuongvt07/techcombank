@@ -11,8 +11,7 @@
 @endphp
 
 <div>
-    <x-admin.page-header title="Báo cáo bảo mật và đăng nhập"
-                         subtitle="Màn hình thống kê và báo cáo định kỳ · xử lý từng cảnh báo tại Trung tâm bảo mật">
+    <x-admin.page-header title="Báo cáo bảo mật và đăng nhập">
         <x-slot:actions>
             @can('security.view')
                 <a href="{{ route('admin.security') }}" wire:navigate class="admin-btn-secondary">
@@ -154,8 +153,9 @@
 
     {{-- Giờ đăng nhập trong tuần --}}
     <x-admin.report.panel class="mb-4" title="Giờ đăng nhập trong tuần"
-                          subtitle="GMT+7 · ô viền đỏ là truy cập ngoài {{ sprintf('%02d:00–%02d:00', S::WORK_HOUR_START, S::WORK_HOUR_END) }} với trên {{ S::OFF_HOURS_THRESHOLD }} lần"
-                          :note="$hasLogins ? $heatmapInsight : null" :noteAlert="$flagged !== []">
+                          :note="'Giờ Việt Nam (GMT+7). Ô viền đỏ là truy cập ngoài ' . sprintf('%02d:00–%02d:00', S::WORK_HOUR_START, S::WORK_HOUR_END)
+                              . ' với trên ' . S::OFF_HOURS_THRESHOLD . ' lần.' . ($hasLogins && $heatmapInsight ? '<br>' . $heatmapInsight : '')"
+                          :noteAlert="$flagged !== []">
         <x-slot:actions>
             <div class="flex items-center gap-1.5 text-xs text-brand-muted" aria-hidden="true">
                 Thưa
@@ -329,9 +329,8 @@
                 @endif
             </span>
             @unless ($canSeeCodes)
-                <span>Mã nhân viên được che vì tài khoản này chưa có quyền xem hồ sơ nhân sự</span>
+                <x-admin.report.info text="Mã nhân viên được che vì tài khoản này chưa có quyền xem hồ sơ nhân sự" label="Chú thích bảng" class="-ml-3" />
             @endunless
-            <span style="margin-left: auto">Nguồn: {{ $tab === 'logins' ? 'login_histories' : 'security_alerts' }}</span>
         </div>
 
         @if ($rows->hasPages())

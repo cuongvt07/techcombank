@@ -202,6 +202,7 @@ class LearningProgressReportTest extends TestCase
         $this->assertSame($this->ids('overdue', 'learning'), $this->tableIds(['progressMin' => 10, 'progressMax' => 80]));
         $this->assertSame($this->ids('onTime', 'late'), $this->tableIds(['source' => 'rule']));
         $this->assertSame($this->ids('overdue', 'learning', 'resigned'), $this->tableIds(['source' => 'manual']));
+        $this->assertSame([], $this->tableIds(['source' => 'onboarding']));
         $this->assertSame($this->ids('onTime', 'late', 'overdue', 'learning'), $this->tableIds(['excludeResigned' => true]));
     }
 

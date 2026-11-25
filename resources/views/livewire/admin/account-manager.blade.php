@@ -1,6 +1,5 @@
 <div>
-    <x-admin.page-header title="Quản lý tài khoản"
-                         subtitle="Tạo, phân vai trò và khóa tài khoản đăng nhập của nhân viên.">
+    <x-admin.page-header title="Quản lý tài khoản" :subtitle="$summary">
         <x-slot:actions>
             @can('accounts.create')
             <button type="button" wire:click="create" class="admin-btn">+ Tạo tài khoản</button>
@@ -8,57 +7,30 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.list-toolbar placeholder="Tìm theo tên, email hoặc mã nhân viên...">
+        <x-admin.list-filter label="Trạng thái" model="statusFilter">
+            <option value="">Tất cả</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="locked">Đã khóa</option>
+            <option value="disabled">Vô hiệu hóa</option>
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Phòng ban" model="departmentFilter">
+            <option value="">Tất cả</option>
+            @foreach ($departments as $dept)
+                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Vai trò" model="roleFilter">
+            <option value="">Tất cả</option>
+            @foreach ($roles as $r)
+                <option value="{{ $r->name }}">{{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
+    </x-admin.list-toolbar>
+
     <div class="admin-panel">
-        {{-- Thanh lọc đặt ngay trên bảng: filter/search/sort đi kèm dữ liệu (spec 6.4) --}}
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[240px] flex-1">
-                <label for="f-account-manager-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-account-manager-search-0" type="search"
-                       wire:model="search" wire:keydown.enter="applySearch"
-                       class="admin-input"
-                       placeholder="Tìm theo tên, email hoặc mã nhân viên...">
-            </div>
-
-            <div>
-                <label for="f-account-manager-statusFilter-1" class="admin-label">Trạng thái</label>
-                <select id="f-account-manager-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                    <option value="">Mọi trạng thái</option>
-                    <option value="active">Đang hoạt động</option>
-                    <option value="locked">Đã khóa</option>
-                    <option value="disabled">Vô hiệu hóa</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="f-account-manager-departmentFilter" class="admin-label">Phòng ban</label>
-                <select id="f-account-manager-departmentFilter" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
-                    <option value="">Mọi phòng ban</option>
-                    @foreach ($departments as $dept)
-                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div>
-                <label for="f-account-manager-roleFilter-2" class="admin-label">Vai trò</label>
-                <select id="f-account-manager-roleFilter-2" wire:model.live="roleFilter" class="admin-input w-auto min-w-[180px]">
-                    <option value="">Mọi vai trò</option>
-                    @foreach ($roles as $r)
-                        <option value="{{ $r->name }}">
-                            {{ \App\Enums\RoleName::tryFrom($r->name)?->label() ?? $r->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
-        </div>
-
         <div class="overflow-x-auto">
             <table class="admin-table">
                 <thead>
@@ -78,7 +50,7 @@
                             <td>
                                 <div class="flex items-center gap-2.5">
                                     <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-red-tint text-xs font-semibold text-brand-red">
-                                        {{ mb_substr($user->employee?->full_name ?? $user->name, -1) }}
+                                        {{ \App\Models\Employee::initialsOf($user->employee?->full_name ?? $user->name) }}
                                     </span>
                                     <div class="min-w-0">
                                         <div class="truncate font-bold">{{ $user->employee?->full_name ?? $user->name }}</div>
@@ -144,9 +116,7 @@
             </table>
         </div>
 
-        @if ($users->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $users->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$users" />
     </div>
 
     {{-- Form tạo/sửa: nghiệp vụ đơn giản nên dùng modal, không biến thành wizard (spec 6.4) --}}

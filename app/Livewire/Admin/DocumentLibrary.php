@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Document;
@@ -28,6 +29,8 @@ use Livewire\WithPagination;
 class DocumentLibrary extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -68,9 +71,21 @@ class DocumentLibrary extends Component
     public $upload = null;
     public function render(): View
     {
+        $statusCounts = Document::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
         return view('livewire.admin.document-library', [
             'documents' => $this->documents(),
-            'documentCount' => Document::count(),
+            'documentCount' => (int) $statusCounts->sum(),
+            // Dòng đếm nhanh dưới tiêu đề: "26 tài liệu · 20 đã xuất bản · 4 nháp · 2 chờ duyệt"
+            'summary' => collect([
+                'published' => 'đã xuất bản',
+                'draft' => 'nháp',
+                'pending_review' => 'chờ duyệt',
+                'archived' => 'lưu trữ',
+            ])->filter(fn ($label, $status) => (int) ($statusCounts[$status] ?? 0) > 0)
+                ->map(fn ($label, $status) => (int) $statusCounts[$status] . ' ' . $label)
+                ->prepend(number_format((int) $statusCounts->sum(), 0, ',', '.') . ' tài liệu')
+                ->implode(' · '),
             'categories' => DocumentCategory::active()->orderBy('name')->get(),
             'versions' => $this->versions(),
         ])->layout('layouts.admin', ['title' => 'Thư viện tài liệu']);
@@ -265,7 +280,7 @@ class DocumentLibrary extends Component
             ->when($this->categoryFilter, fn ($q) => $q->where('document_category_id', $this->categoryFilter))
             ->when($this->confidentialityFilter, fn ($q) => $q->where('confidentiality', $this->confidentialityFilter))
             ->orderByDesc('id')
-            ->paginate(15);
+            ->paginate($this->perPage());
     }
 
     private function versions()

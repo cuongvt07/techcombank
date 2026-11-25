@@ -1,7 +1,6 @@
 <div>
     @include('livewire.admin.partials.document-tabs', ['active' => 'library', 'documentCount' => $documentCount])
-    <x-admin.page-header title="Thư viện tài liệu"
-                         subtitle="Tài liệu, video bài giảng, phiên bản và cấp độ bảo mật.">
+    <x-admin.page-header title="Thư viện tài liệu" :subtitle="$summary">
         <x-slot:actions>
             @can('documents.create')
             <button type="button" wire:click="create" class="admin-btn">
@@ -12,59 +11,38 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.list-toolbar placeholder="Tìm theo tiêu đề hoặc mô tả...">
+        <x-admin.list-filter label="Loại" model="kindFilter">
+            <option value="">Tất cả</option>
+            <option value="file">Tài liệu</option>
+            <option value="video">Video</option>
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Danh mục">
+            <x-admin.searchable-select id="document_category_filter" label="Danh mục" model="categoryFilter"
+                placeholder="Tất cả"
+                :options="$categories->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
+                :selected="$categoryFilter" emptyLabel="Tất cả" />
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Bảo mật" model="confidentialityFilter">
+            <option value="">Tất cả</option>
+            <option value="public">Công khai</option>
+            <option value="internal">Nội bộ</option>
+            <option value="confidential">Mật</option>
+            <option value="restricted">Tối mật</option>
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Trạng thái" model="statusFilter">
+            <option value="">Tất cả</option>
+            <option value="draft">Nháp</option>
+            <option value="pending_review">Chờ duyệt</option>
+            <option value="published">Đã xuất bản</option>
+            <option value="archived">Lưu trữ</option>
+        </x-admin.list-filter>
+    </x-admin.list-toolbar>
+
     <div class="admin-panel">
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[220px] flex-1">
-                <label for="f-document-library-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-document-library-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                       placeholder="Tìm theo tiêu đề hoặc mô tả...">
-            </div>
-
-            <div>
-                <label for="f-document-library-kindFilter-1" class="admin-label">Loại tài liệu</label>
-                <select id="f-document-library-kindFilter-1" wire:model.live="kindFilter" class="admin-input w-auto min-w-[140px]">
-                    <option value="">Mọi loại</option>
-                    <option value="file">Tài liệu</option>
-                    <option value="video">Video</option>
-                </select>
-            </div>
-
-            <div class="min-w-[220px]">
-                <x-admin.searchable-select id="document_category_filter" label="Danh mục" model="categoryFilter"
-                    :options="$categories->map(fn ($item) => ['value' => $item->id, 'label' => $item->name])->all()"
-                    :selected="$categoryFilter" emptyLabel="Mọi danh mục" />
-            </div>
-
-            <div>
-                <label for="f-document-library-confidentialityFilter" class="admin-label">Bảo mật</label>
-                <select id="f-document-library-confidentialityFilter" wire:model.live="confidentialityFilter" class="admin-input w-auto min-w-[150px]">
-                    <option value="">Mọi cấp độ</option>
-                    <option value="public">Công khai</option>
-                    <option value="internal">Nội bộ</option>
-                    <option value="confidential">Mật</option>
-                    <option value="restricted">Tối mật</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="f-document-library-statusFilter-2" class="admin-label">Trạng thái</label>
-                <select id="f-document-library-statusFilter-2" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                    <option value="">Mọi trạng thái</option>
-                    <option value="draft">Nháp</option>
-                    <option value="pending_review">Chờ duyệt</option>
-                    <option value="published">Đã xuất bản</option>
-                    <option value="archived">Lưu trữ</option>
-                </select>
-            </div>
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
-        </div>
-
         <div class="overflow-x-auto">
             <table class="admin-table">
                 <thead>
@@ -105,10 +83,16 @@
                                     ];
                                     [$cls, $label] = $confMap[$doc->confidentiality] ?? ['', $doc->confidentiality];
                                 @endphp
-                                <span class="tag {{ $cls }}">{{ $label }}</span>
-                                @if (! $doc->allow_download)
-                                    <span class="mt-1 block text-[11px] text-brand-muted">Không cho tải</span>
-                                @endif
+                                <div class="flex items-center gap-1.5">
+                                    <span class="tag {{ $cls }}">{{ $label }}</span>
+                                    @if (! $doc->allow_download)
+                                        {{-- Bỏ dòng chú thích nhỏ dưới tag (fb7 mục 7) — chuyển thành icon có tooltip --}}
+                                        <span class="text-brand-muted" title="Không cho tải xuống">
+                                            @svg('heroicon-o-lock-closed', 'h-3.5 w-3.5')
+                                            <span class="sr-only">Không cho tải xuống</span>
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <button type="button" wire:click="viewVersions({{ $doc->id }})"
@@ -159,9 +143,7 @@
             </table>
         </div>
 
-        @if ($documents->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $documents->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$documents" />
     </div>
 
     @if ($showModal)

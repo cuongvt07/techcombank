@@ -47,6 +47,41 @@ class LearningProgressReportService
         'overdue' => 'Quá hạn',
     ];
 
+    /**
+     * Nguồn giao của một lượt ghi danh:
+     *  - rule: hệ thống tự giao vì nhân viên khớp một điều kiện giao khóa;
+     *  - onboarding: lộ trình onboarding tự gán cho nhân viên mới (không gắn điều kiện, không ai bấm giao);
+     *  - manual: admin tự giao cho từng người hoặc giao hàng loạt.
+     */
+    public const SOURCE_LABELS = [
+        'rule' => 'Theo điều kiện',
+        'onboarding' => 'Onboarding',
+        'manual' => 'Admin giao',
+    ];
+
+    public const SOURCE_HINT = 'Theo điều kiện: hệ thống tự giao vì nhân viên khớp điều kiện giao khóa. '
+        . 'Onboarding: tự gán lộ trình cho nhân viên mới. Admin giao: quản trị viên giao trực tiếp.';
+
+    /** Biểu thức SQL cho nguồn giao (dùng để sắp xếp) — cùng quy tắc với sourceKey(). */
+    private const SOURCE_SQL = "CASE WHEN e.course_assignment_rule_id IS NOT NULL THEN 'rule'"
+        . " WHEN c.is_onboarding = 1 AND e.assigned_by IS NULL THEN 'onboarding'"
+        . " ELSE 'manual' END";
+
+    /** Nguồn giao của một dòng (cần các cột course_assignment_rule_id, is_onboarding, assigned_by). */
+    public static function sourceKey(object $row): string
+    {
+        if (! empty($row->course_assignment_rule_id)) {
+            return 'rule';
+        }
+
+        return ! empty($row->is_onboarding) && empty($row->assigned_by) ? 'onboarding' : 'manual';
+    }
+
+    public static function sourceLabel(object $row): string
+    {
+        return self::SOURCE_LABELS[self::sourceKey($row)];
+    }
+
     public const STATUS_FILTERS = [
         '' => 'Tất cả',
         'attention' => 'Quá hạn + Sắp đến hạn',
@@ -65,7 +100,7 @@ class LearningProgressReportService
         'job_title' => 'job_title_name',
         'course' => 'c.title',
         'type' => 'c.is_onboarding',
-        'source' => 'e.course_assignment_rule_id',
+        'source' => 'source_order',
         'assigned' => 'e.assigned_at',
         'due' => 'e.due_date',
         'overdue_days' => 'e.due_date',
@@ -159,8 +194,13 @@ class LearningProgressReportService
 
         if ($f['source'] === 'rule') {
             $query->whereNotNull('e.course_assignment_rule_id');
+        } elseif ($f['source'] === 'onboarding') {
+            $query->whereNull('e.course_assignment_rule_id')
+                ->where('c.is_onboarding', true)
+                ->whereNull('e.assigned_by');
         } elseif ($f['source'] === 'manual') {
-            $query->whereNull('e.course_assignment_rule_id');
+            $query->whereNull('e.course_assignment_rule_id')
+                ->where(fn ($q) => $q->where('c.is_onboarding', false)->orWhereNotNull('e.assigned_by'));
         }
 
         if ($f['excludeResigned']) {
@@ -407,6 +447,10 @@ class LearningProgressReportService
     {
         $column = self::SORTS[$sort] ?? self::SORTS['due'];
         $dir = $dir === 'desc' ? 'desc' : 'asc';
+
+        if ($sort === 'source') {
+            return $query->orderByRaw(self::SOURCE_SQL . ' ' . $dir)->orderBy('e.id');
+        }
 
         // Lượt không có hạn / chưa hoàn thành / chưa nhắc luôn nằm cuối, cả khi đảo chiều
         if (str_starts_with($column, 'e.') && in_array($sort, ['due', 'overdue_days', 'completed', 'reminded', 'score', 'assigned'], true)) {

@@ -78,14 +78,13 @@
             </div>
         </dl>
 
-        <p class="mt-4 rounded-user-md bg-brand-soft p-3 text-xs text-brand-muted">
-            Thông tin nhân sự do bộ phận Nhân sự quản lý. Nếu có sai sót, hãy gửi yêu cầu hỗ trợ.
-        </p>
+        {{-- Ghi chú chuyển thành tooltip (fb7 mục 7) --}}
+        <p class="mt-3 flex justify-end"><span class="ml-1 inline-flex align-middle font-normal text-brand-muted" title="Thông tin nhân sự do bộ phận Nhân sự quản lý. Nếu có sai sót, hãy gửi yêu cầu hỗ trợ.">@svg('heroicon-o-information-circle', 'h-4 w-4')<span class="sr-only">Thông tin nhân sự do bộ phận Nhân sự quản lý. Nếu có sai sót, hãy gửi yêu cầu hỗ trợ.</span></span></p>
     </section>
 
     <div class="grid gap-5">
         {{-- Đổi mật khẩu --}}
-        <section class="user-card p-5">
+        <section id="doi-mat-khau" class="scroll-mt-24 user-card p-5">
             <h2 class="text-base font-bold">Đổi mật khẩu</h2>
 
             @if ($user->must_change_password)

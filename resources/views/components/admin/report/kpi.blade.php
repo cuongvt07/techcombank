@@ -33,10 +33,13 @@
         '!border-brand-red ring-1 ring-brand-red' => $alert,
         'transition-colors hover:border-brand-red' => $href,
     ]) }}>
-    <span class="truncate text-xs font-semibold text-brand-muted">{{ $label }}</span>
-    @if ($hint)
-        <span class="mt-0.5 text-[11px] leading-snug text-brand-muted">{{ $hint }}</span>
-    @endif
+    {{-- Giải thích chỉ số nằm trong tooltip ⓘ cạnh tên, không in thành dòng chữ nhỏ --}}
+    <span class="flex min-w-0 items-center gap-1">
+        <span class="truncate text-xs font-semibold text-brand-muted" @if ($hint && $href) title="{{ $hint }}" @endif>{{ $label }}</span>
+        @if ($hint && ! $href)
+            <x-admin.report.info :text="e($hint)" label="Giải thích: {{ $label }}" />
+        @endif
+    </span>
     <strong @class(['mt-2 block text-[26px] font-bold leading-none tabular-nums', 'text-brand-red' => $alert])>{{ $value }}</strong>
 
     @if ($delta !== null || $spark)

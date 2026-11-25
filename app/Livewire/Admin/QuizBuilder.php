@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
@@ -27,6 +28,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class QuizBuilder extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -85,10 +88,25 @@ class QuizBuilder extends Component
     {
         return view('livewire.admin.quiz-builder', [
             'quizzes' => $this->quizzes(),
+            'summary' => $this->summaryLine(),
             'courses' => Course::orderBy('title')->get(),
             'editingQuiz' => $this->editingQuiz(),
             'questions' => $this->questions(),
         ])->layout('layouts.admin', ['title' => 'Bài kiểm tra']);
+    }
+
+    /** Dòng đếm nhanh dưới tiêu đề: "15 bài kiểm tra · 12 đã xuất bản · 3 nháp". */
+    private function summaryLine(): string
+    {
+        $counts = Quiz::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $total = (int) $counts->sum();
+        $published = (int) ($counts['published'] ?? 0);
+
+        return implode(' · ', [
+            number_format($total, 0, ',', '.') . ' bài kiểm tra',
+            $published . ' đã xuất bản',
+            ($total - $published) . ' nháp',
+        ]);
     }
 
     public function updated($property): void
@@ -434,7 +452,7 @@ class QuizBuilder extends Component
                 fn ($q) => $q->where('course_id', (int) $this->courseFilter))
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->orderByDesc('id')
-            ->paginate(12);
+            ->paginate($this->perPage());
     }
 
     private function editingQuiz(): ?Quiz

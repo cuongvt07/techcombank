@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\SupportRequest;
@@ -21,6 +22,8 @@ use Livewire\WithPagination;
 class SupportManager extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -79,7 +82,7 @@ class SupportManager extends Component
             // Khẩn lên trước, rồi phiếu cũ nhất: phiếu chờ lâu nhất không bị bỏ quên
             ->orderByRaw("FIELD(priority, 'high', 'normal', 'low')")
             ->orderBy('created_at')
-            ->paginate(15);
+            ->paginate($this->perPage());
     }
 
     /** @return array<string, int> */

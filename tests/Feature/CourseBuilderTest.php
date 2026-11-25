@@ -152,7 +152,8 @@ class CourseBuilderTest extends TestCase
 
         Livewire::test(CourseBuilder::class)
             ->assertSee('Phòng Alpha, Phòng Beta')
-            ->assertSee('Tất cả');
+            // Thanh lọc cũng có lựa chọn "Tất cả" nên kiểm tra đúng tag trong bảng
+            ->assertSeeHtml('<span class="tag">Tất cả</span>');
     }
 
     public function test_loc_khoa_hoc_theo_kieu_hoc(): void

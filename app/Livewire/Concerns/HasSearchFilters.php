@@ -17,10 +17,13 @@ use ReflectionProperty;
  */
 trait HasSearchFilters
 {
-    /** Thuộc tính #[Url] không phải bộ lọc — giữ nguyên khi "Đặt lại". */
+    /**
+     * Thuộc tính #[Url] không phải bộ lọc — giữ nguyên khi "Đặt lại".
+     * perPage (trait HasPerPage) là tùy chọn hiển thị, không phải bộ lọc.
+     */
     protected function filterResetExcept(): array
     {
-        return ['tab', 'alertTab', 'editingCourseId', 'editingQuizId', 'role', 'folder'];
+        return ['tab', 'alertTab', 'editingCourseId', 'editingQuizId', 'role', 'folder', 'perPage'];
     }
 
     /** Áp dụng ô tìm kiếm: giá trị đã gửi kèm request, chỉ cần về trang 1. */

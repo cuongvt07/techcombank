@@ -1,7 +1,7 @@
 {{--
     Sidebar bám đúng cây module ở spec mục 2: Nhân sự / Tài liệu nội bộ / Bảo mật.
-    Mục đang chọn nhận viền đỏ mỏng bên trái — điểm nhấn thương hiệu duy nhất
-    ở vùng điều hướng, không thêm chi tiết trang trí nào khác (spec 6.4).
+    Mục đang chọn: nền đỏ nhạt + chữ đỏ + vạch đỏ 3px bên trái (fb7 mục 5),
+    vẫn giữ nền tối hiện tại của sidebar. Kiểu dáng ở .admin-nav-item (app.css).
 --}}
 @php
     // Nhóm điều hướng khai báo tập trung để thêm/bớt module không phải sửa markup.
@@ -42,7 +42,7 @@
            }
        }"
        x-bind:class="collapsed ? 'w-[76px] px-2' : 'w-[268px] px-4'"
-       class="sticky top-0 z-30 flex h-screen shrink-0 flex-col overflow-hidden bg-gradient-to-b from-brand-black to-[#101318] pt-5 transition-[width] duration-200">
+       class="sidebar sidebar-dark sticky top-0 z-30 flex h-screen shrink-0 flex-col overflow-hidden bg-gradient-to-b from-brand-black to-[#101318] pt-5 transition-[width] duration-200">
     <div class="flex min-h-[52px] items-center border-b border-white/10 px-2 pb-4"
          x-bind:class="collapsed ? 'justify-center' : 'justify-between'">
         <span x-show="!collapsed" x-transition.opacity>
@@ -65,9 +65,11 @@
         </button>
     </div>
 
-    <nav aria-label="Điều hướng quản trị" class="mt-4 min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden pb-4">
+    {{-- sidebar-scroll: thanh cuộn mảnh, trong suốt, chỉ hiện khi rê chuột vào sidebar (fb7 mục 5) --}}
+    <nav aria-label="Điều hướng quản trị" class="sidebar-scroll mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-4">
         @foreach ($navGroups as $groupLabel => $items)
-            <div x-show="!collapsed" class="mx-2.5 mb-1.5 mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/[.44]">
+            {{-- Nhãn nhóm: 11px / 700, viết hoa, tracking .09em (fb7 mục 2.2) --}}
+            <div x-show="!collapsed" class="mx-2.5 mb-1.5 mt-4 text-[11px] font-bold uppercase tracking-[.09em] text-white/[.55]">
                 {{ $groupLabel }}
             </div>
 
@@ -90,18 +92,9 @@
         @endforeach
     </nav>
 
-    {{-- Thẻ tài khoản đặt cuối sidebar, đẩy xuống bằng mt-auto --}}
-    <div class="mt-auto flex items-center gap-2.5 rounded-admin-lg border border-white/[.16] bg-white/[.06] p-3.5"
-         x-bind:class="collapsed ? 'justify-center px-1.5' : ''">
-        <x-user-avatar :employee="auth()->user()?->employee" size="h-9 w-9" text="text-xs" />
-
-        <div x-show="!collapsed" x-transition.opacity class="min-w-0">
-            <strong class="block truncate text-sm font-bold text-white">
-                {{ auth()->user()?->employee?->full_name ?? auth()->user()?->name }}
-            </strong>
-            <span class="block truncate text-xs text-white/[.58]">
-                {{ auth()->user()?->getRoleNames()->map(fn ($r) => \App\Enums\RoleName::tryFrom($r)?->label() ?? $r)->join(', ') }}
-            </span>
-        </div>
-    </div>
+    {{-- Thẻ tài khoản cuối sidebar (mt-auto): bấm mở menu Thông tin cá nhân /
+         Đổi mật khẩu / Đăng xuất — nút Đăng xuất ở header đã bỏ (fb7 mục 4–5) --}}
+    <x-account-menu site="admin" tone="dark" placement="sidebar" :collapsible="true"
+                    class="mb-4 mt-auto"
+                    :subtitle="auth()->user()?->getRoleNames()->map(fn ($r) => \App\Enums\RoleName::tryFrom($r)?->label() ?? $r)->join(', ')" />
 </aside>

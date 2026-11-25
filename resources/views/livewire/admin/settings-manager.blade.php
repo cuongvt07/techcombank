@@ -1,6 +1,5 @@
 <div>
-    <x-admin.page-header title="Cấu hình chung"
-                         subtitle="Danh mục dùng chung và tham số vận hành của hệ thống.">
+    <x-admin.page-header title="Cấu hình chung">
         <x-slot:actions>
             @can('settings.create')
             <button type="button" wire:click="create" class="admin-btn">
@@ -133,10 +132,7 @@
 
                 {{-- Nội dung màn chào mừng nhân viên mới (spec 4.4) --}}
                 <div class="border-t border-brand-line pt-5">
-                    <p class="mb-1 text-sm font-bold">Màn chào mừng nhân viên mới</p>
-                    <p class="mb-4 text-xs text-brand-muted">
-                        Nội dung hiển thị cho nhân viên đang ở trạng thái "nhân viên mới".
-                    </p>
+                    <p class="mb-4 text-sm font-bold">Màn chào mừng nhân viên mới<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Nội dung hiển thị cho nhân viên đang ở trạng thái &quot;nhân viên mới&quot;.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Nội dung hiển thị cho nhân viên đang ở trạng thái &quot;nhân viên mới&quot;.</span></span></p>
 
                     <div class="grid gap-4">
                         <div>
@@ -170,11 +166,7 @@
 
                 {{-- Tài liệu hướng dẫn sử dụng --}}
                 <div class="border-t border-brand-line pt-5">
-                    <p class="mb-1 text-sm font-bold">Tài liệu hướng dẫn sử dụng</p>
-                    <p class="mb-4 text-xs text-brand-muted">
-                        Hệ thống tự sinh tài liệu PDF theo cấu hình hiện tại. Nhân viên tải được ở mục Hỗ trợ,
-                        quản trị viên tải bản dành cho quản trị.
-                    </p>
+                    <p class="mb-4 text-sm font-bold">Tài liệu hướng dẫn sử dụng<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Hệ thống tự sinh tài liệu PDF theo cấu hình hiện tại. Nhân viên tải được ở mục Hỗ trợ, quản trị viên tải bản dành cho quản trị.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Hệ thống tự sinh tài liệu PDF theo cấu hình hiện tại. Nhân viên tải được ở mục Hỗ trợ, quản trị viên tải bản dành cho quản trị.</span></span></p>
 
                     <div class="grid gap-4">
                         <label class="flex cursor-pointer items-start gap-2.5">
@@ -262,11 +254,8 @@
 
                 @if ($config['has_level'] ?? false)
                     <div class="sm:col-span-2">
-                        <label for="cat_level" class="admin-label">Cấp độ</label>
+                        <label for="cat_level" class="admin-label">Cấp độ<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Số càng lớn cấp càng cao. Dùng cho điều kiện phân quyền &quot;từ cấp N trở lên&quot;.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Số càng lớn cấp càng cao. Dùng cho điều kiện phân quyền &quot;từ cấp N trở lên&quot;.</span></span></label>
                         <input id="cat_level" type="number" wire:model="level" class="admin-input">
-                        <p class="mt-1 text-xs text-brand-muted">
-                            Số càng lớn cấp càng cao. Dùng cho điều kiện phân quyền "từ cấp N trở lên".
-                        </p>
                         @error('level') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
                     </div>
                 @endif

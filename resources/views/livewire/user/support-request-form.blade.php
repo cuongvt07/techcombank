@@ -26,10 +26,7 @@
         @endif
 
         <section class="user-card p-5">
-            <h2 class="text-base font-bold">Gửi yêu cầu hỗ trợ</h2>
-            <p class="mt-1 text-sm text-brand-muted">
-                Mô tả vấn đề bạn gặp phải, bộ phận phụ trách sẽ tiếp nhận và phản hồi.
-            </p>
+            <h2 class="text-base font-bold">Gửi yêu cầu hỗ trợ<span class="ml-1 inline-flex align-middle font-normal text-brand-muted" title="Mô tả vấn đề bạn gặp phải, bộ phận phụ trách sẽ tiếp nhận và phản hồi.">@svg('heroicon-o-information-circle', 'h-4 w-4')<span class="sr-only">Mô tả vấn đề bạn gặp phải, bộ phận phụ trách sẽ tiếp nhận và phản hồi.</span></span></h2>
 
             <form wire:submit="submit" class="mt-4 grid gap-4">
                 <div>

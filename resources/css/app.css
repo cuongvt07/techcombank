@@ -1,8 +1,30 @@
+/*
+ * Font Be Vietnam Pro (fb7 mục 2.1) — tự host qua npm, chỉ 4 độ đậm cần dùng.
+ * Mỗi file đã chia subset theo unicode-range (vietnamese / latin / latin-ext),
+ * trình duyệt chỉ tải phần chứa ký tự thực có trên trang.
+ */
+@import '@fontsource/be-vietnam-pro/400.css';
+@import '@fontsource/be-vietnam-pro/500.css';
+@import '@fontsource/be-vietnam-pro/600.css';
+@import '@fontsource/be-vietnam-pro/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+    /*
+     * line-height 1.5 toàn cục: dấu mũ/huyền tiếng Việt không chạm dòng trên.
+     * tabular-nums: mọi con số cùng bề rộng, cột số không "nhảy" khi đổi trang.
+     */
+    html {
+        line-height: 1.5;
+    }
+
+    body {
+        font-variant-numeric: tabular-nums;
+    }
+
     /*
      * Dữ liệu nghiệp vụ có thể chứa mã, email, URL hoặc chuỗi không có dấu
      * cách. Cho phép phần tử flex/grid co lại và buộc các chuỗi này xuống dòng
@@ -57,52 +79,71 @@
 
     /* ============ SITE QUẢN TRỊ — sắc cạnh, mật độ cao ============ */
 
+    /* Card / panel bo 12px (fb7 mục 11) — kể cả card chứa bộ lọc */
     .admin-panel {
-        @apply rounded-admin border border-brand-line bg-white;
+        @apply rounded-admin-lg border border-brand-line bg-white;
     }
 
+    /* Padding card 20px (fb7 mục 11: 20–22px) */
     .admin-panel-head {
-        @apply flex min-h-[58px] items-center justify-between gap-3 border-b border-brand-line px-4;
+        @apply flex min-h-[58px] items-center justify-between gap-3 border-b border-brand-line px-5;
     }
 
+    .admin-panel-body {
+        @apply p-5;
+    }
+
+    /* Tiêu đề card: 18px / 600 (fb7 mục 2.2) */
     .admin-panel-head h3 {
-        @apply text-[17px] font-bold;
+        @apply text-[18px] font-semibold;
     }
 
     /* Nút hành động chính: khối chữ nhật, bo rất nhẹ, nền đặc.
        Không dùng pill — dạng đó tạo cảm giác tiêu dùng, sai bối cảnh nghiệp vụ. */
     .admin-btn {
         @apply inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 whitespace-nowrap
-               rounded-admin border border-brand-red bg-brand-red px-3.5 text-[13px] font-semibold
+               rounded-admin border border-brand-red bg-brand-red px-3.5 text-[14px] font-semibold
                leading-none text-white transition-colors hover:bg-brand-red-dark focus:outline-none
                focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-1;
     }
 
     .admin-btn-secondary {
         @apply inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 whitespace-nowrap
-               rounded-admin border border-brand-line bg-white px-3.5 text-[13px] font-semibold
+               rounded-admin border border-brand-line bg-white px-3.5 text-[14px] font-semibold
                leading-none text-brand-ink transition-colors hover:bg-brand-soft focus:outline-none
                focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-1;
     }
 
     .admin-input {
-        @apply h-[42px] w-full rounded-admin border border-brand-line bg-white px-3.5 text-sm
+        @apply h-[42px] w-full rounded-admin border border-brand-line bg-white px-3.5 text-[15px]
                text-brand-ink placeholder:text-brand-muted focus:border-brand-red focus:outline-none
                focus:ring-1 focus:ring-brand-red;
     }
 
+    /* Nhãn trường (kể cả trường lọc): KHÔNG viết hoa — chữ hoa + dấu tiếng Việt
+       rất khó đọc với nhãn dài như "Trạng thái nhân sự" (fb7 mục 2.3). */
     .admin-label {
-        @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-muted;
+        @apply mb-1.5 block text-[13px] font-semibold text-brand-muted;
     }
 
-    /* Bảng dữ liệu — trọng tâm của mọi màn hình vận hành */
+    /* Bảng dữ liệu — trọng tâm của mọi màn hình vận hành.
+       Nội dung 15px / 400 (fb7 mục 2.2). */
     .admin-table {
-        @apply w-full table-fixed border-collapse text-[13px];
+        @apply w-full table-fixed border-collapse text-[15px];
     }
 
+    /* Header cột: 13px / 700, viết hoa, tracking .05em — một trong hai chỗ
+       duy nhất còn giữ uppercase (cùng nhãn nhóm sidebar).
+       Dính (sticky) ở đầu khung cuộn của bảng: xem khối "Header bảng dính" bên dưới.
+       Đường kẻ dưới dùng inset shadow thay cho border-bottom vì với
+       border-collapse, border của ô sticky bị "bỏ lại" khi cuộn. */
     .admin-table th {
-        @apply h-11 border-b border-brand-line bg-[#fafbfc] px-3.5 text-left text-[11px]
-               font-semibold uppercase tracking-wide text-brand-muted;
+        @apply h-11 bg-[#fafbfc] px-3.5 text-left text-[13px] font-bold uppercase
+               tracking-[.05em] text-brand-muted;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 theme('colors.brand.line');
         overflow-wrap: anywhere;
         vertical-align: middle;
     }
@@ -165,21 +206,44 @@
         @apply transition-colors hover:bg-brand-soft;
     }
 
-    /* Mục điều hướng đang chọn: viền đỏ mỏng bên trái — "chữ ký" tối giản ở spec 6.4 */
+    /* Mục điều hướng sidebar quản trị: cao 44px (đủ vùng chạm), 16px / 500 (fb7 mục 2.2 + 5).
+       Mục đang chọn: nền đỏ 14% + chữ đỏ + vạch đỏ 3px bên trái (.sidebar-item-active).
+       Trên nền tối, đỏ thương hiệu #c00016 chỉ đạt ~3:1 — chữ dùng sắc đỏ sáng hơn
+       cùng họ để đạt ≥4.5:1, nền và vạch vẫn là đỏ thương hiệu. */
     .admin-nav-item {
-        @apply flex min-h-[42px] items-center gap-3 whitespace-nowrap rounded-admin border-l-2
-               border-transparent px-3 text-sm font-medium text-white/[.78] transition-colors
+        @apply relative flex min-h-[44px] items-center gap-3 whitespace-nowrap rounded-admin
+               px-3 text-[16px] font-medium text-white/[.78] transition-colors
                hover:bg-white/5 hover:text-white;
     }
 
     .admin-nav-item-active {
-        @apply border-l-brand-red bg-white/[.08] font-semibold text-white;
+        @apply bg-brand-red/[.14] font-semibold text-[#ff6b78] hover:bg-brand-red/[.2]
+               hover:text-[#ff8a94];
+    }
+
+    /* Vạch đỏ 3px bên trái mục đang chọn — dùng chung hai sidebar.
+       Vẽ bằng ::before thay vì border-left để không bị góc bo của mục uốn cong. */
+    .sidebar-item {
+        position: relative;
+    }
+
+    .admin-nav-item-active::before,
+    .sidebar-item-active::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        bottom: 8px;
+        left: 0;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: theme('colors.brand.red.DEFAULT');
     }
 
     /* ============ SITE NGƯỜI DÙNG — mềm mại, thoáng ============ */
 
+    /* Card phẳng + viền 1px, không shadow (fb7 mục 11) */
     .user-card {
-        @apply rounded-user-md border border-brand-line bg-white shadow-user-sm;
+        @apply rounded-user-md border border-brand-line bg-white;
     }
 
     .user-btn {
@@ -204,9 +268,10 @@
 
     /* ============ Dùng chung ============ */
 
+    /* Badge / chip: 11.5px / 700, pill (fb7 mục 2.2 + 11) */
     .tag {
         @apply inline-flex min-h-[24px] shrink-0 items-center whitespace-nowrap rounded-user-pill
-               bg-[#f1f3f7] px-2 text-xs font-medium text-[#3c4350];
+               bg-[#f1f3f7] px-2.5 text-[11.5px] font-bold text-[#3c4350];
     }
 
     .tag-red {
@@ -221,9 +286,9 @@
         @apply bg-state-warning-tint text-state-warning;
     }
 
-    /* Thanh tiến độ: dùng ở cả hai site, chỉ khác độ bo */
+    /* Thanh tiến độ: dùng ở cả hai site, bo 5px (fb7 mục 11) */
     .progress-track {
-        @apply h-2 overflow-hidden rounded-user-pill bg-[#eef1f5];
+        @apply h-2 overflow-hidden rounded-bar bg-[#eef1f5];
     }
 
     .progress-fill {
@@ -237,7 +302,228 @@
     }
 }
 
+/*
+ * === Header bảng dính (fb7) ===
+ * Mọi data grid khi cuộn vẫn thấy tên cột.
+ *
+ * Vì sao không chỉ "th { position: sticky }": bảng nào cũng nằm trong khung
+ * .overflow-x-auto (để cuộn ngang trên màn hẹp). overflow-x khác visible buộc
+ * overflow-y thành auto => khung đó là "scroll container" gần nhất của th, nên
+ * th chỉ dính được theo khung này chứ không theo trang. Khung lại cao đúng bằng
+ * bảng nên không bao giờ cuộn dọc => sticky vô tác dụng.
+ *
+ * Cách làm: giới hạn chiều cao khung cuộn của bảng theo chiều cao màn hình.
+ * Bảng ngắn hiển thị nguyên như cũ; bảng dài cuộn trong khung, th dính ở đỉnh
+ * khung (và cột "đóng băng" bên trái — nếu có — dùng chung khung này).
+ * Chọn khung bằng :has() nên không phải sửa từng view; view mới có thể gắn
+ * thẳng class .data-grid-scroll cho khung bọc bảng.
+ * Đặt ngoài @layer để Tailwind không lọc bỏ selector chưa dùng.
+ */
+.overflow-x-auto:has(> .admin-table),
+.overflow-auto:has(> .admin-table),
+.data-scroll:has(> .admin-table),
+.data-grid-scroll {
+    max-height: max(320px, calc(100vh - 140px));
+    max-height: max(320px, calc(100dvh - 140px));
+    overflow: auto;
+}
+
+/* Ma trận phân quyền không dùng .admin-table: cho header dính riêng */
+.permission-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fafbfc;
+    box-shadow: inset 0 -1px 0 #e6e9ed;
+}
+
+/* Khung cuộn sát mép card: bo theo góc card để nền header bảng không lòi ra
+   khỏi góc bo 12px (khung cuộn tự cắt nội dung theo border-radius). */
+.admin-panel > :is(.overflow-x-auto, .overflow-auto, .data-scroll, .data-grid-scroll):first-child {
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+}
+
+.admin-panel > :is(.overflow-x-auto, .overflow-auto, .data-scroll, .data-grid-scroll):last-child {
+    border-bottom-left-radius: 11px;
+    border-bottom-right-radius: 11px;
+}
+
+/*
+ * === Khung trang (fb7 mục 11) ===
+ * Padding trang 26px dọc / 32px ngang (màn hẹp thu về 16px), vùng nội dung tối
+ * đa 1440px căn giữa — màn 1920 không còn kéo bảng ra quá thưa.
+ * Khoảng cách giữa các card 16px: dùng gap-4 / mb-4 trong view (đã theo nhịp này).
+ */
+.page-main {
+    padding: 16px;
+}
+
+@media (min-width: 640px) {
+    .page-main {
+        padding: 26px 32px;
+    }
+}
+
+.page-container {
+    width: 100%;
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/*
+ * === Thanh cuộn sidebar (fb7 mục 5) ===
+ * Ẩn thanh cuộn native: mảnh, trong suốt, chỉ hiện khi rê chuột vào sidebar.
+ * Firefox / Chrome 121+ dùng scrollbar-width + scrollbar-color; Safari và
+ * Chrome cũ dùng ::-webkit-scrollbar.
+ */
+.sidebar-scroll {
+    --sidebar-thumb: rgba(20, 24, 33, .22);
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+
+.sidebar-dark .sidebar-scroll {
+    --sidebar-thumb: rgba(255, 255, 255, .24);
+}
+
+.sidebar:hover .sidebar-scroll,
+.sidebar-scroll:focus-within {
+    scrollbar-color: var(--sidebar-thumb) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background: transparent;
+}
+
+.sidebar:hover .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: var(--sidebar-thumb);
+}
+
 /* Ẩn phần tử Alpine trước khi Alpine khởi tạo, tránh nháy modal khi tải trang */
 [x-cloak] {
     display: none !important;
+}
+
+/* === Màn danh sách === */
+/*
+ * Thanh lọc tách khỏi bảng (fb7 mục 4) — <x-admin.list-toolbar> / <x-admin.list-filter>,
+ * và chân phân trang "Hiển thị … · Mỗi trang [15 ▾]" (fb7 mục 6) — vendor/livewire/tailwind.
+ */
+.list-toolbar {
+    @apply mb-4 flex flex-wrap items-center gap-2.5 rounded-admin-lg border border-brand-line bg-white p-3;
+}
+
+.list-toolbar-user {
+    @apply rounded-user-md shadow-user-sm;
+}
+
+.list-toolbar-user .admin-input,
+.list-toolbar-user .list-filter {
+    @apply rounded-user-md;
+}
+
+.list-toolbar-search {
+    @apply relative min-w-[240px] flex-1;
+}
+
+.list-toolbar-search .admin-input {
+    padding-left: 2.5rem;
+}
+
+.list-toolbar-search-icon {
+    @apply pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-brand-muted;
+}
+
+.list-toolbar-actions {
+    @apply ml-auto flex items-center gap-2;
+}
+
+/* Ô lọc: tên trường (chữ thường, xám) nằm trong ô, giá trị đậm ngay sau — "Trạng thái  Tất cả ▾" */
+.list-filter {
+    @apply relative inline-flex h-[42px] max-w-full cursor-pointer items-center gap-1.5 rounded-admin border
+           border-brand-line bg-white pl-3 text-sm transition-colors hover:border-[#cfd4de];
+}
+
+.list-filter:focus-within {
+    @apply border-brand-red ring-1 ring-brand-red;
+}
+
+.list-filter-label {
+    @apply shrink-0 whitespace-nowrap text-brand-muted;
+}
+
+.list-filter-select {
+    @apply h-full max-w-[230px] cursor-pointer appearance-none truncate border-0 bg-transparent py-0 pl-0 pr-8
+           text-sm font-semibold text-brand-ink focus:outline-none focus:ring-0;
+}
+
+.list-filter-chevron {
+    @apply pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted;
+}
+
+/* Control tùy biến trong ô lọc (ô chọn có gợi ý, ô ngày): bỏ viền/nhãn riêng của control */
+.list-filter-custom {
+    @apply cursor-default pr-1;
+}
+
+.list-filter-custom .admin-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.list-filter-custom .admin-input {
+    @apply h-10 min-w-[170px] border-0 bg-transparent pl-1 pr-2 font-semibold shadow-none focus:ring-0;
+}
+
+/* Chân bảng: thông tin số dòng bên trái, số trang bên phải */
+.list-pager {
+    @apply flex flex-wrap items-center justify-between gap-3;
+}
+
+.list-pager-info {
+    @apply flex flex-wrap items-center gap-x-5 gap-y-2;
+}
+
+.list-pager-size {
+    @apply inline-flex items-center gap-2 whitespace-nowrap text-sm text-brand-ink;
+}
+
+.list-pager-select {
+    @apply h-9 cursor-pointer rounded-admin border border-brand-line bg-white pl-2.5 pr-1.5 text-sm font-semibold
+           text-brand-ink focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red;
+}
+
+@media (max-width: 640px) {
+    .list-filter {
+        flex: 1 1 100%;
+    }
+
+    .list-filter-select,
+    .list-filter-custom > :not(.list-filter-label) {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+
+    .list-toolbar-actions {
+        @apply w-full;
+    }
+
+    .list-toolbar-actions > * {
+        flex: 1 1 0;
+    }
 }

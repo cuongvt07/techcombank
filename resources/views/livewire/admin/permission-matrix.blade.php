@@ -1,6 +1,5 @@
 <div>
-    <x-admin.page-header title="Phân quyền hệ thống"
-                         subtitle="Tick các thao tác vai trò Nhân sự / Quản lý được phép làm trên từng màn hình quản trị. Tài khoản học tập của nhân viên không chịu ảnh hưởng.">
+    <x-admin.page-header title="Phân quyền hệ thống">
         @if ($canEdit)
             <x-slot:actions>
                 <button type="button" wire:click="resetChanges" class="admin-btn-secondary" @disabled(! $dirty)>Hủy</button>
@@ -54,10 +53,12 @@
             </div>
             @endif
 
-            <p class="text-xs text-brand-muted">
-                <strong class="text-brand-ink">{{ \App\Enums\RoleName::ADMIN->label() }}</strong> luôn có toàn quyền;
-                <strong class="text-brand-ink">{{ \App\Enums\RoleName::EMPLOYEE->label() }}</strong> chỉ có quyền học tập — không cần cấu hình.
-            </p>
+            {{-- Ghi chú vai trò cố định: chuyển từ dòng chữ nhỏ sang tooltip (fb7 mục 7) --}}
+            <span class="inline-flex items-center gap-1 text-xs text-brand-muted"
+                  title="{{ \App\Enums\RoleName::ADMIN->label() }} luôn có toàn quyền; {{ \App\Enums\RoleName::EMPLOYEE->label() }} chỉ có quyền học tập — không cần cấu hình.">
+                @svg('heroicon-o-information-circle', 'h-4 w-4')
+                <span class="sr-only">{{ \App\Enums\RoleName::ADMIN->label() }} luôn có toàn quyền; {{ \App\Enums\RoleName::EMPLOYEE->label() }} chỉ có quyền học tập — không cần cấu hình.</span>
+            </span>
         </div>
 
         @if ($dirty)
@@ -67,8 +68,8 @@
             </div>
         @endif
 
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[560px] table-fixed border-collapse text-[13px]">
+        <div class="data-grid-scroll">
+            <table class="permission-grid w-full min-w-[560px] table-fixed border-collapse text-[13px]">
                 <colgroup>
                     <col>
                     @foreach ($columns as $column => $label)
@@ -78,7 +79,7 @@
 
                 <thead>
                     <tr class="border-b border-brand-line bg-[#fafbfc] text-[11px] font-semibold uppercase tracking-wide text-brand-muted">
-                        <th class="h-12 px-4 text-left align-middle">Màn hình</th>
+                        <th class="h-12 px-4 text-left align-middle">Màn hình<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="&quot;Thao tác&quot; gồm mọi thao tác Thêm / Sửa / Xóa của màn đó. Tick Thao tác sẽ tự tick Xem; bỏ Xem sẽ bỏ luôn Thao tác. Dấu — là màn chỉ để xem.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">&quot;Thao tác&quot; gồm mọi thao tác Thêm / Sửa / Xóa của màn đó. Tick Thao tác sẽ tự tick Xem; bỏ Xem sẽ bỏ luôn Thao tác. Dấu — là màn chỉ để xem.</span></span></th>
                         @foreach ($columns as $column => $label)
                             <th class="h-12 px-2 text-center align-middle">
                                 <span class="block">{{ $label }}</span>
@@ -160,9 +161,5 @@
             </table>
         </div>
 
-        <p class="border-t border-brand-line px-4 py-3 text-xs text-brand-muted">
-            "Thao tác" gồm mọi thao tác Thêm / Sửa / Xóa của màn đó (ghi cạnh tên màn). Tick Thao tác sẽ tự tick Xem;
-            bỏ Xem sẽ bỏ luôn Thao tác. Dấu — là màn chỉ để xem.
-        </p>
     </div>
 </div>

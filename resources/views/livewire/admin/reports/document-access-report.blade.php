@@ -12,8 +12,7 @@
 @endphp
 
 <div>
-    <x-admin.page-header title="Báo cáo truy cập và sử dụng tài liệu"
-                         subtitle="Lượt xem lặp của cùng người trong 5 phút được gộp thành một lượt">
+    <x-admin.page-header title="Báo cáo truy cập và sử dụng tài liệu">
         <x-slot:actions>
             @include('reports.print.menu', ['url' => $this->templateUrl()])
             <x-admin.report.export-menu />
@@ -176,14 +175,8 @@
                         ])>Nhật ký truy cập</button>
             </div>
 
-            <span @class([
-                'inline-flex items-center gap-1.5 rounded-admin-sm border px-2.5 py-1 text-xs',
-                'border-brand-line bg-brand-soft text-brand-muted' => $canViewLog,
-                'border-brand-red bg-brand-red-tint text-brand-red' => ! $canViewLog,
-            ])>
-                @svg('heroicon-o-lock-closed', 'h-3.5 w-3.5')
-                Nhật ký cần quyền security.view · kỳ tối đa {{ \App\Livewire\Admin\Reports\DocumentAccessReport::LOG_MAX_DAYS }} ngày
-            </span>
+            <x-admin.report.info :alert="! $canViewLog" label="Điều kiện xem nhật ký"
+                                 text="Nhật ký cần quyền security.view · kỳ tối đa {{ \App\Livewire\Admin\Reports\DocumentAccessReport::LOG_MAX_DAYS }} ngày" />
 
             @if ($logPeriodClamped)
                 <span class="text-xs font-semibold text-brand-red">Đang xem {{ $period->label() }} — kỳ đã cắt còn 92 ngày gần nhất.</span>
@@ -276,8 +269,7 @@
                         0 tài liệu đã xuất bản
                     @endif
                 </span>
-                <span>Số người được cấp quyền tính lại mỗi ngày</span>
-                <span style="margin-left: auto">Nguồn: documents, document_versions, document_access_logs</span>
+                <x-admin.report.info text="Số người được cấp quyền tính lại mỗi ngày" label="Chú thích bảng" class="-ml-3" />
             </div>
 
             @if ($documents->hasPages())
@@ -327,8 +319,7 @@
 
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-brand-line px-4 py-3 text-xs text-brand-muted">
                 <span>{{ $fmt($logs->total()) }} lượt truy cập · {{ $period->label() }}</span>
-                <span>Mỗi dòng là một lượt ghi nhận, chưa gộp lượt xem lặp</span>
-                <span style="margin-left: auto">Nguồn: document_access_logs</span>
+                <x-admin.report.info text="Mỗi dòng là một lượt ghi nhận, chưa gộp lượt xem lặp" label="Chú thích bảng" class="-ml-3" />
             </div>
 
             @if ($logs->hasPages())

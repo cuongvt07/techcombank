@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\FileFolder;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class FileManager extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -325,7 +328,7 @@ class FileManager extends Component
             )
             ->when($this->kindFilter, fn ($q) => $q->ofKind($this->kindFilter))
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate($this->perPage());
     }
 
     /** Cây thư mục ở sidebar — nạp một lần rồi dựng cấu trúc lồng nhau ở PHP. */

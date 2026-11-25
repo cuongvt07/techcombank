@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
@@ -35,6 +36,8 @@ use Livewire\WithPagination;
 class CourseBuilder extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -114,6 +117,7 @@ class CourseBuilder extends Component
 
         return view('livewire.admin.course-builder', [
             'courses' => $this->courses(),
+            'summary' => $course ? null : $this->summaryLine(),
             'editingCourse' => $course,
             'lessons' => $this->lessons(),
             'rules' => $this->rules(),
@@ -124,6 +128,22 @@ class CourseBuilder extends Component
             'quizzes' => Quiz::published()->orderBy('title')->get(),
             'enrolledCount' => $course ? $course->enrollments()->count() : 0,
         ])->layout('layouts.admin', ['title' => 'Khóa học']);
+    }
+
+    /** Dòng đếm nhanh dưới tiêu đề: "24 khóa học · 18 đã xuất bản · 6 nháp". */
+    private function summaryLine(): string
+    {
+        $counts = Course::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        return collect([
+            'published' => 'đã xuất bản',
+            'draft' => 'nháp',
+            'pending_review' => 'chờ duyệt',
+            'archived' => 'lưu trữ',
+        ])->filter(fn ($label, $status) => (int) ($counts[$status] ?? 0) > 0)
+            ->map(fn ($label, $status) => (int) $counts[$status] . ' ' . $label)
+            ->prepend(number_format((int) $counts->sum(), 0, ',', '.') . ' khóa học')
+            ->implode(' · ');
     }
 
     public function updated($property): void
@@ -428,7 +448,7 @@ class CourseBuilder extends Component
                 default => $q,
             })
             ->orderByDesc('id')
-            ->paginate(12);
+            ->paginate($this->perPage());
     }
 
     private function editingCourse(): ?Course

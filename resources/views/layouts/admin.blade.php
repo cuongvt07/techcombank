@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ asset('css/layout-overflow-fix.css') }}">
     @livewireStyles
 </head>
-<body class="h-full bg-brand-soft font-sans text-brand-ink antialiased">
+<body class="h-full bg-brand-page font-sans text-brand-ink antialiased">
     {{-- Layout cố định sidebar trái + vùng nội dung: cấu trúc quen thuộc để
          quản trị viên đoán được vị trí chức năng mà không phải học lại (spec 6.4). --}}
     <div class="flex min-h-full">
@@ -19,21 +19,24 @@
         <div class="flex min-w-0 flex-1 flex-col">
             @include('layouts.partials.admin-topbar')
 
-            <main class="flex-1 p-5">
-                @if (session('status'))
-                    <div class="mb-4 rounded-admin border border-state-success bg-state-success-tint px-4 py-3 text-sm font-semibold text-state-success">
-                        {{ session('status') }}
-                    </div>
-                @endif
+            {{-- page-main: padding trang 26/32px, nội dung tối đa 1440px căn giữa (fb7 mục 11) --}}
+            <main class="page-main flex-1">
+                <div class="page-container">
+                    @if (session('status'))
+                        <div class="mb-4 rounded-admin border border-state-success bg-state-success-tint px-4 py-3 text-sm font-semibold text-state-success">
+                            {{ session('status') }}
+                        </div>
+                    @endif
 
-                @if (session('error'))
-                    <div class="mb-4 rounded-admin border border-brand-red bg-brand-red-tint px-4 py-3 text-sm font-semibold text-brand-red">
-                        {{ session('error') }}
-                    </div>
-                @endif
+                    @if (session('error'))
+                        <div class="mb-4 rounded-admin border border-brand-red bg-brand-red-tint px-4 py-3 text-sm font-semibold text-brand-red">
+                            {{ session('error') }}
+                        </div>
+                    @endif
 
-                @yield('content')
-                {{ $slot ?? '' }}
+                    @yield('content')
+                    {{ $slot ?? '' }}
+                </div>
             </main>
         </div>
     </div>

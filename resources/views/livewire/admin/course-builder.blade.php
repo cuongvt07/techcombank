@@ -1,8 +1,7 @@
 <div>
     @if (! $editingCourse)
         {{-- MỨC 1: danh sách khóa học --}}
-        <x-admin.page-header title="Khóa học"
-                             subtitle="Khóa học gồm nhiều bài giảng xếp theo trình tự, giao tự động theo phòng ban.">
+        <x-admin.page-header title="Khóa học" :subtitle="$summary">
             <x-slot:actions>
                 @can('courses.create')
                 <button type="button" wire:click="createCourse" class="admin-btn">
@@ -13,49 +12,30 @@
             </x-slot:actions>
         </x-admin.page-header>
 
-        <div class="admin-panel">
-            <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-                <div class="min-w-[240px] flex-1">
-                    <label for="f-course-builder-search-0" class="admin-label">Tìm kiếm</label>
-                    <input id="f-course-builder-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                           placeholder="Tìm theo tên hoặc mã khóa học...">
-                </div>
-                <div>
-                    <label for="f-course-builder-statusFilter-1" class="admin-label">Trạng thái</label>
-                    <select id="f-course-builder-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                        <option value="">Mọi trạng thái</option>
-                        <option value="draft">Nháp</option>
-                        <option value="published">Đã xuất bản</option>
-                        <option value="archived">Lưu trữ</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="f-course-builder-departmentFilter" class="admin-label">Phòng ban</label>
-                    <select id="f-course-builder-departmentFilter" wire:model.live="departmentFilter" class="admin-input w-auto min-w-[200px]">
-                        <option value="">Mọi phòng ban</option>
-                        @foreach ($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="f-course-builder-learningTypeFilter" class="admin-label">Kiểu học</label>
-                    <select id="f-course-builder-learningTypeFilter" wire:model.live="learningTypeFilter" class="admin-input w-auto min-w-[190px]">
-                        <option value="">Mọi kiểu học</option>
-                        @foreach (\App\Livewire\Admin\CourseBuilder::LEARNING_TYPES as $key => [$typeLabel])
-                            <option value="{{ $key }}">{{ $typeLabel }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="ml-auto flex items-end gap-2">
-                    <button type="button" wire:click="applySearch" class="admin-btn">
-                        @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                        Tìm kiếm
-                    </button>
-                    <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-                </div>
-            </div>
+        <x-admin.list-toolbar placeholder="Tìm theo tên hoặc mã khóa học...">
+            <x-admin.list-filter label="Trạng thái" model="statusFilter">
+                <option value="">Tất cả</option>
+                <option value="draft">Nháp</option>
+                <option value="published">Đã xuất bản</option>
+                <option value="archived">Lưu trữ</option>
+            </x-admin.list-filter>
 
+            <x-admin.list-filter label="Phòng ban" model="departmentFilter">
+                <option value="">Tất cả</option>
+                @foreach ($departments as $dept)
+                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                @endforeach
+            </x-admin.list-filter>
+
+            <x-admin.list-filter label="Kiểu học" model="learningTypeFilter">
+                <option value="">Tất cả</option>
+                @foreach (\App\Livewire\Admin\CourseBuilder::LEARNING_TYPES as $key => [$typeLabel])
+                    <option value="{{ $key }}">{{ $typeLabel }}</option>
+                @endforeach
+            </x-admin.list-filter>
+        </x-admin.list-toolbar>
+
+        <div class="admin-panel">
             <div class="overflow-x-auto">
                 <table class="admin-table">
                     <thead>
@@ -145,9 +125,7 @@
                 </table>
             </div>
 
-            @if ($courses->hasPages())
-                <div class="border-t border-brand-line p-4">{{ $courses->links() }}</div>
-            @endif
+            <x-admin.list-pagination :paginator="$courses" />
         </div>
     @else
         {{-- MỨC 2: bên trong một khóa học — danh sách bài giảng --}}
@@ -158,9 +136,7 @@
         </button>
 
         <x-admin.page-header :title="$editingCourse->title"
-                             :subtitle="$editingCourse->sequential
-                                ? 'Học tuần tự — phải hoàn thành bài trước mới mở được bài sau.'
-                                : 'Học tự do — người học chọn bài bất kỳ.'">
+                             :subtitle="$editingCourse->code . ' · ' . ($editingCourse->sequential ? 'Học tuần tự' : 'Học tự do')">
             <x-slot:actions>
                 @can('courses.update')
                 <button type="button" wire:click="editCourse({{ $editingCourse->id }})" class="admin-btn-secondary">
@@ -406,10 +382,7 @@
                 </div>
 
                 <div class="border-t border-brand-line pt-4 sm:col-span-2">
-                    <p class="admin-label">Kiểu học</p>
-                    <p class="mb-3 text-xs text-brand-muted">
-                        Ba tùy chọn độc lập, bật được cùng lúc. Tắt "Học tuần tự" nghĩa là học tự do.
-                    </p>
+                    <p class="admin-label mb-3">Kiểu học<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Ba tùy chọn độc lập, bật được cùng lúc. Tắt &quot;Học tuần tự&quot; nghĩa là học tự do.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Ba tùy chọn độc lập, bật được cùng lúc. Tắt &quot;Học tuần tự&quot; nghĩa là học tự do.</span></span></p>
 
                     <div class="grid gap-2.5 sm:grid-cols-3">
                         @foreach (['sequential' => 'sequential', 'is_onboarding' => 'onboarding', 'issue_certificate' => 'certificate'] as $field => $type)
@@ -479,7 +452,7 @@
                 @elseif ($contentType === 'document' || $contentType === 'video')
                     <div>
                         <label for="l_doc" class="admin-label">
-                            Chọn {{ $contentType === 'video' ? 'video' : 'tài liệu' }} từ thư viện
+                            Chọn {{ $contentType === 'video' ? 'video' : 'tài liệu' }} từ thư viện<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Chỉ hiện tài liệu đã xuất bản trong thư viện.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Chỉ hiện tài liệu đã xuất bản trong thư viện.</span></span>
                         </label>
                         <select id="l_doc" wire:model="documentId" class="admin-input">
                             <option value="">— Chọn —</option>
@@ -488,9 +461,6 @@
                             @endforeach
                         </select>
                         @error('documentId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                        <p class="mt-1 text-xs text-brand-muted">
-                            Chỉ hiện tài liệu đã xuất bản trong thư viện.
-                        </p>
                     </div>
 
                     @if ($contentType === 'video')
@@ -503,7 +473,7 @@
                     @endif
                 @else
                     <div>
-                        <label for="l_quiz" class="admin-label">Chọn bài kiểm tra</label>
+                        <label for="l_quiz" class="admin-label">Chọn bài kiểm tra<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Chỉ hiện bài kiểm tra đã xuất bản. Bài học hoàn thành khi người học đạt điểm.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Chỉ hiện bài kiểm tra đã xuất bản. Bài học hoàn thành khi người học đạt điểm.</span></span></label>
                         <select id="l_quiz" wire:model="quizId" class="admin-input">
                             <option value="">— Chọn —</option>
                             @foreach ($quizzes as $quiz)
@@ -511,9 +481,6 @@
                             @endforeach
                         </select>
                         @error('quizId') <p class="mt-1 text-xs font-semibold text-brand-red">{{ $message }}</p> @enderror
-                        <p class="mt-1 text-xs text-brand-muted">
-                            Chỉ hiện bài kiểm tra đã xuất bản. Bài học hoàn thành khi người học đạt điểm.
-                        </p>
                     </div>
                 @endif
 

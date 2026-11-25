@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="{{ asset('css/layout-overflow-fix.css') }}">
     @livewireStyles
 </head>
-<body class="h-full bg-white font-sans text-brand-ink antialiased">
+<body class="h-full bg-brand-page font-sans text-brand-ink antialiased">
     <div class="flex min-h-full flex-col lg:flex-row">
         {{-- Desktop: sidebar cố định. Mobile: ẩn, thay bằng bottom tab bar. --}}
         <div class="hidden lg:block">
@@ -23,16 +23,19 @@
         <div class="flex min-w-0 flex-1 flex-col">
             @include('layouts.partials.user-header')
 
-            {{-- pb-24 trên mobile để nội dung cuối trang không bị bottom tab bar che --}}
-            <main class="flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
-                @if (session('status'))
-                    <div class="mb-4 rounded-user-md border border-state-success bg-state-success-tint px-4 py-3 text-sm font-semibold text-state-success">
-                        {{ session('status') }}
-                    </div>
-                @endif
+            {{-- pb-24 trên mobile để nội dung cuối trang không bị bottom tab bar che.
+                 Desktop: padding trang 26/32px, nội dung tối đa 1440px căn giữa (fb7 mục 11) --}}
+            <main class="flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-[26px]">
+                <div class="page-container">
+                    @if (session('status'))
+                        <div class="mb-4 rounded-user-md border border-state-success bg-state-success-tint px-4 py-3 text-sm font-semibold text-state-success">
+                            {{ session('status') }}
+                        </div>
+                    @endif
 
-                @yield('content')
-                {{ $slot ?? '' }}
+                    @yield('content')
+                    {{ $slot ?? '' }}
+                </div>
             </main>
         </div>
     </div>

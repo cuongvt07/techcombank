@@ -17,10 +17,7 @@
 @endphp
 
 <div>
-    <x-admin.page-header title="Báo cáo kết quả kiểm tra"
-                         :subtitle="$isQuestions
-                            ? 'Chỉ tính lượt đã nộp · điểm đạt theo cấu hình hiện tại của bài kiểm tra'
-                            : 'Một dòng là một nhân viên trên một bài kiểm tra · gộp mọi lượt làm của người đó'">
+    <x-admin.page-header title="Báo cáo kết quả kiểm tra">
         <x-slot:actions>
             @can('report_quiz.update')
                 @if ($isQuestions)
@@ -218,8 +215,8 @@
                 @endif
             </x-admin.report.panel>
 
-            <x-admin.report.panel title="Tỷ lệ đạt theo bài kiểm tra" subtitle="thấp nhất xếp trên"
-                                  :note="$quizRates->isEmpty() ? null : ($quizzesBelow
+            <x-admin.report.panel title="Tỷ lệ đạt theo bài kiểm tra"
+                                  :note="$quizRates->isEmpty() ? null : 'Bài có tỷ lệ đạt thấp nhất xếp trên.<br>' . ($quizzesBelow
                                       ? $quizzesBelow . ' bài có tỷ lệ lượt đạt dưới ' . (int) Svc::QUIZ_ALERT_RATE . '%. Xem <strong>bảng câu hỏi</strong> bên dưới để biết câu nào kéo điểm xuống trước khi sửa nội dung bài giảng.'
                                       : 'Mọi bài đều có từ ' . (int) Svc::QUIZ_ALERT_RATE . '% lượt đạt trở lên. Bấm một thanh để xem riêng bài đó.')"
                                   :noteAlert="$quizzesBelow > 0">
@@ -245,7 +242,7 @@
             $share = fn ($n) => $total ? Report::percent($n / $total * 100) : '—';
         @endphp
         <div class="mb-4 grid gap-4 xl:grid-cols-2">
-            <x-admin.report.panel title="Số lượt đến khi đạt" :subtitle="$num($pairKpi['employees']) . ' nhân viên dự thi'"
+            <x-admin.report.panel title="Số lượt đến khi đạt"
                                   :note="$total ? ($notPassed
                                       ? 'Trong ' . $num($notPassed) . ' người chưa đạt, <strong>' . $num($pairKpi['exhausted']) . ' người đã hết lượt</strong> nên không thể tự làm lại. Nhóm này phải được cấp thêm lượt thủ công.'
                                       : 'Mọi nhân viên dự thi trong kỳ đều đã đạt.') : null"
@@ -263,8 +260,8 @@
                 @endif
             </x-admin.report.panel>
 
-            <x-admin.report.panel title="Tỷ lệ nhân viên đã đạt theo đơn vị" subtitle="thấp nhất xếp trên"
-                                  note="Mẫu số là số nhân viên đã dự thi trong đơn vị (tính theo từng bài), không phải toàn bộ nhân sự. Bấm một thanh để lọc bảng theo đơn vị.">
+            <x-admin.report.panel title="Tỷ lệ nhân viên đã đạt theo đơn vị"
+                                  note="Đơn vị có tỷ lệ thấp nhất xếp trên. Mẫu số là số nhân viên đã dự thi trong đơn vị (tính theo từng bài), không phải toàn bộ nhân sự. Bấm một thanh để lọc bảng theo đơn vị.">
                 @if ($departmentRates->isEmpty())
                     <p class="py-10 text-center text-sm text-brand-muted">Chưa có dữ liệu theo đơn vị.</p>
                 @else
@@ -297,13 +294,14 @@
             </div>
 
             @if ($isQuestions)
-                @unless ($canSeeAnswers)
-                    <span class="inline-flex min-h-[32px] items-center gap-1.5 rounded-admin border border-brand-line bg-brand-soft px-2.5 text-xs text-brand-muted"
-                          title="Cột đáp án đúng chỉ hiện với người có quyền sửa bài kiểm tra">
-                        @svg('heroicon-o-lock-closed', 'h-3.5 w-3.5') Chứa đáp án · cần quyền quizzes.update
-                    </span>
-                @endunless
                 <span class="text-xs text-brand-muted">{{ $num($questions->total()) }} câu hỏi</span>
+                <x-admin.report.info label="Chú thích bảng câu hỏi" class="-ml-2">
+                    Chỉ tính lượt đã nộp · điểm đạt theo cấu hình hiện tại của bài kiểm tra.
+                    <br>Cờ chất lượng chỉ gắn khi câu xuất hiện từ {{ Svc::MIN_SAMPLE }} lần trở lên.
+                    @unless ($canSeeAnswers)
+                        <br>Cột đáp án đúng chỉ hiện với người có quyền sửa bài kiểm tra (cần quyền quizzes.update).
+                    @endunless
+                </x-admin.report.info>
             @else
                 <div class="relative min-w-[220px] flex-1">
                     <label for="qr-search" class="sr-only">Lọc trong bảng</label>
@@ -316,6 +314,13 @@
                     Tìm kiếm
                 </button>
                 <span class="text-xs text-brand-muted">{{ $num($rows->total()) }} dòng</span>
+                <x-admin.report.info label="Chú thích bảng" class="-ml-2">
+                    Một dòng là một nhân viên trên một bài kiểm tra · gộp mọi lượt làm của người đó.
+                    <br>Số lượt = mọi lượt đã dùng / tối đa (gồm lượt cấp thêm).
+                    @if ($sort === '')
+                        <br>Xếp theo lượt còn lại tăng dần nên nhóm hết lượt luôn nằm đầu bảng.
+                    @endif
+                </x-admin.report.info>
             @endif
 
             <div class="ml-auto flex items-center gap-2">
@@ -413,8 +418,6 @@
 
             <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-brand-line px-4 py-3 text-xs text-brand-muted">
                 <span>Hiển thị {{ $questions->firstItem() ?? 0 }}–{{ $questions->lastItem() ?? 0 }} / {{ $num($questions->total()) }} câu hỏi</span>
-                <span>Cờ chất lượng chỉ gắn khi câu xuất hiện từ {{ Svc::MIN_SAMPLE }} lần trở lên</span>
-                <span class="ml-auto">Nguồn: quizzes, quiz_attempts, quiz_attempt_answers</span>
             </div>
             @if ($questions->hasPages())
                 <div class="border-t border-brand-line px-4 py-3">{{ $questions->links(data: ['summary' => false]) }}</div>
@@ -542,10 +545,6 @@
 
             <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-brand-line px-4 py-3 text-xs text-brand-muted">
                 <span>Hiển thị {{ $rows->firstItem() ?? 0 }}–{{ $rows->lastItem() ?? 0 }} / {{ $num($rows->total()) }} dòng</span>
-                @if ($sort === '')
-                    <span>Xếp theo lượt còn lại tăng dần nên nhóm hết lượt luôn nằm đầu bảng</span>
-                @endif
-                <span class="ml-auto">Số lượt = mọi lượt đã dùng / tối đa (gồm lượt cấp thêm)</span>
             </div>
             @if ($rows->hasPages())
                 <div class="border-t border-brand-line px-4 py-3">{{ $rows->links(data: ['summary' => false]) }}</div>

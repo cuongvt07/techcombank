@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Department;
@@ -28,6 +29,8 @@ use Livewire\WithPagination;
 class DocumentAccessManager extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -72,14 +75,23 @@ class DocumentAccessManager extends Component
 
     public function render(): View
     {
+        $documentCount = Document::count();
+        $withRules = Document::query()->whereHas('accessRules')->count();
+
         return view('livewire.admin.document-access-manager', [
             'documents' => $this->documents(),
+            // Dòng đếm nhanh dưới tiêu đề: "26 tài liệu · 18 đã phân quyền · 8 chưa phân quyền"
+            'summary' => implode(' · ', [
+                number_format($documentCount, 0, ',', '.') . ' tài liệu',
+                $withRules . ' đã phân quyền',
+                max(0, $documentCount - $withRules) . ' chưa phân quyền',
+            ]),
             'documentSuggestions' => $this->documentSuggestions(),
             'selectedRules' => $this->selectedRules(),
             'selectedDocument' => $this->documentId
                 ? Document::with(['currentVersion.storedFile', 'ownerDepartment'])->find($this->documentId)
                 : null,
-            'documentCount' => Document::count(),
+            'documentCount' => $documentCount,
             'departments' => Department::active()->orderBy('name')->get(),
             'jobTitles' => JobTitle::active()->orderBy('name')->get(),
             'jobGrades' => JobGrade::active()->orderBy('level')->get(),
@@ -339,7 +351,7 @@ class DocumentAccessManager extends Component
             ])
             ->when(trim($this->search) !== '', fn ($query) => $query->where('title', 'like', '%' . trim($this->search) . '%'))
             ->orderBy('title')
-            ->paginate(15);
+            ->paginate($this->perPage());
     }
 
     private function documentSuggestions()

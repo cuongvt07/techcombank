@@ -17,6 +17,31 @@
     $rightAligned = ['lessons', 'hours', 'score', 'overdue_days', 'assigned', 'due', 'completed'];
     $tableWidth = 48 + collect($visible)->sum(fn ($k) => $widths[$k]);
 
+    // Cố định (sticky left) ô chọn + Mã NV, Họ tên, Phòng ban khi cuộn ngang. Các cột này
+    // đứng đầu COLUMNS nên luôn là đoạn đầu của $visible; left = tổng độ rộng các cột đứng trước.
+    $stickyLeft = ['_check' => 0];
+    $offset = 48;
+    foreach ($visible as $key) {
+        if (! in_array($key, ['code', 'name', 'department'], true)) break;
+        $stickyLeft[$key] = $offset;
+        $offset += $widths[$key];
+    }
+    $lastFrozen = array_key_last($stickyLeft);
+    // Nền đặc để chữ cột khác không xuyên qua; viền dưới/phải vẽ bằng box-shadow vì viền
+    // border-collapse không đi theo ô sticky. Ô tiêu đề nằm trên ô thân (z-index cao hơn).
+    $stickyStyle = function (string $key, bool $head = false) use ($stickyLeft, $lastFrozen) {
+        if (! isset($stickyLeft[$key])) {
+            return $head ? 'z-index: 2' : '';
+        }
+        $shadows = [$head ? 'inset 0 -1px 0 #E6E9ED' : 'inset 0 -1px 0 #eef0f4'];
+        if ($key === $lastFrozen) {
+            $shadows[] = 'inset -1px 0 0 #E6E9ED';
+        }
+
+        return 'position: sticky; left: ' . $stickyLeft[$key] . 'px; z-index: ' . ($head ? 3 : 1)
+            . '; box-shadow: ' . implode(', ', $shadows);
+    };
+
     // Dòng "Tổng cộng": nhãn chiếm các cột đầu cho tới cột đầu tiên có số tổng
     $summable = ['lessons', 'progress', 'hours', 'overdue_days'];
     $labelSpan = 1;
@@ -53,7 +78,7 @@
 
 <div class="space-y-5">
     <x-admin.page-header title="Báo cáo tiến độ học tập"
-        subtitle="Một dòng là một lượt ghi danh · nhân viên × khóa học · cập nhật {{ $updatedAt }}">
+        subtitle="Cập nhật {{ $updatedAt }}">
         <x-slot:actions>
             @can('report_learning.update')
                 <button type="button" wire:click="sendReminders" class="admin-btn-secondary"
@@ -156,8 +181,9 @@
                         <label for="lp-source" class="admin-label">Nguồn giao</label>
                         <select id="lp-source" wire:model.live="source" class="admin-input">
                             <option value="">Tất cả</option>
-                            <option value="rule">Rule tự động</option>
-                            <option value="manual">Giao tay</option>
+                            @foreach (\App\Services\Reports\LearningProgressReportService::SOURCE_LABELS as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <label class="flex items-center gap-2 text-sm">
@@ -212,6 +238,7 @@
         :subtitle="$period->label()"
         :note="$kpis['total'] > 0
             ? $num($chart['completions']) . ' lượt hoàn thành trong kỳ; tỷ lệ hoàn thành lũy kế cuối kỳ <strong>' . $pct($lastLine) . '</strong> so với mục tiêu ' . $pct($target) . '.'
+                . '<br>Bấm một cột để lọc bảng theo ngày hoàn thành.'
             : null"
         :noteAlert="$lastLine !== null && $lastLine < $target">
         <x-slot:actions>
@@ -236,13 +263,12 @@
                 :activeIndex="$chartActive === false ? null : $chartActive"
                 :endNote="$pct($lastLine)"
                 label="Lượt hoàn thành theo ngày và tỷ lệ hoàn thành lũy kế" />
-            <p class="mt-2 text-xs text-brand-muted">
-                Bấm một cột để lọc bảng bên dưới theo ngày hoàn thành.
-                @if ($completedOn !== '')
+            @if ($completedOn !== '')
+                <p class="mt-2 text-xs text-brand-muted">
                     Đang lọc ngày <strong class="text-brand-ink">{{ \Carbon\CarbonImmutable::parse($completedOn)->format('d/m/Y') }}</strong> ·
                     <button type="button" wire:click="clearFilter('completedOn')" class="font-semibold text-brand-red hover:underline">Bỏ lọc ngày</button>
-                @endif
-            </p>
+                </p>
+            @endif
         @endif
     </x-admin.report.panel>
 
@@ -299,13 +325,13 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th>
+                        <th style="{{ $stickyStyle('_check', true) }}">
                             <input type="checkbox" class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red" aria-label="Chọn cả trang"
                                    @checked($pageAllSelected) @disabled($pageIds === [])
                                    wire:click="togglePage(@js($pageIds))">
                         </th>
                         @foreach ($visible as $key)
-                            <th @class(['text-right' => in_array($key, $rightAligned, true)])
+                            <th @class(['text-right' => in_array($key, $rightAligned, true)]) style="{{ $stickyStyle($key, true) }}"
                                 aria-sort="{{ $sort === $key ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}">
                                 <button type="button" wire:click="sortBy('{{ $key }}')"
                                         @class(['inline-flex items-center gap-1 uppercase hover:text-brand-ink', 'w-full justify-end' => in_array($key, $rightAligned, true), 'text-brand-ink' => $sort === $key])>
@@ -314,6 +340,10 @@
                                         <span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>
                                     @endif
                                 </button>
+                                @if ($key === 'source')
+                                    <span class="ml-0.5 inline-flex cursor-help align-middle normal-case text-brand-muted"
+                                          title="{{ \App\Services\Reports\LearningProgressReportService::SOURCE_HINT }}">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">{{ \App\Services\Reports\LearningProgressReportService::SOURCE_HINT }}</span></span>
+                                @endif
                             </th>
                         @endforeach
                     </tr>
@@ -324,13 +354,15 @@
                             $overdueDays = Report::overdueDays($row, $today);
                             $progress = (float) $row->progress_percent;
                         @endphp
-                        <tr wire:key="enr-{{ $row->id }}">
-                            <td>
+                        <tr wire:key="enr-{{ $row->id }}" class="group">
+                            <td class="bg-white group-hover:bg-brand-soft" style="{{ $stickyStyle('_check') }}">
                                 <input type="checkbox" value="{{ $row->id }}" wire:model.live="selected"
                                        class="h-4 w-4 rounded-admin-sm border-brand-line text-brand-red focus:ring-brand-red" aria-label="Chọn {{ $row->employee_code }} – {{ $row->course_title }}">
                             </td>
                             @foreach ($visible as $key)
-                                <td @class(['text-right tabular-nums' => in_array($key, $rightAligned, true)])>
+                                <td @class(['text-right tabular-nums' => in_array($key, $rightAligned, true),
+                                        'bg-white group-hover:bg-brand-soft' => isset($stickyLeft[$key])])
+                                    @if (isset($stickyLeft[$key])) style="{{ $stickyStyle($key) }}" @endif>
                                     @switch($key)
                                         @case('code')
                                             @can('employees.view')
@@ -360,7 +392,7 @@
                                             <span @class(['tag uppercase', 'tag-red' => $type === 'Bắt buộc'])>{{ $type }}</span>
                                             @break
                                         @case('source')
-                                            {{ $row->course_assignment_rule_id ? 'Rule tự động' : 'Giao tay' }}
+                                            {{ \App\Services\Reports\LearningProgressReportService::sourceLabel($row) }}
                                             @break
                                         @case('assigned')
                                             {{ ReportPeriod::local($row->assigned_at)?->format('d/m/Y') ?? '—' }}
@@ -431,7 +463,8 @@
                 @if ($totals['total'] > 0)
                     <tfoot>
                         <tr class="bg-brand-soft font-bold">
-                            <td colspan="{{ $labelSpan }}">Tổng cộng {{ $num($totals['total']) }} dòng khớp bộ lọc</td>
+                            {{-- Ô nhãn trải nhiều cột: cho riêng chữ dính trái để vẫn thấy khi cuộn ngang --}}
+                            <td colspan="{{ $labelSpan }}"><span class="sticky inline-block" style="left: 14px">Tổng cộng {{ $num($totals['total']) }} dòng khớp bộ lọc</span></td>
                             @foreach ($footCols as $key)
                                 <td @class(['text-right tabular-nums' => in_array($key, $rightAligned, true)])>
                                     @switch($key)

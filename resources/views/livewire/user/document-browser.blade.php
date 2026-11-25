@@ -5,44 +5,21 @@
         </div>
     @endif
 
-    {{-- Nhãn + ô nhập bọc chung một khối: trước đây nằm rời nên lưới xếp chúng thành hai ô riêng --}}
-    <div class="mb-4 flex flex-wrap items-end gap-2.5">
-        <div class="min-w-[220px] flex-1">
-            <label for="f-document-browser-search-0" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Tìm kiếm</label>
-            <input id="f-document-browser-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch"
-                   class="h-11 w-full rounded-user-md border border-brand-line bg-white px-4 text-sm placeholder:text-brand-muted focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-                   placeholder="Tìm tài liệu...">
-        </div>
+    {{-- Thanh lọc dùng chung với site Quản trị (fb7 mục 4), dạng card mềm của site Nhân viên --}}
+    <x-admin.list-toolbar variant="user" placeholder="Tìm tài liệu...">
+        <x-admin.list-filter label="Danh mục" model="categoryFilter">
+            <option value="">Tất cả</option>
+            @foreach ($categories as $cat)
+                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+            @endforeach
+        </x-admin.list-filter>
 
-        <div>
-            <label for="f-document-browser-categoryFilter-1" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Danh mục</label>
-            <select id="f-document-browser-categoryFilter-1" wire:model.live="categoryFilter"
-                    class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
-                <option value="">Mọi danh mục</option>
-                @foreach ($categories as $cat)
-                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        <div>
-            <label for="f-document-browser-kindFilter-2" class="mb-1.5 block text-xs font-semibold uppercase text-brand-muted">Loại tài liệu</label>
-            <select id="f-document-browser-kindFilter-2" wire:model.live="kindFilter"
-                    class="h-11 rounded-user-md border border-brand-line bg-white px-3 text-sm focus:border-brand-red focus:outline-none">
-                <option value="">Mọi loại</option>
-                <option value="file">Tài liệu</option>
-                <option value="video">Video</option>
-            </select>
-        </div>
-
-        <div class="flex gap-2">
-            <button type="button" wire:click="applySearch" class="user-btn h-11">
-                @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                Tìm kiếm
-            </button>
-            <button type="button" wire:click="resetFilters" class="user-btn-secondary h-11">Đặt lại</button>
-        </div>
-    </div>
+        <x-admin.list-filter label="Loại" model="kindFilter">
+            <option value="">Tất cả</option>
+            <option value="file">Tài liệu</option>
+            <option value="video">Video</option>
+        </x-admin.list-filter>
+    </x-admin.list-toolbar>
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         @forelse ($documents as $doc)
@@ -80,15 +57,12 @@
         @empty
             <div class="user-card col-span-full p-8 text-center">
                 <p class="font-bold">Không có tài liệu nào.</p>
-                <p class="mt-1 text-sm text-brand-muted">
-                    Danh mục chỉ hiển thị tài liệu bạn được cấp quyền theo phòng ban và vị trí công việc.
-                </p>
             </div>
         @endforelse
     </div>
 
-    @if ($documents->hasPages())
-        <div class="mt-4">{{ $documents->links() }}</div>
+    @if ($documents->total() > 0)
+        <div class="user-card mt-4 px-4 py-3">{{ $documents->links() }}</div>
     @endif
 
     {{-- Trình xem tài liệu có watermark động (spec 3.3.2) --}}

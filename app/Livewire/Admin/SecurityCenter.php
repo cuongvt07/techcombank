@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\DeviceSession;
@@ -25,6 +26,8 @@ use Livewire\WithPagination;
 class SecurityCenter extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -175,7 +178,7 @@ class SecurityCenter extends Component
             // Mức độ nặng lên đầu
             ->orderByRaw("FIELD(severity, 'critical', 'high', 'medium', 'low')")
             ->orderByDesc('created_at')
-            ->paginate(15);
+            ->paginate($this->perPage());
     }
 
     private function documentLogs()
@@ -191,7 +194,7 @@ class SecurityCenter extends Component
                         ->orWhere('employee_code', 'like', $term));
             })
             ->orderByDesc('accessed_at')
-            ->paginate(20);
+            ->paginate($this->perPage());
     }
 
     private function loginHistories()
@@ -206,7 +209,7 @@ class SecurityCenter extends Component
                     ->orWhere('ip_address', 'like', $term);
             })
             ->orderByDesc('logged_in_at')
-            ->paginate(20);
+            ->paginate($this->perPage());
     }
 
     private function deviceSessions()
@@ -222,7 +225,7 @@ class SecurityCenter extends Component
             })
             ->orderByDesc('is_active')
             ->orderByDesc('last_activity_at')
-            ->paginate(20);
+            ->paginate($this->perPage());
     }
 
     private function detailAlert(): ?SecurityAlert

@@ -9,7 +9,8 @@
 --}}
 <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
     <div class="min-w-0">
-        <h2 class="text-2xl font-bold">{{ $title }}</h2>
+        {{-- Tiêu đề trang 26px / 700, tracking -0.4px (fb7 mục 2.2) --}}
+        <h2 class="text-[26px] font-bold leading-tight tracking-[-0.4px]">{{ $title }}</h2>
         @if ($subtitle)
             <p class="mt-1 text-sm text-brand-muted">{{ $subtitle }}</p>
         @endif

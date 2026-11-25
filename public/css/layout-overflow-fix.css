@@ -37,8 +37,9 @@ code {
     word-break: break-word;
 }
 
+/* Dữ liệu bảng căn giữa theo chiều dọc (feedback: align top → align center) */
 .admin-table td {
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .data-wrap {

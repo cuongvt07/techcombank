@@ -1,43 +1,37 @@
 <div>
     @include('livewire.admin.partials.document-tabs', ['active' => 'permissions', 'documentCount' => $documentCount])
 
-    <x-admin.page-header title="Phân quyền tài liệu"
-                         subtitle="Mỗi tài liệu có một bộ phân quyền; trong bộ có thể tạo nhiều quy tắc theo đơn vị, chức danh và cấp bậc.">
+    <x-admin.page-header title="Phân quyền tài liệu" :subtitle="$summary">
     </x-admin.page-header>
 
-    <div class="admin-panel">
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="relative min-w-[240px] flex-1" x-data="{ open: false }" @click.outside="open = false">
-                <label for="f-document-access-manager-search-0" class="admin-label">Tìm tài liệu</label>
-                <input id="f-document-access-manager-search-0" type="search" wire:model.live.debounce.300ms="search"
-                       wire:keydown.enter="applySearch" x-on:focus="open = true" x-on:keydown.escape="open = false"
-                       autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="document-access-suggestions"
-                       :aria-expanded="open && {{ $documentSuggestions->isNotEmpty() ? 'true' : 'false' }}"
-                       class="admin-input"
-                       placeholder="Nhập tên tài liệu...">
-                @if ($documentSuggestions->isNotEmpty())
-                    <div id="document-access-suggestions" x-cloak x-show="open"
-                         class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-admin border border-brand-line bg-white shadow-lg"
-                         role="listbox" aria-label="Gợi ý tài liệu">
-                        @foreach ($documentSuggestions as $suggestion)
-                            <button type="button" role="option" wire:key="document-access-suggestion-{{ $suggestion->id }}"
-                                    wire:click="selectDocumentSuggestion({{ $suggestion->id }})" x-on:click="open = false"
-                                    class="block w-full border-b border-brand-line px-3 py-2.5 text-left text-sm text-brand-ink last:border-b-0 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
-                                {{ $suggestion->title }}
-                            </button>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
+    {{-- Ô tìm có gợi ý tên tài liệu nên tự dựng, không dùng ô tìm mặc định của thanh lọc --}}
+    <x-admin.list-toolbar :search="null">
+        <div class="list-toolbar-search" x-data="{ open: false }" @click.outside="open = false">
+            @svg('heroicon-o-magnifying-glass', 'list-toolbar-search-icon')
+            <input id="f-document-access-manager-search-0" type="search" wire:model.live.debounce.300ms="search"
+                   aria-label="Tìm tài liệu"
+                   wire:keydown.enter="applySearch" x-on:focus="open = true" x-on:keydown.escape="open = false"
+                   autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="document-access-suggestions"
+                   :aria-expanded="open && {{ $documentSuggestions->isNotEmpty() ? 'true' : 'false' }}"
+                   class="admin-input"
+                   placeholder="Nhập tên tài liệu...">
+            @if ($documentSuggestions->isNotEmpty())
+                <div id="document-access-suggestions" x-cloak x-show="open"
+                     class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-admin border border-brand-line bg-white shadow-lg"
+                     role="listbox" aria-label="Gợi ý tài liệu">
+                    @foreach ($documentSuggestions as $suggestion)
+                        <button type="button" role="option" wire:key="document-access-suggestion-{{ $suggestion->id }}"
+                                wire:click="selectDocumentSuggestion({{ $suggestion->id }})" x-on:click="open = false"
+                                class="block w-full border-b border-brand-line px-3 py-2.5 text-left text-sm text-brand-ink last:border-b-0 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
+                            {{ $suggestion->title }}
+                        </button>
+                    @endforeach
+                </div>
+            @endif
         </div>
+    </x-admin.list-toolbar>
 
+    <div class="admin-panel">
         <div class="overflow-x-auto">
             <table class="admin-table min-w-[860px]">
                 <thead>
@@ -68,16 +62,15 @@
                                         @svg($document->isVideo() ? 'heroicon-o-play-circle' : 'heroicon-o-document', 'h-4 w-4')
                                     </span>
                                     <div class="min-w-0">
-                                        <p class="truncate font-bold text-brand-ink">{{ $document->title }}</p>
-                                        <p class="mt-0.5 text-[11px] text-brand-muted">
-                                            {{ strtoupper($document->currentVersion?->storedFile?->extension ?? ($document->isVideo() ? 'VIDEO' : 'FILE')) }}
-                                            @if ($document->currentVersion?->storedFile)
-                                                · {{ $document->currentVersion->storedFile->humanSize() }}
-                                            @endif
-                                            @if ($document->published_at)
-                                                · {{ $document->published_at->format('d/m/Y') }}
-                                            @endif
-                                        </p>
+                                        {{-- Bỏ dòng định dạng/dung lượng/ngày dưới tên (fb7 mục 7) — chuyển vào tooltip --}}
+                                        @php
+                                            $docMeta = collect([
+                                                strtoupper($document->currentVersion?->storedFile?->extension ?? ($document->isVideo() ? 'VIDEO' : 'FILE')),
+                                                $document->currentVersion?->storedFile?->humanSize(),
+                                                $document->published_at?->format('d/m/Y'),
+                                            ])->filter()->implode(' · ');
+                                        @endphp
+                                        <p class="truncate font-bold text-brand-ink" title="{{ $document->title }} — {{ $docMeta }}">{{ $document->title }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -163,9 +156,7 @@
             </table>
         </div>
 
-        @if ($documents->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $documents->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$documents" />
     </div>
 
     @if ($showModal && $selectedDocument)
@@ -189,8 +180,7 @@
             <form wire:submit="save" id="access-form" class="grid gap-5">
                 <div class="grid gap-4 border-t border-brand-line pt-4 md:grid-cols-2">
                     <fieldset>
-                        <legend class="admin-label">Đơn vị / tổ chuyên môn <span class="font-normal text-brand-muted">({{ count($departmentIds) }} đã chọn)</span></legend>
-                        <p class="mb-2 text-xs text-brand-muted">Không chọn đơn vị nghĩa là áp dụng toàn công ty.</p>
+                        <legend class="admin-label">Đơn vị / tổ chuyên môn <span class="font-normal text-brand-muted">({{ count($departmentIds) }} đã chọn)</span><span class="ml-1 inline-flex align-middle normal-case text-brand-muted" title="Không chọn đơn vị nghĩa là áp dụng toàn công ty.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Không chọn đơn vị nghĩa là áp dụng toàn công ty.</span></span></legend>
                         <div class="max-h-40 space-y-1 overflow-y-auto rounded-admin border border-brand-line bg-slate-50 p-2">
                             @foreach ($departments as $department)
                                 <label wire:key="access-department-{{ $department->id }}" class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-white">
@@ -207,8 +197,7 @@
                     </fieldset>
 
                     <fieldset>
-                        <legend class="admin-label">Cấp bậc <span class="font-normal text-brand-muted">({{ count($jobGradeIds) }} đã chọn)</span></legend>
-                        <p class="mb-2 text-xs text-brand-muted">Không chọn cấp bậc nghĩa là áp dụng mọi cấp.</p>
+                        <legend class="admin-label">Cấp bậc <span class="font-normal text-brand-muted">({{ count($jobGradeIds) }} đã chọn)</span><span class="ml-1 inline-flex align-middle normal-case text-brand-muted" title="Không chọn cấp bậc nghĩa là áp dụng mọi cấp.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Không chọn cấp bậc nghĩa là áp dụng mọi cấp.</span></span></legend>
                         <div class="max-h-40 space-y-1 overflow-y-auto rounded-admin border border-brand-line bg-slate-50 p-2">
                             @foreach ($jobGrades as $grade)
                                 <label wire:key="access-grade-{{ $grade->id }}" class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-white">
@@ -231,7 +220,7 @@
                 </div>
 
                 <div class="border-t border-brand-line pt-4">
-                    <p class="admin-label">Quyền của quy tắc này</p>
+                    <p class="admin-label">Quyền của quy tắc này<span class="ml-1 inline-flex align-middle normal-case text-brand-muted" title="Quyền tải vẫn chịu giới hạn bởi cài đặt cho phép tải của tài liệu.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Quyền tải vẫn chịu giới hạn bởi cài đặt cho phép tải của tài liệu.</span></span></p>
                     <div class="mt-2 flex flex-wrap gap-2">
                         @foreach ([['canView', 'Xem tài liệu'], ['canDownload', 'Tải xuống'], ['canPrint', 'In']] as [$field, $label])
                             <label class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-brand-line px-3 py-2 text-xs font-semibold has-[:checked]:border-brand-red has-[:checked]:bg-brand-red-tint has-[:checked]:text-brand-red">
@@ -240,7 +229,6 @@
                             </label>
                         @endforeach
                     </div>
-                    <p class="mt-2 text-xs text-brand-muted">Quyền tải vẫn chịu giới hạn bởi cài đặt cho phép tải của tài liệu.</p>
                 </div>
 
                 <div class="max-w-sm">
@@ -256,7 +244,6 @@
                 <div class="mb-3 flex items-center justify-between gap-3">
                     <div>
                         <h4 class="text-sm font-bold">Các quy tắc trong bộ phân quyền</h4>
-                        <p class="mt-0.5 text-xs text-brand-muted">Mỗi quy tắc có thể áp dụng cho nhóm nhân viên và quyền khác nhau.</p>
                     </div>
                     <span class="tag tag-red">{{ $selectedRules->count() }} {{ $selectedRules->count() === 1 ? 'quy tắc' : 'quy tắc' }}</span>
                 </div>
@@ -305,7 +292,7 @@
                         @endforeach
                     </div>
                 @else
-                    <p class="rounded-admin border border-dashed border-brand-line px-3 py-4 text-center text-xs text-brand-muted">Chưa có quy tắc. Tạo quy tắc đầu tiên bằng form ở trên.</p>
+                    <p class="rounded-admin border border-dashed border-brand-line px-3 py-4 text-center text-xs text-brand-muted">Chưa có quy tắc.</p>
                 @endif
             </section>
 

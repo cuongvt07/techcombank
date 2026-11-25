@@ -39,7 +39,7 @@
             đầu trước khi Alpine chạy vẫn có đúng bề rộng mở rộng, không giật layout --}}
        x-bind:style="collapsed ? 'width: 76px; padding-left: 8px; padding-right: 8px;' : ''"
        x-bind:class="ready ? 'transition-[width] duration-200' : ''"
-       class="sticky top-0 flex h-screen w-[260px] shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6">
+       class="sidebar sticky top-0 flex h-screen w-[260px] shrink-0 flex-col overflow-hidden border-r border-brand-line bg-white px-4 py-6">
     <div class="mb-6 flex items-center justify-between gap-2 px-2"
          x-bind:style="collapsed ? 'flex-direction: column; justify-content: center; padding-left: 0; padding-right: 0;' : ''">
         <a href="{{ route('learn.courses') }}" wire:navigate class="block min-w-0" aria-label="Khóa học của tôi">
@@ -63,7 +63,8 @@
         </button>
     </div>
 
-    <nav class="grid gap-1" aria-label="Điều hướng học tập">
+    {{-- sidebar-scroll: màn thấp thì danh sách tự cuộn, thanh cuộn mảnh chỉ hiện khi rê chuột (fb7 mục 5) --}}
+    <nav class="sidebar-scroll -mx-1 grid min-h-0 flex-1 content-start gap-1 overflow-y-auto overflow-x-hidden px-1 pb-4" aria-label="Điều hướng học tập">
         @foreach ($items as $item)
             @continue(! Route::has($item['route']))
             @php $active = request()->routeIs($item['route'] . '*'); @endphp
@@ -74,8 +75,10 @@
                x-bind:aria-label="collapsed ? @js($item['label']) : null"
                x-bind:style="collapsed ? 'justify-content: center; padding-left: 0; padding-right: 0;' : ''"
                @class([
-                   'flex min-h-[44px] items-center gap-3 rounded-user-md px-3.5 text-sm font-bold transition-colors',
-                   'bg-brand-red-tint text-brand-red' => $active,
+                   // Nav sidebar 16px / 500, cao 44px (fb7 mục 2.2 + 5).
+                   // Mục đang chọn: nền đỏ 14% + chữ đỏ + vạch đỏ 3px bên trái (.sidebar-item-active)
+                   'sidebar-item flex min-h-[44px] items-center gap-3 rounded-user-md px-3.5 text-[16px] font-medium transition-colors',
+                   'sidebar-item-active bg-brand-red/[.14] font-semibold text-brand-red' => $active,
                    'text-brand-ink hover:bg-brand-soft' => ! $active,
                ])
                @if ($active) aria-current="page" @endif>
@@ -85,32 +88,9 @@
         @endforeach
     </nav>
 
-    <div class="mt-auto rounded-user-md bg-brand-soft p-4"
-         x-bind:style="collapsed ? 'padding: 8px;' : ''">
-        <div class="flex items-center gap-2.5"
-             x-bind:style="collapsed ? 'justify-content: center;' : ''">
-            <x-user-avatar :employee="auth()->user()?->employee" size="h-9 w-9" text="text-xs" />
-
-            <div class="min-w-0" x-show="! collapsed">
-                <strong class="block truncate text-sm font-bold">
-                    {{ auth()->user()?->employee?->full_name ?? auth()->user()?->name }}
-                </strong>
-                <span class="block truncate text-xs text-brand-muted">
-                    {{ auth()->user()?->employee?->department?->name }}
-                </span>
-            </div>
-        </div>
-
-        <form method="POST" action="{{ route('logout') }}" class="mt-3"
-              x-bind:style="collapsed ? 'display: flex; justify-content: center;' : ''">
-            @csrf
-            <button type="submit"
-                    x-bind:title="collapsed ? 'Đăng xuất' : null"
-                    x-bind:aria-label="collapsed ? 'Đăng xuất' : null"
-                    class="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-brand-red hover:underline">
-                <span x-show="collapsed" x-cloak>@svg('heroicon-o-arrow-right-on-rectangle', 'h-5 w-5')</span>
-                <span x-show="! collapsed">Đăng xuất</span>
-            </button>
-        </form>
-    </div>
+    {{-- Thẻ tài khoản cuối sidebar: bấm mở menu Thông tin cá nhân / Đổi mật khẩu /
+         Đăng xuất (fb7 mục 5). Mobile không có sidebar — menu tương tự ở user-header. --}}
+    <x-account-menu site="user" tone="light" placement="sidebar" :collapsible="true"
+                    class="mt-auto"
+                    :subtitle="auth()->user()?->employee?->department?->name" />
 </aside>

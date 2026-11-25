@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\HasPerPage;
 use App\Livewire\Concerns\HasSearchFilters;
 use App\Livewire\Concerns\ChecksPermissions;
 use App\Models\Course;
@@ -24,6 +25,8 @@ use Livewire\WithPagination;
 class EmployeeManager extends Component
 {
     use HasSearchFilters;
+
+    use HasPerPage;
 
     use ChecksPermissions;
 
@@ -80,6 +83,7 @@ class EmployeeManager extends Component
     {
         return view('livewire.admin.employee-manager', [
             'employees' => $this->employees(),
+            'summary' => $this->summaryLine(),
             'departments' => Department::active()->orderBy('name')->get(),
             'jobTitles' => JobTitle::active()->orderBy('name')->get(),
             'jobGrades' => JobGrade::active()->orderBy('level')->get(),
@@ -311,7 +315,31 @@ class EmployeeManager extends Component
                 ->orWhereHas('jobGrades', fn ($j) => $j->whereKey((int) $this->jobGradeFilter))))
             ->when($this->joinedYearFilter, fn ($q) => $q->whereYear('joined_at', (int) $this->joinedYearFilter))
             ->orderBy('full_name')
-            ->paginate(15);
+            ->paginate($this->perPage());
+    }
+
+    /** Dòng đếm nhanh dưới tiêu đề: "130 nhân sự · 98 chính thức · 20 thử việc · 12 đã nghỉ". */
+    private function summaryLine(): string
+    {
+        $counts = Employee::query()
+            ->selectRaw('employment_status, count(*) as total')
+            ->groupBy('employment_status')
+            ->pluck('total', 'employment_status');
+
+        $parts = [number_format((int) $counts->sum(), 0, ',', '.') . ' nhân sự'];
+
+        foreach ([
+            Employee::STATUS_OFFICIAL => 'chính thức',
+            Employee::STATUS_PROBATION => 'thử việc',
+            Employee::STATUS_SUSPENDED => 'tạm ngưng',
+            Employee::STATUS_RESIGNED => 'đã nghỉ',
+        ] as $status => $label) {
+            if ((int) ($counts[$status] ?? 0) > 0) {
+                $parts[] = (int) $counts[$status] . ' ' . $label;
+            }
+        }
+
+        return implode(' · ', $parts);
     }
 
     /** Các năm có nhân viên vào làm, mới nhất trước — để lọc theo năm vào làm. */

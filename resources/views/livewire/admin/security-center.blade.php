@@ -1,6 +1,5 @@
 <div>
-    <x-admin.page-header title="Trung tâm bảo mật"
-                         subtitle="Cảnh báo bất thường, nhật ký truy cập tài liệu, lịch sử đăng nhập và phiên thiết bị. Cảnh báo được phát hiện tự động ngay khi sự việc xảy ra." />
+    <x-admin.page-header title="Trung tâm bảo mật" />
 
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div class="admin-panel p-3.5">
@@ -25,9 +24,10 @@
         </div>
     </div>
 
-    <div class="admin-panel">
+    {{-- Tab nguồn dữ liệu là một card riêng; bộ lọc và bảng tách thành hai card bên dưới (fb7 mục 4) --}}
+    <div class="admin-panel mb-4">
         {{-- Tab: bốn nguồn dữ liệu cần đối chiếu chéo khi điều tra sự cố --}}
-        <div class="flex flex-wrap gap-1 border-b border-brand-line p-2">
+        <div class="flex flex-wrap gap-1 p-2">
             @foreach ([
                 'alerts' => 'Cảnh báo',
                 'document-logs' => 'Nhật ký tài liệu',
@@ -47,7 +47,7 @@
 
         {{-- Tab con theo bước xử lý: ghi nhận / đóng là cảnh báo tự chuyển tab --}}
         @if ($tab === 'alerts')
-            <div class="flex flex-wrap gap-6 border-b border-brand-line px-4" role="tablist" aria-label="Trạng thái cảnh báo">
+            <div class="flex flex-wrap gap-6 border-t border-brand-line px-4" role="tablist" aria-label="Trạng thái cảnh báo">
                 @foreach (\App\Livewire\Admin\SecurityCenter::ALERT_TABS as $key => [$label])
                     @php $activeSub = $alertTab === $key; @endphp
                     <button type="button" role="tab" aria-selected="{{ $activeSub ? 'true' : 'false' }}"
@@ -68,66 +68,44 @@
             </div>
         @endif
 
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[220px] flex-1">
-                <label for="f-security-center-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-security-center-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                       placeholder="Tìm theo tên nhân viên, tài liệu hoặc IP...">
-            </div>
+    </div>
 
-            @if ($tab === 'document-logs')
-                <div>
-                    <label for="f-security-center-actionFilter-2" class="admin-label">Hành động</label>
-                    <select id="f-security-center-actionFilter-2" wire:model.live="actionFilter" class="admin-input w-auto min-w-[170px]">
-                        <option value="">Mọi hành động</option>
-                        <option value="view">Xem</option>
-                        <option value="download">Tải xuống</option>
-                        <option value="print">In</option>
-                        <option value="stream">Xem video</option>
-                        <option value="denied">Bị từ chối</option>
-                    </select>
-                </div>
-            @elseif ($tab === 'logins')
-                <div>
-                    <label for="f-security-center-statusFilter-3" class="admin-label">Kết quả đăng nhập</label>
-                    <select id="f-security-center-statusFilter-3" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                        <option value="">Mọi kết quả</option>
-                        <option value="success">Thành công</option>
-                        <option value="failed">Thất bại</option>
-                        <option value="blocked">Bị chặn</option>
-                    </select>
-                </div>
-            @elseif ($tab === 'devices')
-                <div>
-                    <label for="f-security-center-statusFilter-4" class="admin-label">Trạng thái phiên</label>
-                    <select id="f-security-center-statusFilter-4" wire:model.live="statusFilter" class="admin-input w-auto min-w-[170px]">
-                        <option value="">Mọi phiên</option>
-                        <option value="active">Đang hoạt động</option>
-                        <option value="revoked">Đã thu hồi</option>
-                    </select>
-                </div>
-            @endif
+    <x-admin.list-toolbar placeholder="Tìm theo tên nhân viên, tài liệu hoặc IP...">
+        @if ($tab === 'document-logs')
+            <x-admin.list-filter label="Hành động" model="actionFilter">
+                <option value="">Tất cả</option>
+                <option value="view">Xem</option>
+                <option value="download">Tải xuống</option>
+                <option value="print">In</option>
+                <option value="stream">Xem video</option>
+                <option value="denied">Bị từ chối</option>
+            </x-admin.list-filter>
+        @elseif ($tab === 'logins')
+            <x-admin.list-filter label="Kết quả" model="statusFilter">
+                <option value="">Tất cả</option>
+                <option value="success">Thành công</option>
+                <option value="failed">Thất bại</option>
+                <option value="blocked">Bị chặn</option>
+            </x-admin.list-filter>
+        @elseif ($tab === 'devices')
+            <x-admin.list-filter label="Trạng thái phiên" model="statusFilter">
+                <option value="">Tất cả</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="revoked">Đã thu hồi</option>
+            </x-admin.list-filter>
+        @endif
 
-            @if (in_array($tab, ['document-logs', 'logins'], true))
-                <div>
-                    <label for="f-security-center-days-5" class="admin-label">Khoảng thời gian</label>
-                    <select id="f-security-center-days-5" wire:model.live="days" class="admin-input w-auto min-w-[150px]">
-                        <option value="1">24 giờ qua</option>
-                        <option value="7">7 ngày qua</option>
-                        <option value="30">30 ngày qua</option>
-                        <option value="90">90 ngày qua</option>
-                    </select>
-                </div>
-            @endif
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
-        </div>
+        @if (in_array($tab, ['document-logs', 'logins'], true))
+            <x-admin.list-filter label="Thời gian" model="days">
+                <option value="1">24 giờ qua</option>
+                <option value="7">7 ngày qua</option>
+                <option value="30">30 ngày qua</option>
+                <option value="90">90 ngày qua</option>
+            </x-admin.list-filter>
+        @endif
+    </x-admin.list-toolbar>
 
+    <div class="admin-panel">
         <div class="overflow-x-auto">
             @if ($tab === 'alerts')
                 <table class="admin-table">
@@ -157,13 +135,12 @@
                                     <span class="tag {{ $cls }}">{{ $label }}</span>
                                 </td>
                                 <td>
+                                    {{-- Chi tiết cảnh báo: bỏ dòng chữ nhỏ dưới tiêu đề, xem qua tooltip hoặc bấm mở --}}
                                     <button type="button" wire:click="viewAlert({{ $alert->id }})"
+                                            @if ($alert->detail) title="{{ $alert->detail }}" @endif
                                             class="text-left font-bold hover:text-brand-red">
                                         {{ $alert->title }}
                                     </button>
-                                    @if ($alert->detail)
-                                        <p class="mt-0.5 max-w-md truncate text-xs text-brand-muted">{{ $alert->detail }}</p>
-                                    @endif
                                 </td>
                                 <td>
                                     <div class="min-w-0">
@@ -363,9 +340,7 @@
             @endif
         </div>
 
-        @if ($rows->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $rows->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$rows" />
     </div>
 
     {{-- Chi tiết cảnh báo --}}

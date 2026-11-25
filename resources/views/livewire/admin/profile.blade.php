@@ -1,11 +1,9 @@
 <div>
-    <x-admin.page-header title="Thông tin cá nhân"
-                         subtitle="Cập nhật thông tin tài khoản quản trị và mật khẩu của bạn." />
+    <x-admin.page-header title="Thông tin cá nhân" />
 
     <div class="grid gap-5 xl:grid-cols-2">
         <section class="admin-panel p-5 sm:p-6">
-            <h2 class="text-base font-bold">Thông tin cá nhân</h2>
-            <p class="mt-1 text-sm text-brand-muted">Tên và email được đồng bộ với hồ sơ nhân sự nếu tài khoản có liên kết.</p>
+            <h2 class="text-base font-bold">Thông tin cá nhân<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Tên và email được đồng bộ với hồ sơ nhân sự nếu tài khoản có liên kết.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Tên và email được đồng bộ với hồ sơ nhân sự nếu tài khoản có liên kết.</span></span></h2>
 
             <form wire:submit="saveProfile" class="mt-5 grid gap-4">
                 <div>
@@ -37,9 +35,8 @@
             </form>
         </section>
 
-        <section class="admin-panel p-5 sm:p-6">
-            <h2 class="text-base font-bold">Đổi mật khẩu</h2>
-            <p class="mt-1 text-sm text-brand-muted">Nhập mật khẩu hiện tại để xác nhận thay đổi.</p>
+        <section id="doi-mat-khau" class="scroll-mt-24 admin-panel p-5 sm:p-6">
+            <h2 class="text-base font-bold">Đổi mật khẩu<span class="ml-1 inline-flex align-middle normal-case tracking-normal text-brand-muted" title="Nhập mật khẩu hiện tại để xác nhận thay đổi.">@svg('heroicon-o-information-circle', 'h-3.5 w-3.5')<span class="sr-only">Nhập mật khẩu hiện tại để xác nhận thay đổi.</span></span></h2>
 
             <form wire:submit="changePassword" class="mt-5 grid gap-4">
                 <div>

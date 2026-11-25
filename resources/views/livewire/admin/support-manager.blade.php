@@ -1,6 +1,6 @@
 <div>
-    <x-admin.page-header title="Phiếu hỗ trợ"
-                         subtitle="Yêu cầu nhân viên gửi từ mục Hỗ trợ — nhận xử lý, phản hồi và đóng phiếu." />
+    {{-- Bỏ dòng mô tả dưới tiêu đề (fb7 mục 7): bốn thẻ số liệu bên dưới đã là dòng đếm nhanh --}}
+    <x-admin.page-header title="Phiếu hỗ trợ" />
 
     {{-- Bốn chỉ số: phiếu chưa xử lý tô vàng để nhận ra việc còn tồn --}}
     <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -22,44 +22,25 @@
         </button>
     </div>
 
+    <x-admin.list-toolbar placeholder="Tìm theo mã phiếu, tiêu đề, tên hoặc mã nhân viên...">
+        <x-admin.list-filter label="Trạng thái" model="statusFilter">
+            <option value="open">Còn mở</option>
+            <option value="">Tất cả</option>
+            <option value="new">Mới</option>
+            <option value="in_progress">Đang xử lý</option>
+            <option value="resolved">Đã giải quyết</option>
+            <option value="closed">Đã đóng</option>
+        </x-admin.list-filter>
+
+        <x-admin.list-filter label="Mức ưu tiên" model="priorityFilter">
+            <option value="">Tất cả</option>
+            <option value="high">Gấp</option>
+            <option value="normal">Bình thường</option>
+            <option value="low">Thấp</option>
+        </x-admin.list-filter>
+    </x-admin.list-toolbar>
+
     <div class="admin-panel">
-        <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-            <div class="min-w-[240px] flex-1">
-                <label for="f-support-manager-search-0" class="admin-label">Tìm kiếm</label>
-                <input id="f-support-manager-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                       placeholder="Tìm theo mã phiếu, tiêu đề, tên hoặc mã nhân viên...">
-            </div>
-
-            <div>
-                <label for="f-support-manager-statusFilter-1" class="admin-label">Trạng thái</label>
-                <select id="f-support-manager-statusFilter-1" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                    <option value="open">Còn mở</option>
-                    <option value="">Tất cả</option>
-                    <option value="new">Mới</option>
-                    <option value="in_progress">Đang xử lý</option>
-                    <option value="resolved">Đã giải quyết</option>
-                    <option value="closed">Đã đóng</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="f-support-manager-priorityFilter-2" class="admin-label">Mức ưu tiên</label>
-                <select id="f-support-manager-priorityFilter-2" wire:model.live="priorityFilter" class="admin-input w-auto min-w-[140px]">
-                    <option value="">Mọi mức ưu tiên</option>
-                    <option value="high">Gấp</option>
-                    <option value="normal">Bình thường</option>
-                    <option value="low">Thấp</option>
-                </select>
-            </div>
-            <div class="ml-auto flex items-end gap-2">
-                <button type="button" wire:click="applySearch" class="admin-btn">
-                    @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                    Tìm kiếm
-                </button>
-                <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-            </div>
-        </div>
-
         <div class="overflow-x-auto">
             <table class="admin-table">
                 <thead>
@@ -143,9 +124,7 @@
             </table>
         </div>
 
-        @if ($requests->hasPages())
-            <div class="border-t border-brand-line p-4">{{ $requests->links() }}</div>
-        @endif
+        <x-admin.list-pagination :paginator="$requests" />
     </div>
 
     {{-- Chi tiết + phản hồi --}}

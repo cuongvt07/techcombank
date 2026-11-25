@@ -1,8 +1,7 @@
 <div class="grid gap-6">
     <section>
         <div class="mb-3">
-            <h1 class="text-lg font-bold">Kết quả bài kiểm tra</h1>
-            <p class="mt-1 text-sm text-brand-muted">Mỗi bài hiển thị lượt có điểm cao nhất. Bấm vào để mở khóa học có bài kiểm tra đó.</p>
+            <h1 class="text-lg font-bold">Kết quả bài kiểm tra<span class="ml-1 inline-flex align-middle font-normal text-brand-muted" title="Mỗi bài hiển thị lượt có điểm cao nhất. Bấm vào để mở khóa học có bài kiểm tra đó.">@svg('heroicon-o-information-circle', 'h-4 w-4')<span class="sr-only">Mỗi bài hiển thị lượt có điểm cao nhất. Bấm vào để mở khóa học có bài kiểm tra đó.</span></span></h1>
         </div>
 
         <div class="user-card overflow-hidden">
@@ -48,8 +47,7 @@
 
     <section>
         <div class="mb-3">
-            <h2 class="text-lg font-bold">Chứng nhận hoàn thành</h2>
-            <p class="mt-1 text-sm text-brand-muted">Mở chứng nhận để xem, in hoặc lưu PDF.</p>
+            <h2 class="text-lg font-bold">Chứng nhận hoàn thành<span class="ml-1 inline-flex align-middle font-normal text-brand-muted" title="Mở chứng nhận để xem, in hoặc lưu PDF.">@svg('heroicon-o-information-circle', 'h-4 w-4')<span class="sr-only">Mở chứng nhận để xem, in hoặc lưu PDF.</span></span></h2>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">

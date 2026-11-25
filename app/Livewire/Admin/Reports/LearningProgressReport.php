@@ -315,7 +315,7 @@ class LearningProgressReport extends Component
             $chips['progress'] = 'Tiến độ: ' . ($this->progressMin !== '' ? $this->progressMin : '0') . '–' . ($this->progressMax !== '' ? $this->progressMax : '100') . '%';
         }
         if ($this->source !== '') {
-            $chips['source'] = 'Nguồn giao: ' . ($this->source === 'rule' ? 'Rule tự động' : 'Giao tay');
+            $chips['source'] = 'Nguồn giao: ' . (LearningProgressReportService::SOURCE_LABELS[$this->source] ?? $this->source);
         }
         if ($this->excludeResigned) {
             $chips['excludeResigned'] = 'Bỏ nhân viên đã nghỉ';
@@ -339,7 +339,7 @@ class LearningProgressReport extends Component
         if (! in_array($this->courseType, ['', 'mandatory', 'elective'], true)) {
             $this->courseType = '';
         }
-        if (! in_array($this->source, ['', 'rule', 'manual'], true)) {
+        if ($this->source !== '' && ! isset(LearningProgressReportService::SOURCE_LABELS[$this->source])) {
             $this->source = '';
         }
         foreach (['progressMin', 'progressMax'] as $prop) {
@@ -374,7 +374,7 @@ class LearningProgressReport extends Component
             'job_title' => $row->job_title_name,
             'course' => $row->course_title,
             'type' => self::typeLabel($row),
-            'source' => $row->course_assignment_rule_id ? 'Rule tự động' : 'Giao tay',
+            'source' => LearningProgressReportService::sourceLabel($row),
             'assigned' => $date($row->assigned_at),
             'due' => $row->due_date?->format('d/m/Y') ?? '',
             'completed' => $date($row->completed_at),

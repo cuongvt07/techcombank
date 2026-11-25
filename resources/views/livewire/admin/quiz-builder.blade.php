@@ -1,8 +1,7 @@
 <div>
     @if (! $editingQuiz)
         {{-- Danh sách bài kiểm tra --}}
-        <x-admin.page-header title="Bài kiểm tra"
-                             subtitle="Ngân hàng câu hỏi, cấu hình đề thi và số lần làm bài.">
+        <x-admin.page-header title="Bài kiểm tra" :subtitle="$summary">
             <x-slot:actions>
                 @can('quizzes.create')
                 <button type="button" wire:click="createQuiz" class="admin-btn">
@@ -13,38 +12,23 @@
             </x-slot:actions>
         </x-admin.page-header>
 
+        <x-admin.list-toolbar placeholder="Tìm theo tên bài kiểm tra...">
+            <x-admin.list-filter label="Khóa học">
+                <x-admin.searchable-select id="f-quiz-builder-courseFilter" label="Khóa học" model="courseFilter"
+                    placeholder="Tất cả"
+                    :options="collect([['value' => 'none', 'label' => 'Không thuộc khóa nào']])
+                        ->merge($courses->map(fn ($c) => ['value' => $c->id, 'label' => $c->title]))->all()"
+                    :selected="$courseFilter" emptyLabel="Tất cả" />
+            </x-admin.list-filter>
+
+            <x-admin.list-filter label="Trạng thái" model="statusFilter">
+                <option value="">Tất cả</option>
+                <option value="draft">Nháp</option>
+                <option value="published">Đã xuất bản</option>
+            </x-admin.list-filter>
+        </x-admin.list-toolbar>
+
         <div class="admin-panel">
-            <div class="flex flex-wrap items-end gap-3 border-b border-brand-line p-4">
-                <div class="min-w-[240px] flex-1">
-                    <label for="f-quiz-builder-search-0" class="admin-label">Tìm kiếm</label>
-                    <input id="f-quiz-builder-search-0" type="search" wire:model="search" wire:keydown.enter="applySearch" class="admin-input"
-                           placeholder="Tìm theo tên bài kiểm tra...">
-                </div>
-
-                <div class="min-w-[240px]">
-                    <x-admin.searchable-select id="f-quiz-builder-courseFilter" label="Khóa học" model="courseFilter"
-                        :options="collect([['value' => 'none', 'label' => 'Không thuộc khóa nào']])
-                            ->merge($courses->map(fn ($c) => ['value' => $c->id, 'label' => $c->title]))->all()"
-                        :selected="$courseFilter" emptyLabel="Mọi khóa học" />
-                </div>
-
-                <div>
-                    <label for="f-quiz-builder-statusFilter" class="admin-label">Trạng thái</label>
-                    <select id="f-quiz-builder-statusFilter" wire:model.live="statusFilter" class="admin-input w-auto min-w-[160px]">
-                        <option value="">Mọi trạng thái</option>
-                        <option value="draft">Nháp</option>
-                        <option value="published">Đã xuất bản</option>
-                    </select>
-                </div>
-                <div class="ml-auto flex items-end gap-2">
-                    <button type="button" wire:click="applySearch" class="admin-btn">
-                        @svg('heroicon-o-magnifying-glass', 'h-4 w-4')
-                        Tìm kiếm
-                    </button>
-                    <button type="button" wire:click="resetFilters" class="admin-btn-secondary">Đặt lại</button>
-                </div>
-            </div>
-
             <div class="overflow-x-auto">
                 <table class="admin-table">
                     <thead>
@@ -69,12 +53,11 @@
                                 </td>
                                 <td class="text-brand-muted">{{ $quiz->course?->title ?? 'Dùng chung' }}</td>
                                 <td>
-                                    <span class="tag">{{ $quiz->active_questions_count }} câu</span>
-                                    @if ($quiz->questions_per_attempt)
-                                        <span class="mt-1 block text-[11px] text-brand-muted">
-                                            rút {{ $quiz->questions_per_attempt }}/lượt
-                                        </span>
-                                    @endif
+                                    {{-- Số câu rút mỗi lượt: chuyển từ dòng chữ nhỏ bên dưới vào tooltip (fb7 mục 7) --}}
+                                    <span class="tag"
+                                          @if ($quiz->questions_per_attempt) title="Mỗi lượt rút ngẫu nhiên {{ $quiz->questions_per_attempt }} câu" @endif>
+                                        {{ $quiz->active_questions_count }} câu{{ $quiz->questions_per_attempt ? ' · rút ' . $quiz->questions_per_attempt : '' }}
+                                    </span>
                                 </td>
                                 <td class="font-bold">{{ $quiz->pass_score }}%</td>
                                 <td class="text-brand-muted">
@@ -110,9 +93,7 @@
                 </table>
             </div>
 
-            @if ($quizzes->hasPages())
-                <div class="border-t border-brand-line p-4">{{ $quizzes->links() }}</div>
-            @endif
+            <x-admin.list-pagination :paginator="$quizzes" />
         </div>
     @else
         {{-- Màn hình soạn câu hỏi của một bài kiểm tra --}}
@@ -124,8 +105,7 @@
             </button>
         </div>
 
-        <x-admin.page-header :title="$editingQuiz->title"
-                             subtitle="Ngân hàng câu hỏi. Nhập trực tiếp hoặc import từ Excel.">
+        <x-admin.page-header :title="$editingQuiz->title">
             <x-slot:actions>
                 <button type="button" wire:click="downloadTemplate" class="admin-btn-secondary">
                     @svg('heroicon-o-arrow-down-tray', 'h-4 w-4')
