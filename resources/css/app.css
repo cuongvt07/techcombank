@@ -133,16 +133,10 @@
     }
 
     /* Header cột: 13px / 700, viết hoa, tracking .05em — một trong hai chỗ
-       duy nhất còn giữ uppercase (cùng nhãn nhóm sidebar).
-       Dính (sticky) ở đầu khung cuộn của bảng: xem khối "Header bảng dính" bên dưới.
-       Đường kẻ dưới dùng inset shadow thay cho border-bottom vì với
-       border-collapse, border của ô sticky bị "bỏ lại" khi cuộn. */
+       duy nhất còn giữ uppercase (cùng nhãn nhóm sidebar). */
     .admin-table th {
         @apply h-11 bg-[#fafbfc] px-3.5 text-left text-[13px] font-bold uppercase
                tracking-[.05em] text-brand-muted;
-        position: sticky;
-        top: 0;
-        z-index: 2;
         box-shadow: inset 0 -1px 0 theme('colors.brand.line');
         overflow-wrap: anywhere;
         vertical-align: middle;
@@ -302,37 +296,49 @@
     }
 }
 
-/*
- * === Header bảng dính (fb7) ===
- * Mọi data grid khi cuộn vẫn thấy tên cột.
- *
- * Vì sao không chỉ "th { position: sticky }": bảng nào cũng nằm trong khung
- * .overflow-x-auto (để cuộn ngang trên màn hẹp). overflow-x khác visible buộc
- * overflow-y thành auto => khung đó là "scroll container" gần nhất của th, nên
- * th chỉ dính được theo khung này chứ không theo trang. Khung lại cao đúng bằng
- * bảng nên không bao giờ cuộn dọc => sticky vô tác dụng.
- *
- * Cách làm: giới hạn chiều cao khung cuộn của bảng theo chiều cao màn hình.
- * Bảng ngắn hiển thị nguyên như cũ; bảng dài cuộn trong khung, th dính ở đỉnh
- * khung (và cột "đóng băng" bên trái — nếu có — dùng chung khung này).
- * Chọn khung bằng :has() nên không phải sửa từng view; view mới có thể gắn
- * thẳng class .data-grid-scroll cho khung bọc bảng.
- * Đặt ngoài @layer để Tailwind không lọc bỏ selector chưa dùng.
- */
+/* Data grid cuộn ngang trong khi chiều dọc vẫn thuộc về trang. */
 .overflow-x-auto:has(> .admin-table),
 .overflow-auto:has(> .admin-table),
 .data-scroll:has(> .admin-table),
 .data-grid-scroll {
-    max-height: max(320px, calc(100vh - 140px));
-    max-height: max(320px, calc(100dvh - 140px));
-    overflow: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 
-/* Ma trận phân quyền không dùng .admin-table: cho header dính riêng */
+/* Ma trận phân quyền dùng cùng header nổi với các bảng dữ liệu. */
 .permission-grid thead th {
-    position: sticky;
+    background: #fafbfc;
+    box-shadow: inset 0 -1px 0 #e6e9ed;
+}
+
+/* Header sao chép được JS đặt cố định ở mép trên và cắt theo vùng cuộn ngang. */
+.data-grid-sticky-header {
+    position: fixed;
     top: 0;
-    z-index: 2;
+    z-index: 60;
+    overflow: hidden;
+    pointer-events: none;
+    background: #fafbfc;
+    box-shadow: 0 1px 0 #e6e9ed;
+}
+
+.data-grid-sticky-header table {
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.data-grid-sticky-header th {
+    height: 44px;
+    padding: 0 14px;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
     background: #fafbfc;
     box-shadow: inset 0 -1px 0 #e6e9ed;
 }
