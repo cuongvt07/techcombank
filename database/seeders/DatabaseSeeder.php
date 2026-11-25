@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
             // Bổ sung quy mô: ~120 nhân viên, 12 phòng ban, hợp đồng đủ trạng thái
             DemoBulkSeeder::class,
 
+            // Nâng quy mô lên ~1.050 nhân sự (insert theo lô) cho Tổng quan có số thực tế
+            DemoWorkforceSeeder::class,
+
             // Bộ khóa học đầy đủ nội dung, video nhúng YouTube, rule gán tự động
             DemoCourseSeeder::class,
 

@@ -1,7 +1,7 @@
 @props([
     // [['key' => 'completed', 'label' => 'Hoàn thành', 'value' => 1842, 'color' => '#141821', 'danger' => false], ...]
     'data' => [],
-    'size' => 132,
+    'size' => 140,
     'centerLabel' => '',
     'clickAction' => null,
     'activeKey' => null,
@@ -52,9 +52,9 @@
         </svg>
         <div class="pointer-events-none absolute inset-0 grid place-items-center text-center">
             <div>
-                <strong class="block text-xl font-bold leading-none">{{ number_format($total, 0, ',', '.') }}</strong>
+                <strong class="block text-[22px] font-bold leading-none tabular-nums">{{ number_format($total, 0, ',', '.') }}</strong>
                 @if ($centerLabel)
-                    <span class="mt-0.5 block text-[10px] text-brand-muted">{{ $centerLabel }}</span>
+                    <span class="mt-1 block text-[10.5px] leading-tight text-brand-muted">{{ $centerLabel }}</span>
                 @endif
             </div>
         </div>
@@ -65,22 +65,24 @@
             <li class="flex items-end gap-2.5 border-b border-brand-line px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-muted">
                 <span class="w-2.5 shrink-0"></span>
                 <span class="min-w-0 flex-1 truncate">{{ $headers['label'] ?? '' }}</span>
-                <span class="w-16 shrink-0 text-right">{{ $headers['value'] ?? '' }}</span>
-                <span class="w-14 shrink-0 text-right">{{ $headers['percent'] ?? '' }}</span>
+                <span class="w-20 shrink-0 whitespace-nowrap text-right">{{ $headers['value'] ?? '' }}</span>
+                <span class="w-16 shrink-0 whitespace-nowrap text-right">{{ $headers['percent'] ?? '' }}</span>
             </li>
         @endif
         @foreach ($segments as $s)
             @php $danger = ! empty($s['danger']); @endphp
-            <li @if ($clickAction && isset($s['key'])) wire:click="{{ $clickAction }}('{{ $s['key'] }}')" role="button" tabindex="0" @endif
+            <li @if ($clickAction && isset($s['key'])) wire:click="{{ $clickAction }}('{{ $s['key'] }}')" wire:keydown.enter="{{ $clickAction }}('{{ $s['key'] }}')"
+                    role="button" tabindex="0" aria-pressed="{{ $activeKey === $s['key'] ? 'true' : 'false' }}"
+                    aria-label="{{ $s['label'] }}: {{ number_format($s['value'], 0, ',', '.') }} ({{ $fmtPct($s['percent']) }}) — bấm để lọc bảng" @endif
                 @class([
-                    'flex items-center gap-2.5 rounded-admin-sm px-1 py-0.5 text-[13px]',
+                    'flex items-center gap-2.5 rounded-admin-sm px-1 py-1 text-[13px]',
                     'cursor-pointer hover:bg-brand-soft' => $clickAction,
-                    'bg-brand-red-tint' => $activeKey && $activeKey === ($s['key'] ?? null),
+                    'bg-brand-soft font-semibold ring-1 ring-brand-line' => $activeKey && $activeKey === ($s['key'] ?? null),
                 ])>
                 <span class="h-2.5 w-2.5 shrink-0" style="background: {{ $s['color'] }}"></span>
                 <span @class(['min-w-0 flex-1 truncate', 'font-semibold text-brand-red' => $danger])>{{ $s['label'] }}</span>
-                <span @class(['w-16 shrink-0 text-right font-semibold tabular-nums', 'text-brand-red' => $danger])>{{ number_format($s['value'], 0, ',', '.') }}</span>
-                <span @class(['w-14 shrink-0 text-right tabular-nums', 'text-brand-red' => $danger, 'text-brand-muted' => ! $danger])>{{ $fmtPct($s['percent']) }}</span>
+                <span @class(['w-20 shrink-0 text-right font-semibold tabular-nums', 'text-brand-red' => $danger])>{{ number_format($s['value'], 0, ',', '.') }}</span>
+                <span @class(['w-16 shrink-0 text-right tabular-nums', 'text-brand-red' => $danger, 'text-brand-muted' => ! $danger])>{{ $fmtPct($s['percent']) }}</span>
             </li>
         @endforeach
     </ul>

@@ -16,14 +16,16 @@
 <div {{ $attributes }}>
     <span class="admin-label">{{ $label }}</span>
     <div class="flex flex-wrap items-center gap-2">
-        <div class="inline-flex max-w-full flex-wrap overflow-hidden rounded-admin border border-brand-line" role="group" aria-label="{{ $label }}">
+        {{-- Tab kỳ: nền xám nhạt, tab đang chọn nền trắng + chữ đỏ + bóng nhẹ (fb7 mục 3.3) --}}
+        <div class="inline-flex max-w-full flex-wrap gap-0.5 rounded-admin p-[3px]" style="background: #eceef2" role="group" aria-label="{{ $label }}">
             @foreach ($options as $key => $text)
                 <button type="button" wire:click="setPreset('{{ $key }}')"
                         aria-pressed="{{ $preset === $key ? 'true' : 'false' }}"
+                        @if ($preset === $key) style="box-shadow: 0 1px 2px rgba(17, 22, 28, .12)" @endif
                         @class([
-                            'h-10 whitespace-nowrap border-l border-brand-line px-3 text-[13px] first:border-l-0 transition-colors',
-                            'bg-brand-ink font-semibold text-white' => $preset === $key,
-                            'bg-white text-brand-ink hover:bg-brand-soft' => $preset !== $key,
+                            'h-[34px] whitespace-nowrap rounded-[8px] px-3 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red',
+                            'bg-white font-semibold text-brand-red' => $preset === $key,
+                            'text-[#5A6572] hover:text-brand-ink' => $preset !== $key,
                         ])>{{ $text }}</button>
             @endforeach
         </div>

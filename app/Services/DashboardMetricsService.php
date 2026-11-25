@@ -51,6 +51,12 @@ class DashboardMetricsService
     /** Khóa cần can thiệp chỉ xét khóa có ít nhất từng này lượt ghi danh. */
     public const COURSE_MIN_ENROLLMENTS = 5;
 
+    /** Cảnh báo "quá hạn khóa bắt buộc trên N ngày". */
+    public const LONG_OVERDUE_DAYS = 30;
+
+    /** Cảnh báo chứng nhận / khóa tuân thủ sắp hết hạn trong N ngày. */
+    public const EXPIRING_DAYS = 14;
+
     // ---- Phạm vi dùng chung -------------------------------------------------
 
     /** Lượt ghi danh thỏa bộ lọc (chưa giới hạn theo kỳ). Bảng có alias en / e / c. */
@@ -82,12 +88,23 @@ class DashboardMetricsService
         return $query;
     }
 
-    /** Lượt còn mở ở một thời điểm trong kỳ: giao trước cuối kỳ, chưa xong trước đầu kỳ. */
+    /**
+     * Lượt thuộc kỳ: giao trước cuối kỳ và (chưa xong trước đầu kỳ HOẶC có hạn rơi vào kỳ).
+     *
+     * Vế "hạn rơi vào kỳ" giữ cho donut / tiến độ đơn vị cùng mẫu số với KPI "Hoàn thành
+     * đúng hạn" (tính trên lượt có hạn trong kỳ): trước đây lượt xong sớm trước đầu kỳ
+     * nhưng hạn nằm trong kỳ được KPI đếm là "đúng hạn" mà donut lại loại ra, nên KPI
+     * báo 100/459 trong khi donut và đơn vị đều 0% hoàn thành.
+     */
     public function applyOpenDuring(Builder|EloquentBuilder $query, ReportPeriod $period): Builder|EloquentBuilder
     {
+        [$startDay, $endDay] = $period->dateRange();
+
         return $query
             ->whereRaw('COALESCE(en.assigned_at, en.created_at) <= ?', [$period->to()])
-            ->where(fn ($q) => $q->whereNull('en.completed_at')->orWhere('en.completed_at', '>=', $period->from()));
+            ->where(fn ($q) => $q->whereNull('en.completed_at')
+                ->orWhere('en.completed_at', '>=', $period->from())
+                ->orWhereBetween('en.due_date', [$startDay, $endDay]));
     }
 
     /** Biểu thức SQL trạng thái hiển thị của một lượt (cần bind ngày hôm nay). */
@@ -403,6 +420,59 @@ class DashboardMetricsService
         ];
     }
 
+    /**
+     * Hai cảnh báo nghiệp vụ đào tạo trên đầu trang (theo bộ lọc nhân sự / đơn vị /
+     * loại khóa, không theo kỳ — đây là tình trạng hiện tại):
+     *
+     * - overdue: lượt khóa BẮT BUỘC chưa hoàn thành, quá hạn trên LONG_OVERDUE_DAYS ngày
+     *   (số nhân viên + số lượt).
+     * - compliance: khóa bắt buộc có chứng nhận hết hiệu lực (certificates.valid_until)
+     *   trong EXPIRING_DAYS ngày tới. Hệ thống hiện chưa cấu hình thời hạn chứng nhận
+     *   (valid_until luôn trống) nên khi không có chứng nhận nào sắp hết hạn, dùng chỉ báo
+     *   tương đương: khóa bắt buộc có lượt chưa xong sẽ đến hạn trong EXPIRING_DAYS ngày.
+     *
+     * @return array{overdue: array{employees: int, enrollments: int}, compliance: array{kind: string, courses: int, items: int}}
+     */
+    public function trainingAlerts(DashboardFilter $f): array
+    {
+        $tz = ReportPeriod::TIMEZONE;
+        $today = DashboardFilter::today();
+        $cutoff = now($tz)->subDays(self::LONG_OVERDUE_DAYS)->toDateString();
+        $horizon = now($tz)->addDays(self::EXPIRING_DAYS)->toDateString();
+
+        $overdue = $this->enrollmentScope($f)
+            ->where('en.is_mandatory', true)
+            ->where('en.status', '!=', Enrollment::STATUS_COMPLETED)
+            ->whereNotNull('en.due_date')
+            ->where('en.due_date', '<', $cutoff)
+            ->selectRaw('COUNT(DISTINCT en.employee_id) as employees, COUNT(*) as enrollments')
+            ->first();
+
+        $certificates = $this->enrollmentScope($f)
+            ->where('en.is_mandatory', true)
+            ->join('certificates as ce', 'ce.enrollment_id', '=', 'en.id')
+            ->whereBetween('ce.valid_until', [$today, $horizon])
+            ->selectRaw('COUNT(DISTINCT en.course_id) as courses, COUNT(*) as items')
+            ->first();
+
+        if ((int) ($certificates->items ?? 0) > 0) {
+            $compliance = ['kind' => 'certificate', 'courses' => (int) $certificates->courses, 'items' => (int) $certificates->items];
+        } else {
+            $dueSoon = $this->enrollmentScope($f)
+                ->where('en.is_mandatory', true)
+                ->where('en.status', '!=', Enrollment::STATUS_COMPLETED)
+                ->whereBetween('en.due_date', [$today, $horizon])
+                ->selectRaw('COUNT(DISTINCT en.course_id) as courses, COUNT(*) as items')
+                ->first();
+            $compliance = ['kind' => 'due_soon', 'courses' => (int) ($dueSoon->courses ?? 0), 'items' => (int) ($dueSoon->items ?? 0)];
+        }
+
+        return [
+            'overdue' => ['employees' => (int) ($overdue->employees ?? 0), 'enrollments' => (int) ($overdue->enrollments ?? 0)],
+            'compliance' => $compliance,
+        ];
+    }
+
     // ---- Biểu đồ ------------------------------------------------------------
 
     /**
@@ -536,8 +606,7 @@ class DashboardMetricsService
         }
 
         return $query
-            ->with(['employee:id,employee_code,full_name,department_id', 'employee.department:id,name,parent_id',
-                'employee.department.parent:id,name', 'course:id,title'])
+            ->with(['employee:id,employee_code,full_name,department_id', 'employee.department:id,name', 'course:id,title'])
             ->orderByRaw('en.due_date IS NULL')
             ->orderBy('en.due_date')
             ->orderBy('e.employee_code');

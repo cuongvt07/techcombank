@@ -14,8 +14,16 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Hoạt động rải đều trong 90 ngày gần nhất (tính tới lúc chạy) để Tổng quan và
- * 5 trang Báo cáo có số liệu có ý nghĩa với kỳ 7/30/90 ngày.
+ * Hoạt động rải trong 180 ngày (học tập) / 90 ngày (tài liệu, đăng nhập, cảnh báo,
+ * hỗ trợ) gần nhất, tính tới lúc chạy, để Tổng quan và 5 trang Báo cáo có số liệu
+ * có ý nghĩa với kỳ 7/30 ngày/quý và kỳ so sánh liền trước.
+ *
+ * Mọi mốc tính tương đối với now() lúc chạy: dữ liệu "già" dần theo thời gian (sau
+ * vài tuần kỳ 30 ngày gần như trống, mọi lượt dở thành quá hạn rất lâu) — chạy lại
+ * seeder này trước khi demo. Phân bố trạng thái nhắm theo góp ý (bảng 1.2) cho kỳ 30
+ * ngày: hoàn thành ~65%, đang học ~19%, chưa bắt đầu ~6%, quá hạn ~9% (5–45 ngày);
+ * tiến độ theo đơn vị ~50–88% (mỗi đơn vị một mức chăm chỉ); giờ học được hiệu chỉnh
+ * ~9,6 giờ/học viên hoạt động trong 30 ngày.
  *
  * Khác DemoActivitySeeder (đi qua service, dữ liệu dồn vào vài ngày), seeder này
  * insert theo lô với mốc thời gian tự dựng — vì service luôn đóng dấu now(), không
@@ -32,6 +40,29 @@ use Illuminate\Support\Facades\DB;
 class DemoReportActivitySeeder extends Seeder
 {
     private const DAYS = 90;
+
+    /**
+     * Ghi danh rải trong 180 ngày: đủ để kỳ "Quý này" và kỳ so sánh liền trước của nó
+     * đều ở trạng thái ổn định (không có đoạn "mới bắt đầu có dữ liệu").
+     */
+    private const LEARNING_DAYS = 180;
+
+    /** Giờ học trung bình mỗi học viên hoạt động trong 30 ngày gần nhất (bảng 1.2: 8–12 giờ). */
+    private const HOURS_PER_ACTIVE_LEARNER = 9.6;
+
+    /** Số nhân viên dùng để sinh nhật ký tài liệu (mỗi người phải resolve quyền từng tài liệu — chậm). */
+    private const DOCUMENT_LOG_PEOPLE = 260;
+
+    /**
+     * Cường độ hoạt động theo ngày (khóa = số ngày trước hôm nay, âm = tương lai):
+     * bước ngẫu nhiên có kéo về trung bình × hệ số cuối tuần. Mọi mốc học tập được
+     * dời theo cường độ này nên biểu đồ xu hướng có nhiễu tự nhiên và sụt T7/CN.
+     *
+     * @var array<int, float>
+     */
+    private array $dayWeight = [];
+
+    private float $maxDayWeight = 1.0;
 
     private const SEED = 20261022;
 
@@ -67,6 +98,7 @@ class DemoReportActivitySeeder extends Seeder
 
         $this->nowTs = CarbonImmutable::now('UTC')->timestamp;
         $this->todayStartTs = CarbonImmutable::now(ReportPeriod::TIMEZONE)->startOfDay()->timestamp;
+        $this->buildDayWeights();
 
         $counts = [];
         $counts += $this->seedLearning();
@@ -98,6 +130,16 @@ class DemoReportActivitySeeder extends Seeder
             ->get(['id', 'user_id', 'department_id', 'job_title_id', 'job_grade_id', 'joined_at', 'employment_status']);
 
         $rules = $this->loadRules();
+
+        // Mức chăm chỉ của từng đơn vị (0 → 1, cố định theo hạt giống): đơn vị chăm hoàn
+        // thành sớm, ít lượt trễ hạn — để "Tiến độ theo đơn vị" chênh rõ (~50–90%)
+        $deptIds = DB::table('departments')->whereNotNull('parent_id')->orderBy('id')->pluck('id')->all();
+        mt_srand(self::SEED + 9);
+        shuffle($deptIds);
+        $diligence = [];
+        foreach ($deptIds as $i => $id) {
+            $diligence[$id] = count($deptIds) > 1 ? $i / (count($deptIds) - 1) : 0.5;
+        }
 
         $existing = DB::table('enrollments')->get()
             ->keyBy(fn ($e) => $e->course_id . '-' . $e->employee_id);
@@ -163,6 +205,9 @@ class DemoReportActivitySeeder extends Seeder
                 $quiz = $quizLessonIndex !== null ? $quizzes[$lessons[$quizLessonIndex]->quiz_id] : null;
                 $foreign = $quiz ? $foreignAttempts->get($quiz['id'] . '-' . $employee->id) : null;
 
+                // Thời hạn học: theo điều kiện giao khóa, gói trong 14–45 ngày cho vòng đời demo gọn
+                $dueDays = $rule->due_days ?? (($rules[$course->id][0] ?? null)->due_days ?? [21, 30, 45][crc32($course->code) % 3]);
+
                 $plan = $this->planEnrollment(
                     $course,
                     $lessons,
@@ -172,6 +217,8 @@ class DemoReportActivitySeeder extends Seeder
                     $ability,
                     forceCompleted: $current && $certified->has($current->id),
                     foreign: $foreign,
+                    diligence: $diligence[$employee->department_id] ?? 0.5,
+                    duration: max(14, min(45, (int) $dueDays)),
                 );
 
                 $isManual = $current ? $current->course_assignment_rule_id === null : $rule === null;
@@ -234,100 +281,115 @@ class DemoReportActivitySeeder extends Seeder
      * Dựng toàn bộ dòng thời gian của một lượt ghi danh: giao → bắt đầu → từng bài → (bài kiểm tra) → hoàn thành.
      * Mọi mốc tính theo giờ VN rồi đổi ra timestamp UTC.
      */
-    private function planEnrollment($course, $lessons, ?int $quizIndex, ?array $quiz, $employee, float $ability, bool $forceCompleted, $foreign): array
+    private function planEnrollment($course, $lessons, ?int $quizIndex, ?array $quiz, $employee, float $ability, bool $forceCompleted, $foreign, float $diligence = 0.5, int $duration = 30): array
     {
         $total = $lessons->count();
+        $limit = $this->nowTs - 300;
 
-        // Ngày giao: rải 90 ngày, nhân viên mới vào thì giao gần ngày vào làm
+        // 1. Ngày giao: rải đều 180 ngày (dòng ghi danh ổn định → kỳ này và kỳ trước so được
+        //    với nhau); nhân viên mới vào thì giao sau ngày vào làm, khóa hội nhập giao ngay
         $joinedTs = $employee->joined_at ? CarbonImmutable::parse($employee->joined_at, ReportPeriod::TIMEZONE)->timestamp : null;
-        $daysAgo = (int) floor(pow($this->rnd(), 1.4) * self::DAYS);
+        $daysAgo = $this->rnd() * self::LEARNING_DAYS;
 
-        if ($joinedTs && $joinedTs > $this->todayStartTs - self::DAYS * 86400) {
-            $joinedAgo = max(0, (int) floor(($this->todayStartTs - $joinedTs) / 86400));
+        if ($joinedTs && $joinedTs > $this->todayStartTs - self::LEARNING_DAYS * 86400) {
+            $joinedAgo = max(0, ($this->todayStartTs - $joinedTs) / 86400);
             $isOnboarding = in_array($course->code, ['C-ONB', 'ONB-CULTURE', 'C-ATTT'], true);
-            $daysAgo = $isOnboarding
-                ? max(0, $joinedAgo - mt_rand(0, 2))
-                : mt_rand(0, $joinedAgo);
+            $daysAgo = $isOnboarding ? max(0, $joinedAgo - mt_rand(0, 2)) : $this->rnd() * $joinedAgo;
         }
 
-        $assigned = $this->workTime($daysAgo);
+        $assigned = $this->placeOnBusyDay($this->localTime((int) floor($daysAgo), mt_rand(8, 16), mt_rand(0, 59)));
+        $assigned = min($assigned, $this->nowTs - 3600);
 
         // Lượt thi có sẵn của seeder khác phải nằm sau ngày giao
-        if ($foreign) {
-            $firstStart = strtotime($foreign->min('started_at') . ' UTC');
-            $assigned = min($assigned, $firstStart - mt_rand(2, 12) * 86400);
+        $firstForeignStart = $foreign ? strtotime($foreign->min('started_at') . ' UTC') : null;
+        if ($firstForeignStart) {
+            $assigned = min($assigned, $firstForeignStart - mt_rand(2, 12) * 86400);
         }
 
-        $duration = mt_rand(14, 45);
         $dueDate = $this->vnDate($assigned + $duration * 86400);
-        $dueEnd = CarbonImmutable::parse($dueDate, ReportPeriod::TIMEZONE)->endOfDay()->timestamp;
-        $duePassed = $dueEnd < $this->nowTs;
-        $elapsedFrac = min(1, ($this->nowTs - $assigned) / max(1, $dueEnd - $assigned));
+        $dueStart = CarbonImmutable::parse($dueDate, ReportPeriod::TIMEZONE)->startOfDay()->timestamp;
+        $dueEnd = $dueStart + 86399;
 
-        // Xác suất hoàn thành: đã qua hạn thì phần lớn xong, còn hạn thì tăng dần theo thời gian
-        $pComplete = $duePassed ? 0.8 : 0.04 + 0.4 * $elapsedFrac;
-        $completed = $forceCompleted || $this->chance($pComplete);
+        // 2. Dòng thời gian dự kiến. Người "trễ" (tỷ lệ cao ở đơn vị kém chăm) học xong sau hạn
+        //    10–45 ngày → quá hạn tối đa 45 ngày; còn lại xong trước hạn, đơn vị chăm xong sớm hơn
+        if ($this->chance(0.04 + 0.45 * (1 - $diligence))) {
+            $span = ($duration + 10 + $this->rnd() * 35) * 86400;
+            $startAfter = $span * (0.03 + 0.27 * $this->rnd());
+        } else {
+            $span = $duration * 86400 * (0.1 + 0.88 * pow($this->rnd(), 1.5 + 5 * $diligence));
+            $startAfter = $span * (0.01 + 0.21 * $this->rnd());
+        }
+        $span = max($span, 4 * 3600);
 
+        // Mốc từng bài rải ngẫu nhiên từ lúc bắt đầu tới lúc xong (bài cuối = lúc xong), rồi dời
+        // theo cường độ ngày; mốc rơi sau hiện tại nghĩa là bài đó chưa học
+        $plannedStart = $assigned + max(1800, (int) $startAfter);
+        $plannedEnd = $assigned + (int) $span;
+        $times = [];
+        for ($i = 0; $i < $total - 1; $i++) {
+            $times[] = $this->placeOnBusyDay($plannedStart + (int) (($plannedEnd - $plannedStart) * $this->rnd()));
+        }
+        $times[] = $this->placeOnBusyDay($plannedEnd);
+        sort($times);
+        $floor = $assigned + 1800;
+        foreach ($times as $i => $t) {
+            $floor = $times[$i] = max($t, $floor + 60);
+        }
+        $started = max($assigned + 600, min($this->placeOnBusyDay($plannedStart), $times[0] - 300));
+
+        $k = count(array_filter($times, fn ($t) => $t <= $limit));
+        $todayStart = $this->todayStartTs;
+        $overdueDays = $k < $total && $dueEnd < $this->nowTs ? (int) round(($todayStart - $dueStart) / 86400) : null;
+
+        // 3. Ép hoàn thành: đã có chứng nhận, hoặc vừa quá hạn dưới 5 ngày (bảng 1.2: số ngày
+        //    quá hạn 5–45) → coi như xong trễ trong mấy ngày qua; bài còn lại dồn tới hiện tại
+        if ($k < $total && ($forceCompleted || ($overdueDays !== null && $overdueDays < 5))) {
+            $started = max($assigned + 300, min($started, $limit - 7200));
+            $from =max($started + 600, $k > 0 ? $times[$k - 1] + 60 : $started + 600);
+            // Rải mốc xong trong khoảng còn lại (không dồn hết vào hôm nay); vừa quá hạn thì
+            // phần lớn coi như xong sát hạn
+            $until = $overdueDays !== null && $dueEnd > $from + 3600 && $this->chance(0.85) ? $dueEnd : $limit;
+            $to = min($this->nowTs - 60, $from + 600 + (int) (max(0, $until - $from - 600) * (0.25 + 0.75 * $this->rnd())));
+            $from = min($from, $to - 60);
+            $times = array_merge(array_slice($times, 0, $k), $this->spread($from, $to, $total - $k));
+            $k = $total;
+            $overdueDays = null;
+        }
+
+        // 4. Lượt thi của seeder khác quyết định kết quả: đã đạt → xong sau lượt đạt; chưa đạt → dừng ở bài kiểm tra
         $foreignPassed = $foreign ? $foreign->firstWhere('is_passed', 1) : null;
+        $lastAccess = null;
 
         if ($foreign) {
-            $completed = (bool) $foreignPassed;
-        }
-
-        $started = null;
-        $completedAt = null;
-        $lastAccess = null;
-        $k = 0;
-
-        if ($completed) {
-            $k = $total;
-            $started = $assigned + mt_rand(1800, (int) min(4 * 86400, max(3600, ($this->nowTs - $assigned) * 0.3)));
-
-            if ($duePassed && $this->chance(0.13)) {
-                // Hoàn thành trễ hạn 1–12 ngày
-                $completedAt = min($this->nowTs - 600, $dueEnd + mt_rand(1, 12) * 86400 - mt_rand(0, 40000));
-            } else {
-                $end = min($dueEnd - 3600, $this->nowTs - 600);
-                $completedAt = $started + (int) (($end - $started) * (0.15 + 0.8 * pow($this->rnd(), 1.3)));
-            }
-
+            $started = min($started, $firstForeignStart - 3600);
             if ($foreignPassed) {
-                $completedAt = max($completedAt, strtotime($foreign->where('is_passed', 1)->max('submitted_at') . ' UTC') + mt_rand(600, 7200));
+                $end = min($limit, strtotime($foreign->where('is_passed', 1)->max('submitted_at') . ' UTC') + mt_rand(600, 7200));
+                $times = $this->spread($started + 600, max($end, $started + 1200), $total);
+                $k = $total;
+            } else {
+                $k = (int) $quizIndex;
+                $times = $this->spread($started + 600, max($firstForeignStart - 600, $started + 1200), $k);
+                $lastAccess = min($limit, strtotime($foreign->max('submitted_at') . ' UTC'));
             }
+        }
 
-            $completedAt = min(max($this->snapToDay($completedAt), $assigned + 7200), $this->nowTs - 300);
-            $started = max($assigned + 600, min($started, $completedAt - 3600));
+        $completedAt = $k === $total ? $times[$total - 1] : null;
+        if ($started > $limit) {
+            $started = null;
+        }
+
+        if ($completedAt) {
             $lastAccess = $completedAt;
-        } else {
-            $pStart = ($this->nowTs - $assigned) < 2 * 86400 ? 0.35 : 0.8;
-
-            if ($foreign || $this->chance($pStart)) {
-                $started = $assigned + mt_rand(1800, (int) min(5 * 86400, max(3600, ($this->nowTs - $assigned) * 0.4)));
-                $started = min($started, $this->nowTs - 1200);
-                $k = $foreign ? $quizIndex : mt_rand(0, $total - 1);
-                $horizon = min($this->nowTs - 600, $dueEnd + 3 * 86400);
-                $lastAccess = $started + (int) (max(0, $horizon - $started) * (0.3 + 0.7 * $this->rnd()));
-                $lastAccess = min(max($this->snapToDay($lastAccess), $started + 600), $this->nowTs - 300);
-            }
+        } elseif ($started && ! $lastAccess) {
+            // Lần mở gần nhất: sau bài vừa xong, trước bài kế tiếp (và trước hiện tại)
+            $prev = $k > 0 ? $times[$k - 1] : $started;
+            $next = min($times[$k] ?? $limit, $limit);
+            $lastAccess = $prev + (int) (max(0, $next - $prev) * 0.6 * $this->rnd());
+            $lastAccess = min(max($lastAccess, $prev), $limit);
         }
 
-        // Mốc hoàn thành từng bài, tăng dần từ lúc bắt đầu tới lần truy cập cuối
-        $lessonTimes = [];
-        if ($started) {
-            $end = $completedAt ?? $lastAccess;
-            $span = max(600, $end - $started);
-            $points = [];
-            for ($i = 0; $i < $k; $i++) {
-                $points[] = $this->rnd();
-            }
-            sort($points);
-            foreach ($points as $i => $p) {
-                $lessonTimes[$i] = $started + (int) ($span * $p);
-            }
-            if ($completedAt && $k > 0) {
-                $lessonTimes[$k - 1] = $completedAt;
-            }
-        }
+        $lessonTimes = array_slice($times, 0, $k);
+        $duePassed = $dueEnd < $this->nowTs;
 
         // Bài kiểm tra: các lượt trượt trước rồi lượt đạt, hoặc đang dở/hết lượt
         $attempts = [];
@@ -381,7 +443,7 @@ class DemoReportActivitySeeder extends Seeder
         $status = match (true) {
             $completedAt !== null => 'completed',
             $duePassed => 'overdue',
-            $percent > 0 => 'in_progress',
+            $started !== null => 'in_progress',
             default => 'not_started',
         };
 
@@ -469,6 +531,7 @@ class DemoReportActivitySeeder extends Seeder
     private function writeLessonProgress(array $plans, $enrollmentIds): void
     {
         $rows = [];
+        $meta = [];
         $touched = [];
 
         foreach ($plans as $key => $plan) {
@@ -488,9 +551,12 @@ class DemoReportActivitySeeder extends Seeder
                 $isVideo = $lesson->content_type === 'video';
                 $isQuiz = $i === $plan['quiz_index'];
 
+                // Thời gian học theo thời lượng dự kiến của bài (còn được hiệu chỉnh tổng ở dưới)
+                $minutes = max(5, (int) ($lesson->estimated_minutes ?: 15));
+
                 if ($isDone) {
                     $doneAt = $plan['lesson_times'][$i];
-                    $spent = mt_rand(5 * 60, 40 * 60);
+                    $spent = (int) ($minutes * 60 * (0.9 + 1.2 * $this->rnd()));
                     if ($isQuiz && $plan['attempts']) {
                         $spent = array_sum(array_map(fn ($a) => $a['submitted_at'] - $a['started_at'], $plan['attempts']));
                     }
@@ -498,7 +564,7 @@ class DemoReportActivitySeeder extends Seeder
                     $updatedAt = $doneAt;
                 } else {
                     $updatedAt = $plan['last_access'];
-                    $spent = mt_rand(3 * 60, 25 * 60);
+                    $spent = (int) ($minutes * 60 * (0.2 + 0.6 * $this->rnd()));
                     if ($isQuiz && $plan['attempts']) {
                         $spent = array_sum(array_map(fn ($a) => $a['submitted_at'] - $a['started_at'], $plan['attempts']));
                     }
@@ -521,8 +587,40 @@ class DemoReportActivitySeeder extends Seeder
                     'created_at' => $this->ts($firstAt),
                     'updated_at' => $this->ts($updatedAt),
                 ];
+                $meta[] = [$updatedAt, $isQuiz && $plan['attempts']];
             }
         }
+
+        // Hiệu chỉnh giờ học: tổng giờ của 30 ngày gần nhất = HOURS_PER_ACTIVE_LEARNER × số học
+        // viên hoạt động (bảng 1.2: 6.000–9.000 giờ, TB 8–12 giờ/người). Cùng một hệ số cho mọi
+        // ngày nên tỷ lệ kỳ này / kỳ trước vẫn theo nhịp hoạt động thật. Bài kiểm tra giữ thời
+        // lượng làm bài thật.
+        $windowStart = $this->todayStartTs - 29 * 86400;
+        $active = [];
+        foreach ($plans as $plan) {
+            if ($plan['last_access'] && $plan['last_access'] >= $windowStart) {
+                $active[$plan['employee_id']] = true;
+            }
+        }
+        [$scalable, $fixed] = [0, 0];
+        foreach ($rows as $i => $row) {
+            if ($meta[$i][0] >= $windowStart) {
+                if ($meta[$i][1]) {
+                    $fixed += $row['time_spent_seconds'];
+                } else {
+                    $scalable += $row['time_spent_seconds'];
+                }
+            }
+        }
+        $target = self::HOURS_PER_ACTIVE_LEARNER * 3600 * count($active);
+        $factor = $scalable > 0 ? max(0.3, min(8.0, ($target - $fixed) / $scalable)) : 1.0;
+        foreach ($rows as $i => &$row) {
+            if (! $meta[$i][1]) {
+                $row['time_spent_seconds'] = max(60, min(4 * 3600, (int) round($row['time_spent_seconds'] * $factor)));
+            }
+        }
+        unset($row);
+        $this->command?->info(sprintf('Giờ học 30 ngày: %d học viên hoạt động, hệ số thời lượng ×%.2f', count($active), $factor));
 
         foreach (array_chunk($rows, self::CHUNK) as $chunk) {
             DB::table('lesson_progresses')->upsert($chunk, ['enrollment_id', 'lesson_id'], [
@@ -697,6 +795,7 @@ class DemoReportActivitySeeder extends Seeder
                 'job_title_id' => $rule->job_title_id,
                 'job_grade_id' => $rule->job_grade_id,
                 'employment_status' => $rule->employment_status,
+                'due_days' => $rule->due_days ? (int) $rule->due_days : null,
             ];
         }
 
@@ -736,6 +835,12 @@ class DemoReportActivitySeeder extends Seeder
         $service = app(DocumentAccessService::class);
         $documents = Document::published()->orderBy('id')->get();
         $employees = Employee::active()->whereNotNull('user_id')->with(['department', 'jobGrade'])->orderBy('id')->get();
+
+        // Quy mô ~1.000 người: resolve quyền từng (người × tài liệu) chạy query mỗi lần nên chỉ
+        // lấy một nhóm mẫu cố định để sinh nhật ký — đủ cho báo cáo truy cập tài liệu
+        if ($employees->count() > self::DOCUMENT_LOG_PEOPLE) {
+            $employees = $employees->shuffle(self::SEED)->take(self::DOCUMENT_LOG_PEOPLE)->sortBy('id')->values();
+        }
 
         if ($documents->isEmpty() || $employees->isEmpty()) {
             return ['document_access_logs' => ['created' => 0, 'updated' => 0]];
@@ -1193,6 +1298,73 @@ class DemoReportActivitySeeder extends Seeder
     // ------------------------------------------------------------------
     // Tiện ích thời gian / ngẫu nhiên
     // ------------------------------------------------------------------
+
+    /**
+     * Cường độ hoạt động từng ngày: bước ngẫu nhiên AR(1) quanh 1 (khoảng ×0,8–×1,3,
+     * có nhiễu ngày) và chỉ còn ~20–30% vào Thứ Bảy/Chủ nhật. Gieo hạt cố định.
+     */
+    private function buildDayWeights(): void
+    {
+        mt_srand(self::SEED + 11);
+        $x = 0.0;
+
+        for ($d = self::LEARNING_DAYS + 15; $d >= -150; $d--) {
+            $x = 0.85 * $x + ($this->rnd() - 0.5) * 0.22;
+            $w = exp($x) * (0.9 + 0.2 * $this->rnd());
+            if ($this->isWeekend($d)) {
+                $w *= 0.18 + 0.1 * $this->rnd();
+            }
+            $this->dayWeight[$d] = $w;
+        }
+
+        $this->maxDayWeight = max($this->dayWeight);
+    }
+
+    /** Số ngày trước hôm nay (giờ VN) của một mốc: 0 = hôm nay, âm = tương lai. */
+    private function daysAgoOf(int $ts): int
+    {
+        return (int) ceil(($this->todayStartTs - $ts) / 86400);
+    }
+
+    /**
+     * Dời một mốc theo cường độ ngày: ngày "vắng" (cuối tuần, đáy của bước ngẫu nhiên)
+     * hay bị chuyển sang ngày đông hơn trong ±3 ngày, giờ đặt lại vào giờ làm việc.
+     * Mốc đã ở quá khứ thì không bị đẩy sang tương lai.
+     */
+    private function placeOnBusyDay(int $ts): int
+    {
+        $d = $this->daysAgoOf($ts);
+        if (! isset($this->dayWeight[$d]) || $this->rnd() < $this->dayWeight[$d] / $this->maxDayWeight) {
+            return $ts;
+        }
+
+        $candidates = [];
+        for ($k = -3; $k <= 3; $k++) {
+            $candidates[$d + $k] = $this->dayWeight[$d + $k] ?? 0.0;
+        }
+        $day = (int) $this->weightedPick($candidates);
+        $hour = $this->chance(0.9) ? mt_rand(8, 17) : mt_rand(19, 21);
+        $moved = $this->localTime($day, $hour, mt_rand(0, 59));
+
+        return $ts <= $this->nowTs && $moved > $this->nowTs - 300 ? $ts : $moved;
+    }
+
+    /** $n mốc tăng dần trong [from, to], mốc cuối đúng bằng to. */
+    private function spread(int $from, int $to, int $n): array
+    {
+        if ($n <= 0) {
+            return [];
+        }
+
+        $points = [];
+        for ($i = 0; $i < $n - 1; $i++) {
+            $points[] = $from + (int) (max(0, $to - $from) * $this->rnd());
+        }
+        sort($points);
+        $points[] = max($to, $points ? end($points) : $from);
+
+        return $points;
+    }
 
     private function rnd(): float
     {

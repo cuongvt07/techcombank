@@ -264,6 +264,12 @@ class DashboardMetricsTest extends TestCase
             $this->metrics->statusBreakdown($this->filter()),
         );
 
+        // Xong trước đầu kỳ nhưng hạn nằm trong kỳ: KPI "đúng hạn" đếm nó nên donut cũng phải đếm
+        // (trước đây donut loại ra → KPI 100/459 trong khi donut "Hoàn thành 0")
+        $this->enroll(null, ['due_date' => '2026-10-05', 'status' => 'completed', 'completed_at' => '2026-09-10 03:00:00']);
+        $this->assertSame(2, $this->metrics->statusBreakdown($this->filter())['completed']);
+        $this->assertSame(1, $this->metrics->onTime($this->filter())['on_time']);
+
         Livewire::test(Dashboard::class)
             ->assertViewHas('rows', fn ($rows) => $rows->total() === 3) // mặc định: chưa hoàn thành
             ->call('filterStatus', 'overdue')
@@ -333,18 +339,78 @@ class DashboardMetricsTest extends TestCase
 
         $this->assertSame(['open_alerts' => 2, 'over_sla' => 1], $this->metrics->actionItems());
 
-        Livewire::test(Dashboard::class)
-            ->assertSee('cảnh báo bảo mật chưa đóng')
-            ->assertSee('yêu cầu hỗ trợ đang mở quá SLA')
-            ->assertSeeHtml('href="' . route('admin.security') . '"')
-            ->assertSeeHtml('href="' . route('admin.support') . '"');
-    }
-
-    public function test_an_dong_viec_can_xu_ly_khi_bang_khong(): void
-    {
+        // Trang Tổng quan đào tạo không còn banner bảo mật / helpdesk (sai phạm vi nghiệp vụ)
         Livewire::test(Dashboard::class)
             ->assertDontSee('cảnh báo bảo mật chưa đóng')
-            ->assertDontSee('quá SLA');
+            ->assertDontSee('yêu cầu hỗ trợ đang mở quá SLA');
+    }
+
+    public function test_canh_bao_qua_han_khoa_bat_buoc_va_khoa_tuan_thu_sap_den_han(): void
+    {
+        $emp = Employee::factory()->create();
+        $this->enroll($emp, ['due_date' => '2026-09-01']);                          // bắt buộc, quá hạn 50 ngày
+        $this->enroll($emp, ['due_date' => '2026-09-05']);                          // cùng người
+        $this->enroll(null, ['due_date' => '2026-09-01', 'is_mandatory' => false]); // tự chọn: không tính
+        $this->enroll(null, ['due_date' => '2026-10-10']);                          // quá hạn 11 ngày: chưa tới ngưỡng
+        $soon = $this->enroll(null, ['due_date' => '2026-10-30']);                  // bắt buộc, hạn trong 14 ngày
+
+        $alerts = $this->metrics->trainingAlerts($this->filter());
+        $this->assertSame(['employees' => 1, 'enrollments' => 2], $alerts['overdue']);
+        // Chưa có chứng nhận có thời hạn → chỉ báo tương đương: khóa bắt buộc sắp đến hạn
+        $this->assertSame('due_soon', $alerts['compliance']['kind']);
+        $this->assertSame(1, $alerts['compliance']['courses']);
+
+        Livewire::test(Dashboard::class)
+            ->assertSee('quá hạn khóa bắt buộc trên 30 ngày')
+            ->assertSee('đến hạn trong 14 ngày tới');
+
+        // Có chứng nhận hết hiệu lực trong 14 ngày → cảnh báo theo chứng chỉ
+        DB::table('certificates')->insert([
+            'certificate_no' => 'CN-1', 'enrollment_id' => $soon->id, 'employee_id' => $soon->employee_id,
+            'course_id' => $soon->course_id, 'issued_at' => now()->subYear(), 'valid_until' => '2026-10-25',
+            'verification_code' => 'abc', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertSame('certificate', $this->metrics->trainingAlerts($this->filter())['compliance']['kind']);
+        Livewire::test(Dashboard::class)->assertSee('hết hiệu lực chứng chỉ trong 14 ngày');
+    }
+
+    public function test_an_canh_bao_khi_khong_co_gi(): void
+    {
+        Livewire::test(Dashboard::class)
+            ->assertDontSee('quá hạn khóa bắt buộc')
+            ->assertDontSee('hết hiệu lực chứng chỉ');
+    }
+
+    public function test_chip_bo_loc_dat_lai_va_so_dong_moi_trang(): void
+    {
+        $dept = Department::factory()->create(['name' => 'Khối Thử']);
+        foreach (range(1, 25) as $_) {
+            $this->enroll(null, ['due_date' => '2026-10-01']);
+        }
+
+        Livewire::test(Dashboard::class)
+            ->assertDontSee('Đặt lại')
+            ->assertViewHas('rows', fn ($rows) => $rows->perPage() === 20 && $rows->count() === 20)
+            ->assertSee('Hiển thị 1–20 trong 25 lượt')
+            ->set('perPage', 50)
+            ->assertViewHas('rows', fn ($rows) => $rows->count() === 25)
+            ->set('perPage', 'abc') // giá trị lạ trên URL → mặc định
+            ->assertViewHas('rows', fn ($rows) => $rows->perPage() === 20)
+            ->set('departmentId', $dept->id)
+            ->assertViewHas('chips', fn ($chips) => ($chips['departmentId'] ?? null) === 'Đơn vị: Khối Thử')
+            ->assertSee('Bộ lọc (1)')
+            ->assertSee('Đặt lại')
+            ->call('clearFilter', 'departmentId')
+            ->assertSet('departmentId', null)
+            ->assertViewHas('chips', []);
+    }
+
+    public function test_the_kpi_chua_co_du_lieu_hien_trang_thai_trong(): void
+    {
+        $cards = Livewire::test(Dashboard::class)->viewData('cards');
+
+        $this->assertSame('Chưa có lượt thi lần đầu nào trong kỳ', $cards['first_pass']['empty']);
+        $this->assertNull($cards['hours']['empty']);
     }
 
     // ---- Gửi nhắc & phân quyền ----------------------------------------------
@@ -449,7 +515,9 @@ class DashboardMetricsTest extends TestCase
         $this->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Tổng quan đào tạo')
-            ->assertSee('Dữ liệu cập nhật lúc 12:00 · 21/10/2026 (GMT+7)')
+            ->assertSee('Cập nhật 12:00 hôm nay')
+            ->assertSee('nhân sự đang theo dõi')
+            ->assertDontSee('Nguồn: enrollments')
             ->assertSee('Không có lượt ghi danh nào trong phạm vi lọc.');
     }
 }

@@ -9,7 +9,7 @@
 <div x-data="{ open: false }" class="relative" x-on:keydown.escape.window="open = false">
     <button type="button" x-on:click="open = ! open" class="admin-btn-secondary" aria-haspopup="menu" x-bind:aria-expanded="open">
         @svg('heroicon-o-printer', 'h-4 w-4')
-        Xuất báo cáo (mẫu)
+        Xuất báo cáo
         @svg('heroicon-m-chevron-down', 'h-4 w-4')
     </button>
     <div x-show="open" x-cloak x-on:click.outside="open = false" x-transition.opacity

@@ -208,7 +208,8 @@ class ReportTemplateTest extends TestCase
     {
         $component = Livewire::test(LearningProgressReport::class)
             ->set('department', (string) $this->parent->id)
-            ->assertSee('Xuất báo cáo (mẫu)');
+            ->assertSee('Xuất báo cáo')
+            ->assertDontSee('Xuất báo cáo (mẫu)');
 
         $url = $component->instance()->templateUrl();
         $this->assertStringContainsString('/bao-cao/mau/tien-do-hoc-tap', $url);
