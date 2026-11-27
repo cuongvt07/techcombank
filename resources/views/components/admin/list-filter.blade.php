@@ -2,7 +2,7 @@
     // Tên trường lọc, hiện ngay trong ô: "Trạng thái  Tất cả ▾"
     'label',
     // Thuộc tính Livewire; có model thì component tự dựng <select>, slot là danh sách <option>.
-    // Không có model thì slot là control tùy biến (vd. <x-admin.searchable-select>, ô ngày).
+    // Không có model thì slot là control tùy biến (vd. component searchable-select, ô ngày).
     'model' => null,
     'id' => null,
 ])
